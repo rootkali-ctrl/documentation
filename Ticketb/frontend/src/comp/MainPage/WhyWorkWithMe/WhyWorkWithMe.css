@@ -1,0 +1,167 @@
+/* Apply Mona Sans globally */
+/* body {
+  font-family: 'Mona Sans', sans-serif;
+} */
+
+/* Container Layout */
+.container2 {
+  display: flex;
+  background-color: #FFFFFF;
+  color: rgb(0, 0, 0);
+  width: 75vw;
+  margin: 0 auto;
+  position: relative;
+  height: auto; /* Set to auto for flexible height */
+  margin-bottom: 20vh;
+}
+
+/* Left Side */
+.left-content {
+  width: 30%;
+  padding: 1%;
+  position: static; /* Required for pinning */
+  overflow-y: hidden;
+  margin-right: 20px;
+  margin-left: 30px;
+  margin-top: 5%;
+  height: fit-content;
+  color: #19AEDC;
+}
+
+#h11 {
+  font-size: 50px;
+  font-weight: 200;
+  padding-top: 100px;
+}
+
+#h12 {
+  font-size: 52px;
+  font-weight: 700;
+  margin-top: -30px;
+}
+
+.left-content p {
+  font-size: 18px;
+  color: #817B6F;
+  font-weight: 100;
+  padding-bottom: 0;
+}
+
+/* Right Side */
+.right-content {
+  width: 50%;
+  padding: 1%;
+  overflow-y: hidden;
+  height: fit-content;
+  padding-top: 100px;
+  margin-top: 4%;
+}
+
+/* Card Styles */
+.card {
+  margin: 0;
+  padding: 10px;
+  background-color: #FFFFFF;
+  border-radius: 8px;
+  display: flex;
+  padding-top: 10%;
+}
+
+.card_right {
+  font-size: 70px; /* Large font size for card number */
+  margin: 0px;
+  color: #19AEDC;
+}
+
+.card h2 {
+  font-size: 40px;
+  font-weight: 100;
+  padding-left: 10%;
+  margin: 0%;
+  color: #666;
+}
+
+#clp {
+  font-size: 18px;
+  color: #817B6F;
+  padding-left: 10%;
+}
+.card_right{
+  font-size: 70px;
+}
+.card_left hr {
+  width: 90%;
+  border: none; /* Remove the default border */
+  border-top: 1px solid #19AEDC; /* Create a 1px white line */
+  margin: 10px 0; /* Add some margin around the line */
+  margin-left: 10%;
+}
+
+/* Scrollbar styling */
+.right-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.right-content::-webkit-scrollbar-thumb {
+  background: #555;
+  border-radius: 10px;
+}
+
+.right-content::-webkit-scrollbar-track {
+  background: #222;
+}
+
+/* Responsive Styles */
+@media (max-width: 900px) {
+  .container2 {
+    flex-direction: column; /* Stack left and right content vertically */
+    height: auto; /* Allow height to adjust to content */
+  }
+
+  .left-content {
+    width: 100%; /* Full width for smaller screens */
+    height: fit-content; /* Ensure height is based on content */
+    margin: 0; /* Remove margins */
+    padding-bottom: 0; 
+    
+    /* Remove padding to avoid gaps */
+  }
+
+  .right-content {
+    width: 100%; /* Full width for smaller screens */
+    margin:0; /* Remove margins */
+    padding: 20px;
+    margin-right: 0px;
+    margin-left: -30px; /* Add padding for spacing */
+    
+    /* Remove top margin to avoid vertical gap */
+  }
+
+  #h11 {
+    font-size: 40px; /* Reduce font size for headings */
+  }
+
+  #h12 {
+    font-size: 42px; /* Reduce font size for headings */
+  }
+  .card_left{
+    width: 100%;
+  }
+  .left-content p {
+    font-size: 16px; /* Reduce paragraph font size */
+  }
+}
+
+@media (max-width: 600px) {
+  .card_right {
+    font-size: 60px; /* Further reduce card number */
+  }
+
+  .card h2 {
+    font-size: 24px; /* Further reduce card title font size */
+  }
+
+  #clp {
+    font-size: 16px; /* Further reduce card description font size */
+  }
+}

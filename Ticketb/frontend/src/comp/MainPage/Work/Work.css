@@ -1,0 +1,56 @@
+/* Global Styles */
+/* body {
+  font-family: '"HelveticaNowDisplay", sans-serif',;
+  scroll-behavior: smooth;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+} */
+
+/* Spacer Section */
+
+/* Container */
+
+.container22 {
+  display: flex;
+  background-color: #FFFFFF;
+  
+  width: 75vw;
+  margin: 0 auto;
+  position: relative;
+  width: 100%;
+}
+
+/* Left Content */
+.left-content {
+  padding-top: 25vh;
+  height: 100px;
+  flex: 1;
+  position: sticky;
+  top: 0; /* Keep the left content sticky */
+  width: 20%;
+  margin: 0 auto;
+  padding-left: 15%;
+  color: #4AA0D5;
+}
+
+/* Right Content */
+.right-content {
+  flex: 2;
+  padding-top: 0vh;
+  width: 70%;
+  margin: 0 auto;
+  padding-right: 15%;
+  color: #666;
+}
+
+/* Card */
+.card {
+  margin-bottom: 50px;
+}
+
+/* Card Description */
+#des {
+  padding-top: 25vh;
+  font-size: 10vh;
+  padding-bottom: 30vh;
+}

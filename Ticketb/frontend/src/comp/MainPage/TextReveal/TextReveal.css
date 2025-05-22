@@ -1,0 +1,78 @@
+/* body {
+  background: #FFFFFF;
+  
+} */
+
+section {
+  width: 100%;
+  height: 100vh;
+}
+
+.container1 {
+  width: 70%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  margin: 0 auto;
+}
+
+/* Responsive font sizes */
+.white {
+  color: #666; /* Initial grey color for text */
+  font-size: 40px;
+  font-weight: 600; /* Default for larger screens */
+}
+
+.segment {
+  transition: color 0.3s ease-in-out;
+}
+
+/* Mobile first design - smaller screens */
+@media (max-width: 600px) {
+  .white {
+    font-size: 24px; /* Smaller font size for mobile */
+  }
+
+  .container1 {
+    width: 85%; /* Wider container for small devices */
+  }
+}
+
+/* Tablets */
+@media (min-width: 601px) and (max-width: 900px) {
+  .white {
+    font-size: 28px; /* Adjust font size for tablets */
+  }
+
+  .container1 {
+    width: 80%; /* Adjust container width for tablets */
+  }
+}
+
+/* Laptops and larger screens */
+@media (min-width: 901px) and (max-width: 1200px) {
+  .white {
+    font-size: 36px; /* Slightly smaller font size for laptops */
+  }
+
+  .container1 {
+    width: 65%; /* Adjust container width for laptops */
+  }
+}
+
+/* Large screens and desktops */
+@media (min-width: 1201px) {
+  .white {
+    font-size: 40px; /* Font size for large screens */
+  }
+
+  .container1 {
+    width: 40%; /* Smaller container width for large desktops */
+  }
+}
+
+#s1 {
+  height: 0;
+}
