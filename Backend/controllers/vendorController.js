@@ -440,6 +440,7 @@ const uploadFileToStorage = async (file, type, authId) => {
       blobStream.on("finish", async () => {
         try {
           // Generate the public URL without explicitly making it public
+          await fileUpload.makePublic();
           const publicUrl = `https://storage.googleapis.com/${bucket.name}/${encodeURIComponent(fileName)}`;
           resolve(publicUrl);
         } catch (err) {
