@@ -308,6 +308,26 @@ const VendorHome = () => {
               <AddIcon sx={{ fontSize: "20px" }} /> Create Event
             </Button>
           </Box>
+          <Box>
+            <Button
+              variant="contained"
+              sx={{
+                backgroundColor: "#19AEDC",
+                color: "white",
+                padding: "8px 16px",
+                fontWeight: "600",
+                fontFamily: "Albert Sans",
+                textTransform: "none",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+              }}
+                onClick={() => navigate(`/vendorhome/QRScanner/${vendorId}`)}
+            >
+              Scan tickets
+            </Button>
+          </Box>
+        
         </Box>
 
         <Box

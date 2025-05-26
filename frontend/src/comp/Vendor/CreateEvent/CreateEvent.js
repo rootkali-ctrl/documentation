@@ -18,7 +18,6 @@ import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import dayjs from "dayjs"; // for value handling
 import { GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
-import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { useEventContext } from "./EventContext";
 import { useParams } from "react-router-dom";
@@ -26,7 +25,7 @@ import { useParams } from "react-router-dom";
 const CreateEvent = () => {
   const navigate = useNavigate();
   const { vendorId } = useParams();
-  const { updateFormSection, formData } = useEventContext();
+  const { updateFormSection, formData, markStepCompleted  } = useEventContext();
 
   const [mediaLink, setMediaLink] = useState("");
   const [selectedCategories, setSelectedCategories] = useState([]);
@@ -49,9 +48,6 @@ const CreateEvent = () => {
     area: "",
   });
 
-  useEffect(() => {
-    localStorage.removeItem("createEventFormData");
-  }, []);
 
   useEffect(() => {
     if (formData.eventDetails) {
@@ -84,24 +80,52 @@ const CreateEvent = () => {
     }
   }, [formData]);
 
-  const handleNext = () => {
-    const eventData = {
-      ...localData,
-      speaker,
-      eventDate: dayjs(localData.eventDate).toISOString(),
-      eventHost: dayjs(localData.eventHost).toISOString(),
-      vendorId,
-      mediaLink,
-      category: selectedCategories,
-      venueDetails,
-      banner: localData.banner,
-    };
+  const isFormValid = () => {
+    const requiredFieldsValid =
+      localData.name.trim() !== "" &&
+      localData.description.trim() !== "" &&
+      localData.eventHost &&
+      localData.eventDate &&
+      selectedCategories.length > 0 &&
+      venueDetails.venueName.trim() !== "" &&
+      venueDetails.streetName.trim() !== "" &&
+      venueDetails.city.trim() !== "" &&
+      venueDetails.state.trim() !== "" &&
+      venueDetails.pincode.trim() !== "" &&
+      venueDetails.area.trim() !== "";
 
-    console.log("Event Details on Next Click:", eventData);
+    const bannerValid = localData.banner.length === 6;
 
-    updateFormSection("eventDetails", eventData);
-    navigate(`/createevent/${vendorId}/step2`);
+    return requiredFieldsValid && bannerValid;
   };
+
+  const handleNext = () => {
+  if (!isFormValid()) {
+    alert("Please fill all required fields and upload exactly 6 banner images.");
+    return;
+  }
+
+  const eventData = {
+    ...localData,
+    speaker,
+    eventDate: dayjs(localData.eventDate).toISOString(),
+    eventHost: dayjs(localData.eventHost).toISOString(),
+    vendorId,
+    mediaLink,
+    category: selectedCategories,
+    venueDetails,
+    banner: localData.banner,
+  };
+
+  console.log("Event Details on Next Click:", eventData);
+
+  updateFormSection("eventDetails", eventData);
+  
+  markStepCompleted("step1");
+  
+  navigate(`/createevent/${vendorId}/step2`);
+};
+
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -149,11 +173,9 @@ const CreateEvent = () => {
 
     setLocalData((prev) => ({
       ...prev,
-        banner: [...validImages].slice(0, 6),
+      banner: [...validImages].slice(0, 6),
     }));
-
   };
-
 
   const handleVenueChange = (field, value) => {
     setVenueDetails((prev) => ({
@@ -299,10 +321,6 @@ const CreateEvent = () => {
       category: selectedCategories,
     }));
   }, [selectedCategories]);
-   
-  
-
-
 
   return (
     <div>
@@ -947,48 +965,50 @@ const CreateEvent = () => {
               Venue Details
             </Typography>
             <Box sx={{ display: "flex", flexWrap: "wrap", gap: 3, mt: "2%" }}>
-  {fields.map((field) => (
-    <Box
-      key={field.key}
-      sx={{
-        flex: "1 1 calc(50% - 12px)", // 2 fields per row with some spacing
-        minWidth: "300px", // fallback on smaller screens
-      }}
-    >
-      <FormControl fullWidth variant="outlined">
-        <Typography
-          variant="subtitle2"
-          sx={{
-            marginBottom: "6px",
-            color: "#666",
-            fontWeight: 500,
-            fontFamily: "Albert Sans",
-          }}
-        >
-          {field.label}
-        </Typography>
-        <OutlinedInput
-          placeholder={field.placeholder}
-          value={venueDetails[field.key]}
-          onChange={(e) => handleVenueChange(field.key, e.target.value)}
-          sx={{
-            height: "40px",
-            fontFamily: "Albert Sans",
-            "&::placeholder": {
-              fontFamily: "Albert Sans",
-            },
-            "& .MuiOutlinedInput-notchedOutline": {
-              borderColor: "#ccc",
-            },
-            "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-              borderColor: "#19AEDC",
-            },
-          }}
-        />
-      </FormControl>
-    </Box>
-  ))}
-</Box>
+              {fields.map((field) => (
+                <Box
+                  key={field.key}
+                  sx={{
+                    flex: "1 1 calc(50% - 12px)", // 2 fields per row with some spacing
+                    minWidth: "300px", // fallback on smaller screens
+                  }}
+                >
+                  <FormControl fullWidth variant="outlined">
+                    <Typography
+                      variant="subtitle2"
+                      sx={{
+                        marginBottom: "6px",
+                        color: "#666",
+                        fontWeight: 500,
+                        fontFamily: "Albert Sans",
+                      }}
+                    >
+                      {field.label}
+                    </Typography>
+                    <OutlinedInput
+                      placeholder={field.placeholder}
+                      value={venueDetails[field.key]}
+                      onChange={(e) =>
+                        handleVenueChange(field.key, e.target.value)
+                      }
+                      sx={{
+                        height: "40px",
+                        fontFamily: "Albert Sans",
+                        "&::placeholder": {
+                          fontFamily: "Albert Sans",
+                        },
+                        "& .MuiOutlinedInput-notchedOutline": {
+                          borderColor: "#ccc",
+                        },
+                        "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                          borderColor: "#19AEDC",
+                        },
+                      }}
+                    />
+                  </FormControl>
+                </Box>
+              ))}
+            </Box>
 
             {/* <VenueMap venueDetails={venueDetails} /> */}
           </Box>
@@ -1003,6 +1023,7 @@ const CreateEvent = () => {
         >
           <Button
             onClick={handleNext}
+            disabled={!isFormValid()}
             variant="contained"
             sx={{
               textTransform: "none",

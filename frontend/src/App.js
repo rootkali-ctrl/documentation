@@ -39,6 +39,8 @@ import AdminDashboard from "./comp/Admin/AdminDashboard";
 
 // Utils
 import ScrollToTop from "./utils/ScrollToTop";
+import QRScannerPage from "./comp/QR Scanner/QRScannerPage";
+import BookingDetailsPage from './comp/Booking Details/BookingDetailsPage';
 
 function App() {
   return (
@@ -102,10 +104,13 @@ function App() {
             <Route path="/vendor/verified" element={<VendorVerified />} />
             <Route path="/vendorconfirmation" element={<VendorConfirmation />} />
             <Route path="/vendorverified" element={<VendorVerified />} />
-            <Route path="/editevent/:vendorId/:eventId" element={<EditEventPage />} /> {/* Added route for EditEventPage */}
+            <Route path="/editevent/:vendorId/:eventId" element={<EditEventPage />} /> 
+            
 
             {/* Dashboard Routes */}
             <Route path='/vendorhome/:vendorId' element={<VendorHome />} />
+            <Route path="/vendorhome/QRScanner/:vendorId" element={<QRScannerPage/>} />
+            <Route path="/vendor/:vendorId/booking/:bookingId" element={<BookingDetailsPage />} />
             <Route path='/eventdashboard' element={<EventDashboard />} />
             <Route path='/eventdashboard/:eventId' element={<EventDashboard />} />
             <Route path="/admindashboard" element={<AdminDashboard />} />

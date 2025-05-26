@@ -19,7 +19,7 @@ import EventIcon from "@mui/icons-material/Event";
 import PeopleIcon from "@mui/icons-material/People";
 import ShareIcon from "@mui/icons-material/Share";
 import { useNavigate } from "react-router-dom";
-import EventContext from "./EventContext.js";
+import EventContext, { useEventContext } from "./EventContext.js";
 import axios from "axios";
 import Carousel from "react-material-ui-carousel";
 
@@ -30,8 +30,29 @@ const EventPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [openDialog, setOpenDialog] = useState(false);
 
-  const { formData } = useContext(EventContext);
+  const { formData, shouldRedirectToStep1, stepCompletion } = useContext(EventContext);
   const rawDate = formData.eventDetails.eventDate;
+  const { resetForm } = useEventContext();
+
+  // Handle page reload and validation - redirect to step 1
+  useEffect(() => { 
+    // Redirect to step 1 if page was reloaded 
+    if (shouldRedirectToStep1()) { 
+      navigate(`/createevent/${formData.eventDetails.vendorId}/step1`); 
+      return; 
+    } 
+ 
+    // Redirect to step 1 if previous steps are not completed or required data is missing 
+    if (!stepCompletion.step1 || !stepCompletion.step2 ||  
+        !formData.eventDetails?.name ||  
+        !formData.pricing?.tickets?.length || 
+        Object.keys(formData.eventDetails || {}).length === 0 ||
+        !formData.eventDetails?.banner?.length) { 
+      navigate(`/createevent/${formData.eventDetails.vendorId}/step1`); 
+      return; 
+    } 
+  }, [shouldRedirectToStep1, stepCompletion, formData, navigate]);
+
   const formattedDate = new Date(rawDate).toLocaleString("en-US", {
     month: "long",
     day: "numeric",
@@ -49,9 +70,6 @@ const EventPage = () => {
   //event location
   const location = formData?.eventDetails?.venueDetails?.venueName;
 
-  useEffect(() => {
-    console.log(formData.finalSetup.ticketCount)
-  })
   const handleSubmit = async () => {
     const { eventDetails, pricing, finalSetup } = formData;
     const form = new FormData();
@@ -70,7 +88,7 @@ const EventPage = () => {
       eventHost: eventDetails.eventHost,
       mediaLink: eventDetails.mediaLink || "",
       vendorId: eventDetails.vendorId,
-      
+
       speaker: (eventDetails.speaker || []).map((sp) => ({
         name: sp.name || "",
         role: sp.role || "",
@@ -136,41 +154,58 @@ const EventPage = () => {
         }
       );
       console.log(response);
-      setOpenDialog(true); // open success dialog
+      setOpenDialog(true);
+
+      // Navigate first, then reset form
+      navigate(`/vendorhome/${formData.eventDetails.vendorId}`);
+
+      // Reset form after navigation
+      setTimeout(() => {
+        resetForm();
+      }, 100); // Small delay to ensure navigation completes
     } catch (error) {
       alert("Failed to create event.");
+      setSubmitting(false);
     } finally {
       setSubmitting(false);
-      navigate(`/vendorhome/${formData.eventDetails.vendorId}`)
     }
   };
 
   const [previewUrls, setPreviewUrls] = useState([]);
 
   useEffect(() => {
-    console.log(formData.eventDetails.vendorId)
-  })
-  useEffect(() => {
     if (formData?.eventDetails?.banner?.length) {
-      const urls = formData.eventDetails.banner.map((file) =>
-        URL.createObjectURL(file)
-      );
-      setPreviewUrls(urls);
+      try {
+        const urls = formData.eventDetails.banner.map((file) => {
+          // Validate that file is actually a File or Blob object
+          if (!(file instanceof File) && !(file instanceof Blob)) {
+            throw new Error('Invalid file object');
+          }
+          return URL.createObjectURL(file);
+        });
+        setPreviewUrls(urls);
 
-      // Cleanup on unmount
-      return () => {
-        urls.forEach((url) => URL.revokeObjectURL(url));
-      };
+        // Cleanup on unmount
+        return () => {
+          urls.forEach((url) => URL.revokeObjectURL(url));
+        };
+      } catch (error) {
+        console.error('Error creating object URLs:', error);
+        // Redirect to step 1 if banner files are corrupted/invalid
+        navigate(`/createevent/${formData.eventDetails.vendorId}/step1`);
+      }
     }
-  }, [formData.eventDetails.banner]);
+  }, [formData.eventDetails.banner, navigate, formData.eventDetails.vendorId]);
 
-  // useEffect(() => {
-  //   if (!formData?.eventDetails?.panUpload || !formData?.eventDetails?.aadharUpload || !formData?.eventDetails?.bankUpload) {
-  //     // Redirect back if files are missing
-  //     navigate(-1);
-  //   }
-  // }, []);
-
+  // Return early if redirecting due to page reload or missing data
+  if (shouldRedirectToStep1() || 
+      !stepCompletion.step1 || !stepCompletion.step2 ||  
+      !formData.eventDetails?.name ||  
+      !formData.pricing?.tickets?.length || 
+      Object.keys(formData.eventDetails || {}).length === 0 ||
+      !formData.eventDetails?.banner?.length) {
+    return <div>Redirecting...</div>; // Optional loading state
+  }
   return (
     <Box sx={{ minHeight: "100vh", bgcolor: "#F9FAFB" }}>
       {/* Header */}
@@ -306,7 +341,7 @@ const EventPage = () => {
           </Box>
 
           {/*
-<BannerPreviewCarousel files={formData.eventDetails.banner} /> */}
+            <BannerPreviewCarousel files={formData.eventDetails.banner} /> */}
           {/* Event Details */}
           <Card sx={{ mt: 2 }}>
             <CardContent>
@@ -321,17 +356,18 @@ const EventPage = () => {
                 {/* Tech Innovation Summit 2025 */}
                 {formData.eventDetails.name || "Event Title"}
               </Typography>
-              <Box sx={{ display: "flex", gap: 1, mb: 2, flexWrap: "wrap" }}>
-                {formData.eventDetails.category.map((cat, index) => {
-                  return (
+              {formData?.eventDetails?.category?.length > 0 && (
+                <Box sx={{ display: "flex", gap: 1, mb: 2, flexWrap: "wrap" }}>
+                  {formData.eventDetails.category.map((cat, index) => (
                     <Chip
                       key={index}
                       label={cat}
                       sx={{ backgroundColor: "#DBEAFE", color: "#19AEDC" }}
                     />
-                  );
-                })}
-              </Box>
+                  ))}
+                </Box>
+              )}
+
               <Typography
                 variant="h6"
                 sx={{

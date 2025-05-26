@@ -167,6 +167,7 @@ const TicketPricePage = ({ activeStep = 0 }) => {
     fetchEventDetails();
   }, [eventId, navigate]);
 
+
   const handleIncrement = (ticketId) => {
     if (!ticketId || !event || !event.ticket) return;
 
@@ -355,6 +356,7 @@ const TicketPricePage = ({ activeStep = 0 }) => {
         state: {
           event: {
             id: event.id,
+            vendorId: event.vendorId,
             name: event.name,
             date: event.eventDate,
             location: event.venueDetails?.city || "Unknown Location",

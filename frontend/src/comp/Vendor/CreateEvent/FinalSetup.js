@@ -18,12 +18,28 @@ import { useEventContext } from "./EventContext";
 import { useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
 import { Add, Remove } from "@mui/icons-material";
-
 const FinalSetup = () => {
   const navigate = useNavigate();
   const { vendorId } = useParams();
-  const { formData, setFormData, updateFormSection, updatedFormData } =
-    useEventContext();
+  const { formData, updateFormSection, markStepCompleted, shouldRedirectToStep1, stepCompletion } = useEventContext();
+
+  // Redirect logic for reload detection and step validation
+  useEffect(() => {
+    // Redirect to step 1 if page was reloaded
+    if (shouldRedirectToStep1()) {
+      navigate(`/createevent/${vendorId}/step1`);
+      return;
+    }
+
+    // Redirect to step 1 if previous steps are not completed or required data is missing
+    if (!stepCompletion.step1 || !stepCompletion.step2 || 
+        !formData.eventDetails?.name || 
+        !formData.pricing?.tickets?.length ||
+        Object.keys(formData.eventDetails || {}).length === 0) {
+      navigate(`/createevent/${vendorId}/step1`);
+      return;
+    }
+  }, [shouldRedirectToStep1, stepCompletion, formData, navigate, vendorId]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -37,6 +53,7 @@ const FinalSetup = () => {
       }));
     }
   };
+
   useEffect(() => {
     console.log(formData)
   })
@@ -48,7 +65,8 @@ const FinalSetup = () => {
   const [deductionRate, setDeductionRate] = useState("");
   const [deductionType, setDeductionType] = useState("");
   const [isFocused, setIsFocused] = useState(false);
- const totalAttendees = formData?.pricing?.tickets?.reduce((acc, ticket) => {
+  
+  const totalAttendees = formData?.pricing?.tickets?.reduce((acc, ticket) => {
     return acc + Number(ticket.seats || 0);
   }, 0);
 
@@ -61,6 +79,7 @@ const FinalSetup = () => {
       },
     ]);
   };
+
   const [ticketCount, setTicketCount] = useState(10);
   const maxLimit = totalAttendees; 
   const minLimit = 10;
@@ -76,6 +95,7 @@ const FinalSetup = () => {
       setTicketCount((prev) => prev - 1);
     }
   };
+
   const handleInputChange = (e) => {
     const value = e.target.value;
 
@@ -107,12 +127,6 @@ const FinalSetup = () => {
   };
 
   const handleFinal = async () => {
-    // const finalSetup = {
-    //   contact: localData.contact,
-    //   tags: localData.tags,
-    //   FAQ,
-    // };
-
     updateFormSection("finalSetup", {
       contact: localData.contact,
       tags: localData.tags,
@@ -123,7 +137,7 @@ const FinalSetup = () => {
       deductionRate,
       ticketCount
     });
-
+    markStepCompleted("step3")
     navigate(`/createevent/${vendorId}/eventpreview`);
   };
 

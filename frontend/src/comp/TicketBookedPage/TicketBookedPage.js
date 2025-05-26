@@ -1,5 +1,13 @@
 import React, { useEffect, useState, useRef } from "react";
-import { Box, Typography, Button, Divider, Paper, Alert, CircularProgress } from "@mui/material";
+import {
+  Box,
+  Typography,
+  Button,
+  Divider,
+  Paper,
+  Alert,
+  CircularProgress,
+} from "@mui/material";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
 import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
@@ -9,15 +17,24 @@ import DownloadIcon from "@mui/icons-material/Download";
 import { useNavigate, useLocation } from "react-router-dom";
 import Header from "../Header/MainHeaderWOS";
 import Footer from "../Footer/Footer.js";
-import { doc, setDoc, getDoc, collection, getDocs, query, where, limit } from "firebase/firestore";
+import {
+  doc,
+  setDoc,
+  getDoc,
+  collection,
+  getDocs,
+  query,
+  where,
+  limit,
+} from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import { ref, getDownloadURL } from "firebase/storage";
-import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 import ErrorIcon from "@mui/icons-material/Error";
 import { QRCodeCanvas as QRCode } from "qrcode.react";
-import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 
 // Import Firebase from your existing configuration file
 import { auth, db, storage } from "../../firebase_config";
@@ -31,19 +48,19 @@ const formatEventDateTime = (isoDateString) => {
     const eventDateTime = new Date(isoDateString);
 
     // Format date in IST (UTC+5:30)
-    const formattedDate = eventDateTime.toLocaleDateString('en-US', {
-      month: 'long',
-      day: 'numeric',
-      year: 'numeric',
-      timeZone: 'Asia/Kolkata' // IST timezone
+    const formattedDate = eventDateTime.toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+      timeZone: "Asia/Kolkata", // IST timezone
     });
 
     // Format time in IST (UTC+5:30)
-    const eventTime = eventDateTime.toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
+    const eventTime = eventDateTime.toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
       hour12: true,
-      timeZone: 'Asia/Kolkata' // IST timezone
+      timeZone: "Asia/Kolkata", // IST timezone
     });
 
     return { formattedDate, eventTime };
@@ -53,6 +70,8 @@ const formatEventDateTime = (isoDateString) => {
   }
 };
 
+
+
 const TicketBookedPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -60,7 +79,7 @@ const TicketBookedPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [bookingStatus, setBookingStatus] = useState({
     status: "pending", // pending, success, error
-    message: ""
+    message: "",
   });
   const [eventImage, setEventImage] = useState(null);
   const [ticketIsSaved, setTicketIsSaved] = useState(false);
@@ -79,14 +98,19 @@ const TicketBookedPage = () => {
       discount: 0,
       gst: 0,
       totalAmount: 0,
-      isFreeEvent: true
-    }
+      isFreeEvent: true,
+    },
   } = location.state || {};
+
+
 
   // Generate a unique booking ID based on timestamp and random characters
   const [bookingId] = useState(() => {
     const timestamp = new Date().getTime().toString(36).slice(-4);
-    const randomChars = Math.random().toString(36).substring(2, 6).toUpperCase();
+    const randomChars = Math.random()
+      .toString(36)
+      .substring(2, 6)
+      .toUpperCase();
     return `#${randomChars}${timestamp}`;
   });
 
@@ -94,35 +118,57 @@ const TicketBookedPage = () => {
   const { formattedDate, eventTime } = event.eventDate
     ? formatEventDateTime(event.eventDate)
     : event.date
-      ? formatEventDateTime(event.date)  // Fallback to event.date if available
-      : {
-          formattedDate: event.date ? new Date(event.date).toLocaleDateString('en-US', {
-            month: 'long',
-            day: 'numeric',
-            year: 'numeric'
-          }) : "N/A",
-          eventTime: event.time || "N/A"
-        };
+    ? formatEventDateTime(event.date) // Fallback to event.date if available
+    : {
+        formattedDate: event.date
+          ? new Date(event.date).toLocaleDateString("en-US", {
+              month: "long",
+              day: "numeric",
+              year: "numeric",
+            })
+          : "N/A",
+        eventTime: event.time || "N/A",
+      };
 
   // Calculate total number of tickets (all ticket types)
-  const totalTickets = ticketSummary.reduce((sum, ticket) => sum + ticket.quantity, 0);
+  const totalTickets = ticketSummary.reduce(
+    (sum, ticket) => sum + ticket.quantity,
+    0
+  );
 
   // Format currency values
+  // const formatCurrency = (value) => {
+  //   return `₹${value.toFixed(2)}`;
+  // };
+
   const formatCurrency = (value) => {
-    return `₹${value.toFixed(2)}`;
+    // Handle undefined, null, or NaN values
+    if (value === undefined || value === null || isNaN(value)) {
+      return "₹0.00";
+    }
+
+    // Convert to number if it's a string
+    const numValue = typeof value === "string" ? parseFloat(value) : value;
+
+    // Check again after conversion
+    if (isNaN(numValue)) {
+      return "₹0.00";
+    }
+
+    return `₹${numValue.toFixed(2)}`;
   };
 
   // Generate current date and time for booking timestamp
-  const currentDate = new Date().toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric'
+  const currentDate = new Date().toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
   });
 
-  const currentTime = new Date().toLocaleTimeString('en-US', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true
+  const currentTime = new Date().toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
   });
 
   // MODIFIED: QR code now simply contains the booking ID for easy scanning
@@ -155,7 +201,12 @@ const TicketBookedPage = () => {
   // Improved function to fetch event image from Firebase Storage
   const fetchEventImage = async () => {
     try {
-      console.log("Fetching event image for:", event.name, "with ID:", event.id);
+      console.log(
+        "Fetching event image for:",
+        event.name,
+        "with ID:",
+        event.id
+      );
 
       // Clear any previous errors
       setEventImage(null);
@@ -170,7 +221,10 @@ const TicketBookedPage = () => {
           console.log("Event data retrieved:", eventData);
 
           // Check for bannerImages array in the retrieved document (based on your Firebase screenshot)
-          if (Array.isArray(eventData.bannerImages) && eventData.bannerImages.length > 0) {
+          if (
+            Array.isArray(eventData.bannerImages) &&
+            eventData.bannerImages.length > 0
+          ) {
             console.log("Found bannerImages array:", eventData.bannerImages);
             const imageUrl = eventData.bannerImages[0]; // Get the first banner image
             console.log("Setting event image to:", imageUrl);
@@ -179,7 +233,12 @@ const TicketBookedPage = () => {
           }
 
           // Fallbacks - check other possible image fields
-          const possibleImageFields = ['imageUrl', 'bannerImage', 'thumbnail', 'image'];
+          const possibleImageFields = [
+            "imageUrl",
+            "bannerImage",
+            "thumbnail",
+            "image",
+          ];
           for (const field of possibleImageFields) {
             if (eventData[field]) {
               console.log(`Found image in field ${field}:`, eventData[field]);
@@ -196,7 +255,10 @@ const TicketBookedPage = () => {
           }
 
           // Check for eventImages array
-          if (Array.isArray(eventData.eventImages) && eventData.eventImages.length > 0) {
+          if (
+            Array.isArray(eventData.eventImages) &&
+            eventData.eventImages.length > 0
+          ) {
             console.log("Found eventImages array:", eventData.eventImages[0]);
             setEventImage(eventData.eventImages[0]);
             return;
@@ -205,7 +267,11 @@ const TicketBookedPage = () => {
       }
 
       // If we've come this far, try using provided imageUrl
-      if (event.imageUrl && typeof event.imageUrl === 'string' && event.imageUrl.trim() !== '') {
+      if (
+        event.imageUrl &&
+        typeof event.imageUrl === "string" &&
+        event.imageUrl.trim() !== ""
+      ) {
         console.log("Using provided image URL:", event.imageUrl);
         setEventImage(event.imageUrl);
         return;
@@ -230,7 +296,6 @@ const TicketBookedPage = () => {
       // If all approaches failed, use placeholder
       console.log("All approaches failed, using placeholder image");
       setEventImage("https://via.placeholder.com/270x180?text=Event+Image");
-
     } catch (error) {
       console.error("Error in image fetching process:", error);
       setEventImage("https://via.placeholder.com/270x180?text=Event+Image");
@@ -265,7 +330,7 @@ const TicketBookedPage = () => {
       console.error("No authenticated user found");
       setBookingStatus({
         status: "error",
-        message: "Authentication error. Please log in again."
+        message: "Authentication error. Please log in again.",
       });
       return;
     }
@@ -278,7 +343,10 @@ const TicketBookedPage = () => {
       if (ticketExists) {
         console.log("Ticket already exists in Firestore!");
         setTicketIsSaved(true);
-        setBookingStatus({ status: "success", message: "Ticket already saved!" });
+        setBookingStatus({
+          status: "success",
+          message: "Ticket already saved!",
+        });
         return;
       }
 
@@ -286,17 +354,16 @@ const TicketBookedPage = () => {
       const profileData = await fetchUserProfileData(currentUser.uid);
 
       // Get user's phone number from profile data or auth
-      const userPhone = profileData?.phoneNumber ||
-                       profileData?.phone ||
-                       currentUser.phoneNumber ||
-                       "N/A";
+      const userPhone =
+        profileData?.phoneNumber ||
+        profileData?.phone ||
+        currentUser.phoneNumber ||
+        "N/A";
 
       console.log("Using phone number:", userPhone);
 
       // Email from the user object or profile or provide a fallback
-      const userEmail = currentUser.email ||
-                       profileData?.email ||
-                       "N/A";
+      const userEmail = currentUser.email || profileData?.email || "N/A";
 
       // Create ticket data object with eventId
       const ticketData = {
@@ -306,6 +373,7 @@ const TicketBookedPage = () => {
         location: event.location || "N/A",
         phone: userPhone,
         email: userEmail,
+          vendorId: event.vendorId || null,
         ticketSummary: ticketSummary,
         foodSummary: foodSummary || [],
         financial: financial,
@@ -322,7 +390,7 @@ const TicketBookedPage = () => {
         // Additional ticket details
         status: "active",
         checkedIn: false,
-        checkedInTime: null
+        checkedInTime: null,
       };
 
       // Save to main tickets collection with clean ID (without # prefix)
@@ -334,35 +402,49 @@ const TicketBookedPage = () => {
         console.log("Ticket saved to main collection successfully!");
       } catch (error) {
         console.error("Error saving to main tickets collection:", error);
-        throw new Error(`Failed to save to tickets collection: ${error.message}`);
+        throw new Error(
+          `Failed to save to tickets collection: ${error.message}`
+        );
       }
 
       // Also save in user's tickets subcollection for easy retrieval
       try {
         if (currentUser.uid) {
-          const userTicketRef = doc(db, "users", currentUser.uid, "tickets", cleanTicketId);
+          const userTicketRef = doc(
+            db,
+            "users",
+            currentUser.uid,
+            "tickets",
+            cleanTicketId
+          );
           await setDoc(userTicketRef, {
             ticketId: cleanTicketId,
             eventId: event.id || null,
             eventName: event.name || "Event",
             bookingDate: new Date().toISOString(),
-            status: "active"
+            status: "active",
           });
           console.log("Ticket saved to user's tickets subcollection!");
         }
       } catch (userTicketError) {
-        console.error("Error saving to user's tickets subcollection:", userTicketError);
+        console.error(
+          "Error saving to user's tickets subcollection:",
+          userTicketError
+        );
         // Don't throw here, as the main ticket was saved
       }
 
       console.log("Ticket booked successfully and saved to Firestore!");
       setTicketIsSaved(true);
-      setBookingStatus({ status: "success", message: "Ticket booked successfully!" });
+      setBookingStatus({
+        status: "success",
+        message: "Ticket booked successfully!",
+      });
     } catch (error) {
       console.error("Error booking ticket:", error);
       setBookingStatus({
         status: "error",
-        message: `Failed to save your ticket: ${error.message}. Please try again or contact support.`
+        message: `Failed to save your ticket: ${error.message}. Please try again or contact support.`,
       });
     }
   };
@@ -385,7 +467,11 @@ const TicketBookedPage = () => {
               setUser({
                 id: currentUser.uid,
                 email: currentUser.email || "N/A",
-                phone: profileData?.phoneNumber || profileData?.phone || currentUser.phoneNumber || "N/A"
+                phone:
+                  profileData?.phoneNumber ||
+                  profileData?.phone ||
+                  currentUser.phoneNumber ||
+                  "N/A",
               });
 
               // Fetch event image first (in parallel)
@@ -397,7 +483,7 @@ const TicketBookedPage = () => {
               console.error("Error in user setup:", error);
               setBookingStatus({
                 status: "error",
-                message: `Error setting up user data: ${error.message}`
+                message: `Error setting up user data: ${error.message}`,
               });
             } finally {
               setIsLoading(false);
@@ -409,8 +495,8 @@ const TicketBookedPage = () => {
             navigate("/login", {
               state: {
                 returnPath: "/ticketbookedpage",
-                ticketData: location.state
-              }
+                ticketData: location.state,
+              },
             });
             setIsLoading(false);
           }
@@ -421,7 +507,7 @@ const TicketBookedPage = () => {
         console.error("Fatal error in initial setup:", error);
         setBookingStatus({
           status: "error",
-          message: "An unexpected error occurred. Please try again."
+          message: "An unexpected error occurred. Please try again.",
         });
         setIsLoading(false);
       }
@@ -430,63 +516,391 @@ const TicketBookedPage = () => {
     handleInitialSetup();
   }, []);
 
+
+
   // Implementation for downloading the ticket as PDF
-  const handleDownloadTicket = () => {
-    if (!ticketRef.current) {
-      alert("Cannot find the ticket element to download.");
-      return;
-    }
+  // const handleDownloadTicket = () => {
+  //   if (!ticketRef.current) {
+  //     alert("Cannot find the ticket element to download.");
+  //     return;
+  //   }
 
-    try {
-      // Show loading or progress message
-      setBookingStatus({
-        status: bookingStatus.status,
-        message: "Preparing your ticket for download..."
+  //   try {
+  //     // Show loading or progress message
+  //     setBookingStatus({
+  //       status: bookingStatus.status,
+  //       message: "Preparing your ticket for download...",
+  //     });
+
+  //     // Use html2canvas to capture the ticket as an image
+  //     html2canvas(ticketRef.current, {
+  //       scale: 2,
+  //       logging: false,
+  //       useCORS: true,
+  //     }).then((canvas) => {
+  //       const imgData = canvas.toDataURL("image/png");
+  //       const pdf = new jsPDF({
+  //         orientation: "landscape",
+  //         unit: "mm",
+  //         format: "a4",
+  //       });
+
+  //       // Calculate dimensions for PDF
+  //       const imgWidth = 280;
+  //       const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+  //       // Add image to PDF, centered
+  //       pdf.addImage(imgData, "PNG", 10, 10, imgWidth, imgHeight);
+
+  //       // Save PDF
+  //       pdf.save(`ticket-${bookingId.replace("#", "")}.pdf`);
+
+  //       // Show success message
+  //       setBookingStatus({
+  //         status: bookingStatus.status,
+  //         message: "Ticket downloaded successfully!",
+  //       });
+  //     });
+  //   } catch (error) {
+  //     console.error("Error with download function:", error);
+  //     alert(
+  //       "There was an error with the download feature. Please try taking a screenshot of your ticket instead."
+  //     );
+  //   }
+  // };
+
+  const handleDownloadTicket = async () => {
+  if (!ticketRef.current) {
+    alert("Cannot find the ticket element to download.");
+    return;
+  }
+
+  try {
+    // Show loading message
+    setBookingStatus({
+      status: bookingStatus.status,
+      message: "Preparing your ticket for download...",
+    });
+
+    // Wait a bit to ensure button state returns to normal
+    await new Promise(resolve => setTimeout(resolve, 200));
+
+    // Preload the event image to avoid CORS issues
+    const preloadImage = (src) => {
+      return new Promise((resolve, reject) => {
+        if (!src || src.includes('placeholder')) {
+          resolve(null);
+          return;
+        }
+        
+        const img = new Image();
+        img.crossOrigin = 'anonymous'; // Enable CORS
+        img.onload = () => resolve(img);
+        img.onerror = () => resolve(null); // Resolve with null if image fails
+        img.src = src;
       });
+    };
 
-      // Use html2canvas to capture the ticket as an image
-      html2canvas(ticketRef.current, {
-        scale: 2,
-        logging: false,
-        useCORS: true
-      }).then(canvas => {
-        const imgData = canvas.toDataURL('image/png');
-        const pdf = new jsPDF({
-          orientation: 'landscape',
-          unit: 'mm',
-          format: 'a4'
+    // Preload the event image
+    const preloadedImage = await preloadImage(eventImage);
+
+    // Configure html2canvas with better options
+    const canvas = await html2canvas(ticketRef.current, {
+      scale: 2,
+      logging: false,
+      useCORS: true,
+      allowTaint: false,
+      foreignObjectRendering: false,
+      imageTimeout: 15000,
+      removeContainer: true,
+      backgroundColor: '#ffffff',
+      onclone: (clonedDoc, element) => {
+        // Find and fix any images in the cloned document
+        const images = clonedDoc.querySelectorAll('img');
+        images.forEach((img) => {
+          // If we have a preloaded image and this is the event image
+          if (preloadedImage && img.src === eventImage) {
+            // Create a canvas element to replace the img
+            const imgCanvas = clonedDoc.createElement('canvas');
+            const ctx = imgCanvas.getContext('2d');
+            
+            // Set canvas size to match the image display size
+            const computedStyle = window.getComputedStyle(img);
+            imgCanvas.width = parseInt(computedStyle.width) || img.offsetWidth;
+            imgCanvas.height = parseInt(computedStyle.height) || img.offsetHeight;
+            
+            // Draw the preloaded image onto the canvas
+            ctx.drawImage(preloadedImage, 0, 0, imgCanvas.width, imgCanvas.height);
+            
+            // Replace the img with canvas
+            img.parentNode.replaceChild(imgCanvas, img);
+          }
         });
 
-        // Calculate dimensions for PDF
-        const imgWidth = 280;
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        // Remove any button focus/active states
+        const buttons = clonedDoc.querySelectorAll('button');
+        buttons.forEach(btn => {
+          btn.blur();
+          btn.style.boxShadow = 'none';
+          btn.style.transform = 'none';
+        });
+      }
+    });
 
-        // Add image to PDF, centered
-        pdf.addImage(imgData, 'PNG', 10, 10, imgWidth, imgHeight);
+    // Create PDF
+    const imgData = canvas.toDataURL('image/png', 1.0);
+    const pdf = new jsPDF({
+      orientation: 'landscape',
+      unit: 'mm',
+      format: 'a4',
+    });
 
-        // Save PDF
-        pdf.save(`ticket-${bookingId.replace('#', '')}.pdf`);
+    // Calculate dimensions for PDF (maintain aspect ratio)
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = pdf.internal.pageSize.getHeight();
+    const imgWidth = canvas.width;
+    const imgHeight = canvas.height;
+    
+    // Calculate scaling to fit the page while maintaining aspect ratio
+    const scale = Math.min(
+      (pdfWidth - 20) / (imgWidth * 0.264583), // 0.264583 converts pixels to mm
+      (pdfHeight - 20) / (imgHeight * 0.264583)
+    );
+    
+    const scaledWidth = (imgWidth * 0.264583) * scale;
+    const scaledHeight = (imgHeight * 0.264583) * scale;
+    
+    // Center the image on the page
+    const x = (pdfWidth - scaledWidth) / 2;
+    const y = (pdfHeight - scaledHeight) / 2;
 
-        // Show success message
+    // Add image to PDF
+    pdf.addImage(imgData, 'PNG', x, y, scaledWidth, scaledHeight);
+
+    // Save PDF with a clean filename
+    const cleanBookingId = bookingId.replace('#', '');
+    const eventName = (event.name || 'Event').replace(/[^a-zA-Z0-9]/g, '_');
+    pdf.save(`${eventName}_Ticket_${cleanBookingId}.pdf`);
+
+    // Show success message
+    setBookingStatus({
+      status: bookingStatus.status,
+      message: "Ticket downloaded successfully!",
+    });
+
+    // Clear success message after 3 seconds
+    setTimeout(() => {
+      if (bookingStatus.status === 'success') {
         setBookingStatus({
-          status: bookingStatus.status,
-          message: "Ticket downloaded successfully!"
+          status: 'success',
+          message: 'Ticket booked successfully!',
         });
-      });
-    } catch (error) {
-      console.error("Error with download function:", error);
-      alert("There was an error with the download feature. Please try taking a screenshot of your ticket instead.");
+      }
+    }, 3000);
+
+  } catch (error) {
+    console.error("Error with download function:", error);
+    alert(
+      "There was an error downloading your ticket. Please try taking a screenshot instead, or contact support if the issue persists."
+    );
+    
+    // Reset status message
+    setBookingStatus({
+      status: bookingStatus.status,
+      message: bookingStatus.status === 'success' ? 'Ticket booked successfully!' : bookingStatus.message,
+    });
+  }
+};
+
+const EventImageComponent = () => {
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageError, setImageError] = useState(false);
+
+  const handleImageLoad = () => {
+    setImageLoaded(true);
+    setImageError(false);
+  };
+
+  const handleImageError = (e) => {
+    console.error("Image failed to load:", e);
+    setImageError(true);
+    // Set a placeholder image
+    e.target.src = "https://via.placeholder.com/270x180/e0e0e0/757575?text=Event+Image";
+  };
+
+  return (
+    <Box
+      component="img"
+      src={eventImage || "https://via.placeholder.com/270x180/e0e0e0/757575?text=Event+Image"}
+      alt={event.name || "Event"}
+      crossOrigin="anonymous" // Add CORS support
+      sx={{
+        width: "100%",
+        height: "auto",
+        maxWidth: 270,
+        borderRadius: 1,
+        objectFit: "cover",
+        pr: 5,
+        opacity: imageLoaded ? 1 : 0.8,
+        transition: "opacity 0.3s ease",
+        // Ensure image is fully loaded before capture
+        imageRendering: "crisp-edges",
+      }}
+      onLoad={handleImageLoad}
+      onError={handleImageError}
+    />
+  );
+};
+
+// 2. Update your download button to prevent focus states during capture
+const DownloadButton = () => {
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  const handleDownloadClick = async () => {
+    setIsDownloading(true);
+    
+    // Wait a moment for the button to return to normal state
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    try {
+      await handleDownloadTicket();
+    } finally {
+      setIsDownloading(false);
     }
   };
 
+  return (
+    <Button
+      variant="contained"
+      startIcon={<DownloadIcon />}
+      size="small"
+      sx={{
+        backgroundColor: "#19AEDC",
+        color: "#fff",
+        borderRadius: 4,
+        textTransform: "none",
+        px: 2,
+        py: 0.5,
+        fontSize: 14,
+        // Prevent visual feedback during download
+        '&:focus': {
+          boxShadow: 'none',
+        },
+        '&:active': {
+          transform: 'none',
+          boxShadow: 'none',
+        },
+        // Disable during download process
+        opacity: isDownloading ? 0.7 : 1,
+        pointerEvents: isDownloading ? 'none' : 'auto',
+      }}
+      onClick={handleDownloadClick}
+      disabled={bookingStatus.status === "pending" || isDownloading}
+      onMouseDown={(e) => {
+        // Prevent the button from staying in pressed state
+        setTimeout(() => e.target.blur(), 100);
+      }}
+    >
+      {isDownloading ? "Downloading..." : "Download Ticket"}
+    </Button>
+  );
+};
+
+// 3. Alternative approach: Use a proxy image or convert to base64
+const convertImageToBase64 = async (imageUrl) => {
+  try {
+    const response = await fetch(imageUrl, {
+      mode: 'cors',
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to fetch image');
+    }
+    
+    const blob = await response.blob();
+    
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch (error) {
+    console.error('Error converting image to base64:', error);
+    return null;
+  }
+};
+
+// 4. Updated fetch event image function with CORS handling
+const fetchEventImageWithCORS = async () => {
+  try {
+    console.log("Fetching event image for:", event.name, "with ID:", event.id);
+
+    if (event.id) {
+      const eventDocRef = doc(db, "events", event.id);
+      const eventDoc = await getDoc(eventDocRef);
+
+      if (eventDoc.exists()) {
+        const eventData = eventDoc.data();
+        console.log("Event data retrieved:", eventData);
+
+        if (Array.isArray(eventData.bannerImages) && eventData.bannerImages.length > 0) {
+          let imageUrl = eventData.bannerImages[0];
+          
+          // Convert to base64 if it's an external URL to avoid CORS issues
+          if (imageUrl.startsWith('http') && !imageUrl.includes('firebasestorage')) {
+            const base64Image = await convertImageToBase64(imageUrl);
+            if (base64Image) {
+              setEventImage(base64Image);
+              return;
+            }
+          }
+          
+          setEventImage(imageUrl);
+          return;
+        }
+
+        // Check other image fields...
+        const possibleImageFields = ["imageUrl", "bannerImage", "thumbnail", "image"];
+        for (const field of possibleImageFields) {
+          if (eventData[field]) {
+            let imageUrl = eventData[field];
+            
+            // Convert external URLs to base64
+            if (imageUrl.startsWith('http') && !imageUrl.includes('firebasestorage')) {
+              const base64Image = await convertImageToBase64(imageUrl);
+              if (base64Image) {
+                setEventImage(base64Image);
+                return;
+              }
+            }
+            
+            setEventImage(imageUrl);
+            return;
+          }
+        }
+      }
+    }
+
+    // Fallback to placeholder
+    setEventImage("https://via.placeholder.com/270x180/e0e0e0/757575?text=Event+Image");
+  } catch (error) {
+    console.error("Error in image fetching process:", error);
+    setEventImage("https://via.placeholder.com/270x180/e0e0e0/757575?text=Event+Image");
+  }
+};
   // Fallback download function if html2canvas/jsPDF are not available
   const fallbackDownload = () => {
     try {
-      alert("Ticket download initiated. In a production environment, this would save your ticket as a PDF file. For now, please take a screenshot of your ticket.");
+      alert(
+        "Ticket download initiated. In a production environment, this would save your ticket as a PDF file. For now, please take a screenshot of your ticket."
+      );
       console.log("Download ticket feature triggered");
     } catch (error) {
       console.error("Error with download function:", error);
-      alert("There was an error with the download feature. Please try taking a screenshot of your ticket instead.");
+      alert(
+        "There was an error with the download feature. Please try taking a screenshot of your ticket instead."
+      );
     }
   };
 
@@ -494,14 +908,25 @@ const TicketBookedPage = () => {
     if (auth.currentUser) {
       saveTicketToDatabase(auth.currentUser);
     } else {
-      setBookingStatus({ status: "error", message: "No user authenticated. Please log in again." });
+      setBookingStatus({
+        status: "error",
+        message: "No user authenticated. Please log in again.",
+      });
     }
   };
 
   // Show loading state
   if (isLoading) {
     return (
-      <Box sx={{ minHeight: "100vh", backgroundColor: "#f5f5f5", display: "flex", justifyContent: "center", alignItems: "center" }}>
+      <Box
+        sx={{
+          minHeight: "100vh",
+          backgroundColor: "#f5f5f5",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
         <Box sx={{ textAlign: "center" }}>
           <CircularProgress sx={{ color: "#19AEDC", mb: 2 }} />
           <Typography variant="h6">Loading your ticket...</Typography>
@@ -538,14 +963,23 @@ const TicketBookedPage = () => {
       {/* Success Header - Only show if booking was successful */}
       {bookingStatus.status === "success" && (
         <Box sx={{ textAlign: "center", mt: 5, mb: 3 }}>
-          <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", mb: 1 }}>
-            <CheckCircleIcon sx={{
-              color: "white",
-              fontSize: 28,
-              backgroundColor: "#4CAF50",
-              borderRadius: "50%",
-              p: 0.8
-            }} />
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              mb: 1,
+            }}
+          >
+            <CheckCircleIcon
+              sx={{
+                color: "white",
+                fontSize: 28,
+                backgroundColor: "#4CAF50",
+                borderRadius: "50%",
+                p: 0.8,
+              }}
+            />
           </Box>
           <Typography variant="h5" fontWeight="bold">
             Ticket Booked Successfully, Pal!
@@ -559,14 +993,23 @@ const TicketBookedPage = () => {
       {/* Error Header - Show if booking failed */}
       {bookingStatus.status === "error" && (
         <Box sx={{ textAlign: "center", mt: 5, mb: 3 }}>
-          <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", mb: 1 }}>
-            <ErrorIcon sx={{
-              color: "white",
-              fontSize: 28,
-              backgroundColor: "#f44336",
-              borderRadius: "50%",
-              p: 0.8
-            }} />
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              mb: 1,
+            }}
+          >
+            <ErrorIcon
+              sx={{
+                color: "white",
+                fontSize: 28,
+                backgroundColor: "#f44336",
+                borderRadius: "50%",
+                p: 0.8,
+              }}
+            />
           </Box>
           <Typography variant="h5" fontWeight="bold">
             Oops! We're having trouble saving your ticket
@@ -578,12 +1021,13 @@ const TicketBookedPage = () => {
       )}
 
       {/* Ticket Card */}
-      <Box sx={{
-        maxWidth: 1000,
-        mx: "auto",
-        position: "relative",
-    
-      }}>
+      <Box
+        sx={{
+          maxWidth: 1000,
+          mx: "auto",
+          position: "relative",
+        }}
+      >
         {/* Ticket top notch */}
         <Box
           sx={{
@@ -596,7 +1040,6 @@ const TicketBookedPage = () => {
             left: "37%",
             transform: "translateX(-50%)",
             zIndex: 1,
-           
           }}
         />
 
@@ -608,27 +1051,32 @@ const TicketBookedPage = () => {
             overflow: "hidden",
             position: "relative",
             opacity: bookingStatus.status === "pending" ? 0.7 : 1,
-            boxShadow:0,
+            boxShadow: 0,
           }}
           ref={ticketRef}
           id="ticket-card"
         >
           <Box sx={{ display: "flex" }}>
             {/* Left section - Event image */}
-            <Box sx={{
-              width: "35%",
-              pt: 2,
-              pb: 2,
-              pl: 5,
-              pr: 8,
-              borderRight: "1px dashed #ddd",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center"
-            }}>
+            <Box
+              sx={{
+                width: "35%",
+                pt: 2,
+                pb: 2,
+                pl: 5,
+                pr: 8,
+                borderRight: "1px dashed #ddd",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
               <Box
                 component="img"
-                src={eventImage || "https://via.placeholder.com/270x180?text=Event+Image"}
+                src={
+                  eventImage ||
+                  "https://via.placeholder.com/270x180?text=Event+Image"
+                }
                 alt={event.name || "Event"}
                 sx={{
                   width: "100%",
@@ -640,32 +1088,44 @@ const TicketBookedPage = () => {
                 }}
                 onError={(e) => {
                   console.error("Image failed to load:", e);
-                  e.target.src = "https://via.placeholder.com/270x180?text=Event+Image";
+                  e.target.src =
+                    "https://via.placeholder.com/270x180?text=Event+Image";
                 }}
               />
             </Box>
 
             {/* Middle - Event Details */}
-            <Box sx={{ width: "35%", p: 2, borderRight: "1px dashed #ddd", ml: 5 }}>
-              <Typography variant="h6" fontWeight="bold" sx={{ borderBottom: "1px solid #000", pb: 1, mb: 2 }}>
+            <Box
+              sx={{ width: "35%", p: 2, borderRight: "1px dashed #ddd", ml: 5 }}
+            >
+              <Typography
+                variant="h6"
+                fontWeight="bold"
+                sx={{ borderBottom: "1px solid #000", pb: 1, mb: 2 }}
+              >
                 {event.name || "Event"}
               </Typography>
 
-              <Box mt={1} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <Box
+                mt={1}
+                sx={{ display: "flex", alignItems: "center", gap: 1 }}
+              >
                 <CalendarTodayIcon sx={{ fontSize: 18 }} />
-                <Typography variant="body2">
-                  {formattedDate}
-                </Typography>
+                <Typography variant="body2">{formattedDate}</Typography>
               </Box>
 
-              <Box mt={1} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <Box
+                mt={1}
+                sx={{ display: "flex", alignItems: "center", gap: 1 }}
+              >
                 <AccessTimeIcon sx={{ fontSize: 18 }} />
-                <Typography variant="body2">
-                  {eventTime}
-                </Typography>
+                <Typography variant="body2">{eventTime}</Typography>
               </Box>
 
-              <Box mt={1} sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+              <Box
+                mt={1}
+                sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}
+              >
                 <LocationOnIcon sx={{ fontSize: 18 }} />
                 <Typography variant="body2">
                   {event.location || "N/A"}
@@ -673,9 +1133,13 @@ const TicketBookedPage = () => {
               </Box>
 
               <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
-                <Typography variant="body2">Number of Tickets: {totalTickets}</Typography>
+                <Typography variant="body2">
+                  Number of Tickets: {totalTickets}
+                </Typography>
                 {ticketSummary.length > 0 && (
-                  <Box sx={{ ml: "auto", display: "flex", alignItems: "center" }}>
+                  <Box
+                    sx={{ ml: "auto", display: "flex", alignItems: "center" }}
+                  >
                     <DirectionsCarIcon sx={{ mr: 0.5, fontSize: 18 }} />
                     <Typography variant="body2" fontWeight="bold">
                       {ticketSummary[0].type}
@@ -688,7 +1152,10 @@ const TicketBookedPage = () => {
               <Box sx={{ display: "flex", alignItems: "center", mt: 0.5 }}>
                 <PhoneIcon sx={{ fontSize: 16, mr: 0.5 }} />
                 <Typography variant="body2">
-                  {userProfileData?.phoneNumber || userProfileData?.phone || user?.phone || "N/A"}
+                  {userProfileData?.phoneNumber ||
+                    userProfileData?.phone ||
+                    user?.phone ||
+                    "N/A"}
                 </Typography>
               </Box>
               <Box sx={{ display: "flex", alignItems: "center", mt: 0.5 }}>
@@ -699,7 +1166,14 @@ const TicketBookedPage = () => {
 
             {/* Right - Price info and QR code */}
             <Box sx={{ width: "34%", p: 2 }}>
-              <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", mb: 3 }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  mb: 3,
+                }}
+              >
                 {/* MODIFIED: QR Code implementation with just the booking ID */}
                 <div ref={qrRef}>
                   <QRCode
@@ -710,8 +1184,19 @@ const TicketBookedPage = () => {
                     id="qrcode"
                   />
                 </div>
-                <Typography variant="caption" sx={{ textAlign: "center", display: "block", color: "#666", mb: 1, mt: 1 }}>
-                  Present this QR code at the venue<br />entrance for validation
+                <Typography
+                  variant="caption"
+                  sx={{
+                    textAlign: "center",
+                    display: "block",
+                    color: "#666",
+                    mb: 1,
+                    mt: 1,
+                  }}
+                >
+                  Present this QR code at the venue
+                  <br />
+                  entrance for validation
                 </Typography>
                 <Button
                   variant="contained"
@@ -724,9 +1209,13 @@ const TicketBookedPage = () => {
                     textTransform: "none",
                     px: 2,
                     py: 0.5,
-                    fontSize: 14
+                    fontSize: 14,
                   }}
-                  onClick={typeof html2canvas !== 'undefined' ? handleDownloadTicket : fallbackDownload}
+                  onClick={
+                    typeof html2canvas !== "undefined"
+                      ? handleDownloadTicket
+                      : fallbackDownload
+                  }
                   disabled={bookingStatus.status === "pending"}
                 >
                   Download Ticket
@@ -735,7 +1224,7 @@ const TicketBookedPage = () => {
 
               <Box>
                 {/* Display ticket prices */}
-                {ticketSummary.map((ticket, index) => (
+                {/* {ticketSummary.map((ticket, index) => (
                   <Box key={index} sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
                     <Typography variant="body2">
                       {ticket.type} ({ticket.quantity}x)
@@ -744,10 +1233,30 @@ const TicketBookedPage = () => {
                       {ticket.price === 0 ? "FREE" : formatCurrency(ticket.price * ticket.quantity)}
                     </Typography>
                   </Box>
+                ))} */}
+                {ticketSummary.map((ticket, index) => (
+                  <Box
+                    key={index}
+                    sx={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      mb: 1,
+                    }}
+                  >
+                    <Typography variant="body2">
+                      {ticket.type || "Ticket"} ({ticket.quantity || 0}x)
+                    </Typography>
+                    <Typography fontWeight="bold">
+                      {(ticket.price || 0) === 0
+                        ? "FREE"
+                        : formatCurrency(
+                            (ticket.price || 0) * (ticket.quantity || 0)
+                          )}
+                    </Typography>
+                  </Box>
                 ))}
-
                 {/* Food items */}
-                {foodSummary && foodSummary.length > 0 && (
+                {/* {foodSummary && foodSummary.length > 0 && (
                   <>
                     {foodSummary.map((food, index) => (
                       <Box key={index} sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
@@ -760,10 +1269,34 @@ const TicketBookedPage = () => {
                       </Box>
                     ))}
                   </>
+                )} */}
+
+                {foodSummary && foodSummary.length > 0 && (
+                  <>
+                    {foodSummary.map((food, index) => (
+                      <Box
+                        key={index}
+                        sx={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          mb: 1,
+                        }}
+                      >
+                        <Typography variant="body2">
+                          {food.name || "Food Item"} ({food.quantity || 0}x)
+                        </Typography>
+                        <Typography fontWeight="bold">
+                          {formatCurrency(
+                            (food.price || 0) * (food.quantity || 0)
+                          )}
+                        </Typography>
+                      </Box>
+                    ))}
+                  </>
                 )}
 
                 {/* Only show these for paid events */}
-                {!financial.isFreeEvent && (
+                {/* {!financial.isFreeEvent && (
                   <>
                     <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.5 }}>
                       <Typography variant="body2">Convenience fee</Typography>
@@ -788,14 +1321,84 @@ const TicketBookedPage = () => {
                       Incl. of taxes
                     </Typography>
                   </>
+                )} */}
+
+                {!financial.isFreeEvent && (
+                  <>
+                    <Box
+                      sx={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        mb: 0.5,
+                      }}
+                    >
+                      <Typography variant="body2">Convenience fee</Typography>
+                      <Typography fontWeight="bold">
+                        {formatCurrency(financial.convenienceFee || 0)}
+                      </Typography>
+                    </Box>
+
+                    {(financial.discount || 0) > 0 && (
+                      <Box
+                        sx={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          mb: 0.5,
+                        }}
+                      >
+                        <Typography variant="body2" sx={{ color: "#19AEDC" }}>
+                          Discount
+                        </Typography>
+                        <Typography fontWeight="bold" sx={{ color: "#19AEDC" }}>
+                          -{formatCurrency(financial.discount || 0)}
+                        </Typography>
+                      </Box>
+                    )}
+
+                    <Box
+                      sx={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        mb: 0.5,
+                      }}
+                    >
+                      <Typography variant="body2">GST (18%)</Typography>
+                      <Typography fontWeight="bold">
+                        {formatCurrency(financial.gst || 0)}
+                      </Typography>
+                    </Box>
+
+                    <Typography
+                      variant="caption"
+                      sx={{ color: "#666", display: "block", mb: 1 }}
+                    >
+                      Incl. of taxes
+                    </Typography>
+                  </>
                 )}
 
                 <Divider sx={{ my: 1 }} />
 
-                <Box sx={{ display: "flex", justifyContent: "space-between", mt: 1 }}>
-                  <Typography variant="body1" fontWeight="bold">Total Amount</Typography>
-                  <Typography variant="body1" fontWeight="bold" sx={{ color: financial.isFreeEvent ? "#19AEDC" : "inherit" }}>
-                    {financial.isFreeEvent ? "FREE" : formatCurrency(financial.totalAmount)}
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    mt: 1,
+                  }}
+                >
+                  <Typography variant="body1" fontWeight="bold">
+                    Total Amount
+                  </Typography>
+                  <Typography
+                    variant="body1"
+                    fontWeight="bold"
+                    sx={{
+                      color: financial.isFreeEvent ? "#19AEDC" : "inherit",
+                    }}
+                  >
+                    {financial.isFreeEvent
+                      ? "FREE"
+                      : formatCurrency(financial.totalAmount || 0)}
                   </Typography>
                 </Box>
               </Box>
@@ -813,19 +1416,21 @@ const TicketBookedPage = () => {
               bottom: 0,
               left: "37%",
               transform: "translateX(-50%)",
-              zIndex: 1
+              zIndex: 1,
             }}
           />
 
           {/* Booking Info footer */}
-          <Box sx={{
-            backgroundColor: "#ffff",
-            p: 2,
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            borderTop: "1px solid #eee"
-          }}>
+          <Box
+            sx={{
+              backgroundColor: "#ffff",
+              p: 2,
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              borderTop: "1px solid #eee",
+            }}
+          >
             <Box>
               <Typography variant="caption" sx={{ color: "#777" }}>
                 Booking Date & Time
@@ -846,7 +1451,11 @@ const TicketBookedPage = () => {
               <Typography variant="caption" sx={{ color: "#777" }}>
                 Booking Status
               </Typography>
-              <Typography variant="body2" fontWeight="medium" sx={{ color: ticketIsSaved ? "#4CAF50" : "#f57c00" }}>
+              <Typography
+                variant="body2"
+                fontWeight="medium"
+                sx={{ color: ticketIsSaved ? "#4CAF50" : "#f57c00" }}
+              >
                 {ticketIsSaved ? "Confirmed" : "Pending Confirmation"}
               </Typography>
             </Box>
@@ -855,7 +1464,17 @@ const TicketBookedPage = () => {
       </Box>
 
       {/* Action buttons */}
-      <Box sx={{ maxWidth: 1000, mx: "auto", display: "flex", justifyContent: "center", mt: 4, mb: 5, gap: 2 }}>
+      <Box
+        sx={{
+          maxWidth: 1000,
+          mx: "auto",
+          display: "flex",
+          justifyContent: "center",
+          mt: 4,
+          mb: 5,
+          gap: 2,
+        }}
+      >
         <Button
           variant="contained"
           sx={{
@@ -863,7 +1482,7 @@ const TicketBookedPage = () => {
             borderRadius: 2,
             px: 4,
             py: 1,
-            "&:hover": { backgroundColor: "#0e8eb8" }
+            "&:hover": { backgroundColor: "#0e8eb8" },
           }}
           onClick={() => navigate("/mytickets")}
         >
@@ -877,7 +1496,7 @@ const TicketBookedPage = () => {
             borderRadius: 2,
             px: 4,
             py: 1,
-            "&:hover": { borderColor: "#0e8eb8", color: "#0e8eb8" }
+            "&:hover": { borderColor: "#0e8eb8", color: "#0e8eb8" },
           }}
           onClick={() => navigate("/")}
         >
@@ -904,7 +1523,8 @@ const TicketBookedPage = () => {
             • This ticket cannot be transferred or resold.
           </Typography>
           <Typography variant="body2">
-            • For any queries, please contact our support team at support@eventify.com
+            • For any queries, please contact our support team at
+            support@eventify.com
           </Typography>
         </Paper>
       </Box>

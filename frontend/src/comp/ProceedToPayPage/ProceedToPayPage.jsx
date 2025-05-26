@@ -80,6 +80,7 @@ const ProceedToPayPage = () => {
   // Check if this is a free event (all tickets are free)
   const isFreeEvent = ticketData.length > 0 && ticketData.every(ticket => ticket.price === 0);
 
+
   useEffect(() => {
     // Check if we have event data and tickets booked
     if (!location.state || !location.state.event) {
@@ -98,13 +99,13 @@ const ProceedToPayPage = () => {
             const fetchedEventData = eventDoc.data();
             setEvent({
               id: eventDoc.id,
+              vendorId: eventDoc.vendorId,
               name: fetchedEventData.name,
               date: fetchedEventData.eventDate,
               location: fetchedEventData.venueDetails?.city || "Unknown Location",
               description: fetchedEventData.description || "No description available",
               ticket: fetchedEventData.pricing || [] // Include ticket data for validation
             });
-
             // Extract coupon information
             if (fetchedEventData.coupons && Array.isArray(fetchedEventData.coupons)) {
               setEventCoupons(fetchedEventData.coupons);
@@ -244,6 +245,13 @@ const ProceedToPayPage = () => {
     return () => clearInterval(intervalId);
   }, [bannerImages]);
 
+   useEffect(() => {
+  if (event) {
+    console.log("Vendor ID:", event);
+  }
+}, [event]);
+
+
   // Handler to go back to ticket selection
   const handleBackToTickets = () => {
     if (eventId) {
@@ -376,6 +384,8 @@ const ProceedToPayPage = () => {
   const displayTicketPrice = (price) => {
     return price === 0 ? "Free" : `₹${price}`;
   };
+
+ 
 
   return (
     <Box sx={{ minHeight: "100vh", overflow: "hidden" }}>
@@ -932,6 +942,7 @@ const ProceedToPayPage = () => {
                   } : null
                 }
               }
+            
             })}
           >
             Proceed to Payment

@@ -16,27 +16,147 @@ import { useEventContext } from "./EventContext";
 import { useNavigate } from "react-router-dom";
 import { useParams } from "react-router-dom";
 
-const label = { inputProps: { "aria-label": "Checkbox demo" } };
 const PricePerk = () => {
-  const { vendorId } = useParams();
-  const { formData, setFormData } = useEventContext();
-  const navigate = useNavigate();
 
-  // Global tax state to control all tickets
-  const [globalTax, setGlobalTax] = useState(false);
+const { vendorId } = useParams();
+const {
+  formData,
+  setFormData,
+  markStepCompleted,
+  shouldRedirectToStep1,
+  stepCompletion,
+} = useEventContext();
 
-  const [ticket, setTicket] = useState([
-    {
-      ticketType: "",
-      features: "",
-      price: "",
-      tax: false, // This will be synced with globalTax
-      freeEvent: false,
-      seats: "",
-    },
-  ]);
+const navigate = useNavigate();
 
-  const [coupon, setCoupon] = useState([
+// Redirect logic for reload detection and step validation
+useEffect(() => {
+  // Redirect to step 1 if page was reloaded
+  if (shouldRedirectToStep1()) {
+    navigate(`/createevent/${vendorId}/step1`);
+    return;
+  }
+
+  // Redirect to step 1 if step 1 is not completed or required data is missing
+  if (
+    !stepCompletion.step1 ||
+    !formData.eventDetails?.name ||
+    Object.keys(formData.eventDetails || {}).length === 0
+  ) {
+    navigate(`/createevent/${vendorId}/step1`);
+    return;
+  }
+}, [shouldRedirectToStep1, stepCompletion, formData, navigate, vendorId]);
+
+// Global tax state to control all tickets
+const [globalTax, setGlobalTax] = useState(false);
+
+const [ticket, setTicket] = useState([
+  {
+    ticketType: "",
+    features: "",
+    price: "",
+    tax: false, // This will be synced with globalTax
+    freeEvent: false,
+    seats: "",
+  },
+]);
+
+const [coupon, setCoupon] = useState([
+  {
+    couponCode: "",
+    reducePert: "",
+    startTime: dayjs(),
+    endTime: dayjs(),
+    couponLimits: "",
+  },
+]);
+
+const [item, setItem] = useState([
+  {
+    itemName: "",
+    price: "",
+    limit: "",
+  },
+]);
+
+useEffect(() => {
+  if (formData?.pricing) {
+    // Initialize tickets with values from formData
+    if (formData.pricing.tickets?.length) {
+      setTicket(formData.pricing.tickets);
+
+      // Set globalTax based on the first ticket's tax value
+      const firstTicketTax =
+        typeof formData.pricing.tickets[0].tax === "boolean"
+          ? formData.pricing.tickets[0].tax
+          : false;
+      setGlobalTax(firstTicketTax);
+
+      // Make sure all tickets have the same tax value
+      const syncedTickets = formData.pricing.tickets.map((t) => ({
+        ...t,
+        tax: firstTicketTax, // Sync all tickets with the first ticket's tax value
+      }));
+      setTicket(syncedTickets);
+    }
+
+    setCoupon(
+      formData.pricing.coupons?.length ? formData.pricing.coupons : coupon
+    );
+    setItem(formData.pricing.addons?.length ? formData.pricing.addons : item);
+  }
+}, [formData]);
+
+const handleTicketChange = (index, field, value) => {
+  const updatedTickets = [...ticket];
+  updatedTickets[index][field] = value;
+
+  if (field === "price") {
+    updatedTickets[index].freeEvent = false;
+  }
+
+  setTicket(updatedTickets);
+};
+
+const handleFreeCheckbox = (index, isChecked) => {
+  const updatedTickets = [...ticket];
+  updatedTickets[index].freeEvent = isChecked;
+
+  if (isChecked) {
+    updatedTickets[index].price = "0";
+  }
+
+  setTicket(updatedTickets);
+};
+
+// Handle global tax checkbox - affects all tickets
+const handleGlobalTaxCheckbox = (isChecked) => {
+  setGlobalTax(isChecked);
+
+  const updatedTickets = ticket.map((t) => ({
+    ...t,
+    tax: isChecked,
+  }));
+
+  setTicket(updatedTickets);
+};
+
+const handleAddonChange = (index, field, value) => {
+  const updatedAddon = [...item];
+  updatedAddon[index][field] = value;
+  setItem(updatedAddon);
+};
+
+const handleCouponChange = (index, field, value) => {
+  const updatedCoupon = [...coupon];
+  updatedCoupon[index][field] = value;
+  setCoupon(updatedCoupon);
+};
+
+const handleAddCoupon = () => {
+  setCoupon([
+    ...coupon,
     {
       couponCode: "",
       reducePert: "",
@@ -45,161 +165,82 @@ const PricePerk = () => {
       couponLimits: "",
     },
   ]);
+};
 
-  const [item, setItem] = useState([
+const handleAddItem = () => {
+  setItem([...item, { itemName: "", price: "", limit: "" }]);
+};
+
+const handleRemoveItem = (indexToRemove) => {
+  const removeItem = [...item];
+  removeItem.splice(indexToRemove, 1);
+  setItem(removeItem);
+};
+
+const handleRemoveCoupon = (indexToRemove) => {
+  const removeItem = [...coupon];
+  removeItem.splice(indexToRemove, 1);
+  setCoupon(removeItem);
+};
+
+const handleAddTicket = () => {
+  setTicket([
+    ...ticket,
     {
-      itemName: "",
+      ticketType: "",
+      features: "",
       price: "",
-      limit: "",
+      tax: globalTax,
+      freeEvent: false,
+      seats: "",
     },
   ]);
+};
 
-  useEffect(() => {
-    if (formData?.pricing) {
-      // Initialize tickets with values from formData
-      if (formData.pricing.tickets?.length) {
-        setTicket(formData.pricing.tickets);
+const handleRemoveTicket = (indexToRemove) => {
+  const removeTicket = [...ticket];
+  removeTicket.splice(indexToRemove, 1);
+  setTicket(removeTicket);
+};
 
-        // Set globalTax based on the first ticket's tax value
-        const firstTicketTax =
-          typeof formData.pricing.tickets[0].tax === "boolean"
-            ? formData.pricing.tickets[0].tax
-            : false;
-        setGlobalTax(firstTicketTax);
+const isFormValid = () => {
+  const ticketsValid =
+    ticket.length > 0 &&
+    ticket.every(
+      (t) =>
+        t.ticketType.trim() !== "" &&
+        t.features.trim() !== "" &&
+        t.seats.trim() !== "" &&
+        (t.freeEvent || t.price.trim() !== "")
+    );
 
-        // Make sure all tickets have the same tax value
-        const syncedTickets = formData.pricing.tickets.map((t) => ({
-          ...t,
-          tax: firstTicketTax, // Sync all tickets with the first ticket's tax value
-        }));
-        setTicket(syncedTickets);
-      }
+  return ticketsValid;
+};
 
-      setCoupon(
-        formData.pricing.coupons?.length ? formData.pricing.coupons : coupon
-      );
-      setItem(formData.pricing.addons?.length ? formData.pricing.addons : item);
+const handleNext = () => {
+  if (!isFormValid()) {
+    return;
+  }
+
+  const cleanedTickets = ticket.map((t) => {
+    if (t.freeEvent) {
+      return { ...t, price: "0" };
     }
-  }, [formData]);
+    return t;
+  });
 
-  const handleTicketChange = (index, field, value) => {
-    const updatedTickets = [...ticket];
-    updatedTickets[index][field] = value;
+  setFormData((prev) => ({
+    ...prev,
+    pricing: {
+      tickets: cleanedTickets,
+      coupons: coupon,
+      addons: item,
+    },
+  }));
+  markStepCompleted("step2");
 
-    if (field === "price") {
-      updatedTickets[index].freeEvent = false;
-    }
-
-    setTicket(updatedTickets);
-  };
-
-  const handleFreeCheckbox = (index, isChecked) => {
-    const updatedTickets = [...ticket];
-    updatedTickets[index].freeEvent = isChecked;
-
-    if (isChecked) {
-      updatedTickets[index].price = "0";
-      // Note: We're not changing the tax value here, just disabling the checkbox
-    }
-
-    setTicket(updatedTickets);
-  };
-
-  // Handle global tax checkbox - affects all tickets
-  const handleGlobalTaxCheckbox = (isChecked) => {
-    setGlobalTax(isChecked);
-
-    // Update all tickets to have the same tax state
-    const updatedTickets = ticket.map((t) => ({
-      ...t,
-      tax: isChecked,
-    }));
-
-    setTicket(updatedTickets);
-  };
-
-  const handleAddonChange = (index, field, value) => {
-    const updatedAddon = [...item];
-    updatedAddon[index][field] = value;
-    setItem(updatedAddon);
-  };
-
-  const handleCouponChange = (index, field, value) => {
-    const updatedCoupon = [...coupon];
-    updatedCoupon[index][field] = value;
-    setCoupon(updatedCoupon);
-  };
-
-  const handleAddCoupon = () => {
-    setCoupon([
-      ...coupon,
-      {
-        couponCode: "",
-        reducePert: "",
-        startTime: dayjs(),
-        endTime: dayjs(),
-        couponLimits: "",
-      },
-    ]);
-  };
-
-  const handleAddItem = () => {
-    setItem([...item, { itemName: "", price: "", limit: "" }]);
-  };
-
-  const handleRemoveItem = (indexToRemove) => {
-    const removeItem = [...item];
-    removeItem.splice(indexToRemove, 1);
-    setItem(removeItem);
-  };
-
-  const handleRemoveCoupon = (indexToRemove) => {
-    const removeItem = [...coupon];
-    removeItem.splice(indexToRemove, 1);
-    setCoupon(removeItem);
-  };
-
-  const handleAddTicket = () => {
-    setTicket([
-      ...ticket,
-      {
-        ticketType: "",
-        features: "",
-        price: "",
-        tax: globalTax, // Use the current global tax state
-        freeEvent: false,
-        seats: "",
-      },
-    ]);
-  };
-
-  const handleRemoveTicket = (indexToRemove) => {
-    const removeTicket = [...ticket];
-    removeTicket.splice(indexToRemove, 1);
-    setTicket(removeTicket);
-  };
-
-  const handleNext = () => {
-    // Clean prices for free events but preserve tax state
-    const cleanedTickets = ticket.map((t) => {
-      if (t.freeEvent) {
-        return { ...t, price: "0" }; // Keep the tax value as is
-      }
-      return t;
-    });
-
-    setFormData((prev) => ({
-      ...prev,
-      pricing: {
-        tickets: cleanedTickets,
-        coupons: coupon,
-        addons: item,
-      },
-    }));
-
-    navigate(`/createevent/${vendorId}/step3`);
-  };
-
+  navigate(`/createevent/${vendorId}/step3`);
+}
   return (
     <div>
       <Box
@@ -514,19 +555,6 @@ const PricePerk = () => {
                 mt: "3%",
               }}
             >
-              <Button
-                onClick={handleNext}
-                variant="contained"
-                sx={{
-                  backgroundColor: "#19AEDC",
-                  minWidth: "20%",
-                  textTransform: "none",
-                  display: "flex",
-                  fontFamily: "albert sans",
-                }}
-              >
-                Next
-              </Button>
             </Box>
           </Box>
           {/*Add-ons*/}
@@ -1013,6 +1041,7 @@ const PricePerk = () => {
         >
           <Button
             onClick={handleNext}
+            disabled={!isFormValid()}
             variant="contained"
             sx={{
               textTransform: "none",
@@ -1028,5 +1057,4 @@ const PricePerk = () => {
     </div>
   );
 };
-
 export default PricePerk;

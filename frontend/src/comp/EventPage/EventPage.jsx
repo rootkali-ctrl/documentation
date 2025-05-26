@@ -55,7 +55,6 @@ const EventPage = () => {
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [similarEvents, setSimilarEvents] = useState([]);
-  const [youtubeVideoId, setYoutubeVideoId] = useState(null);
   const isMobile = useMediaQuery("(max-width:600px)");
   // Share menu state
   const [shareAnchorEl, setShareAnchorEl] = useState(null);
@@ -65,16 +64,16 @@ const EventPage = () => {
   const shareTextRef = useRef(null);
 
   // Extract YouTube video ID from URL
-  const extractYoutubeId = (url) => {
-    if (!url) return null;
+  // const extractYoutubeId = (url) => {
+  //   if (!url) return null;
 
-    // Match YouTube URL patterns
-    const regExp =
-      /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
-    const match = url.match(regExp);
+  //   // Match YouTube URL patterns
+  //   const regExp =
+  //     /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+  //   const match = url.match(regExp);
 
-    return match && match[2].length === 11 ? match[2] : null;
-  };
+  //   return match && match[2].length === 11 ? match[2] : null;
+  // };
 
   // Fetch event details when component mounts
   useEffect(() => {
@@ -92,10 +91,10 @@ const EventPage = () => {
           });
 
           // Extract YouTube video ID if mediaLink exists
-          if (eventData.mediaLink) {
-            const videoId = extractYoutubeId(eventData.mediaLink);
-            setYoutubeVideoId(videoId);
-          }
+          // if (eventData.mediaLink) {
+          //   const videoId = extractYoutubeId(eventData.mediaLink);
+          //   setYoutubeVideoId(videoId);
+          // }
 
           // Fetch similar events based on category
           if (eventData.category && eventData.category.length > 0) {
@@ -235,11 +234,11 @@ const EventPage = () => {
   };
 
   // Play YouTube video in a new tab/window
-  const handlePlayVideo = () => {
-    if (event?.mediaLink) {
-      window.open(event.mediaLink, "_blank");
-    }
-  };
+  // const handlePlayVideo = () => {
+  //   if (event?.mediaLink) {
+  //     window.open(event.mediaLink, "_blank");
+  //   }
+  // };
 
   // Share functionality
   const handleShareClick = (event) => {

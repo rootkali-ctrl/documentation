@@ -1,440 +1,3 @@
-// import React, { useState } from "react";
-// import { TextField, Button, Box, Typography } from "@mui/material";
-// import { ErrorOutline } from "@mui/icons-material";
-// import { motion } from "framer-motion";
-// // import Footer from "../Footer/Footer";
-// // import Header from "../Header/Header";
-// import { useNavigate } from "react-router-dom";
-// import { useVendor } from "./VendorContext";
-
-// // import { getRedirectResult, signInWithRedirect } from "firebase/auth";
-// // import { doc, getDoc, setDoc } from "firebase/firestore";
-// // import { auth, db, provider } from "./firebase"; // adjust the path as per your folder structure
-// // import { toast } from "react-toastify";
-
-// const VendorRegister = () => {
-//   const navigate = useNavigate();
-//   const { setVendorData } = useVendor();
-
-//   const [formData, setFormData] = useState({
-//     username: "",
-//     email: "",
-//     password: "",
-//     confirmPassword: "",
-//   });
-
-//   const [errors, setErrors] = useState({});
-//   const [loading, setLoading] = useState(false);
-
-//   // useEffect(() => {
-//   //   async function checkRedirectResult() {
-//   //     try {
-//   //       const result = await getRedirectResult(auth);
-//   //       if (result) {
-//   //         const user = result.user;
-//   //         if (user) {
-//   //           const userRef = doc(db, "Users", user.uid);
-//   //           const userSnap = await getDoc(userRef);
-
-//   //           if (!userSnap.exists()) {
-//   //             await setDoc(userRef, {
-//   //               email: user.email,
-//   //               firstName: user.displayName || "",
-//   //               photo: user.photoURL || "",
-//   //               lastName: "",
-//   //             });
-//   //           }
-
-//   //           toast.success("User logged in Successfully", { position: "top-center" });
-//   //           navigate("/vendorhome");
-//   //         }
-//   //       }
-//   //     } catch (authError) {
-//   //       console.error("Auth Error:", authError);
-//   //     }
-//   //   }
-//   //   checkRedirectResult();
-//   // }, [navigate]);
-
-//   const handleChange = (e) => {
-//     const { name, value } = e.target;
-//     setFormData({
-//       ...formData,
-//       [name]: value,
-//     });
-
-//     setErrors({
-//       ...errors,
-//       [name]: "",
-//     });
-//   };
-
-//   const validateForm = () => {
-//     let newErrors = {};
-
-//     if (!formData.username) newErrors.username = "Username is required";
-
-//     if (!formData.email) {
-//       newErrors.email = "Email ID is required";
-//     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-//       newErrors.email = "Invalid email format";
-//     }
-
-//     if (!formData.password) {
-//       newErrors.password = "Password is required";
-//     } else if (formData.password.length < 8) {
-//       newErrors.password = "Password must be at least 8 characters";
-//     }
-
-//     if (!formData.confirmPassword) {
-//       newErrors.confirmPassword = "Enter password again";
-//     } else if (formData.password !== formData.confirmPassword) {
-//       newErrors.confirmPassword = "Passwords do not match";
-//     }
-
-//     setErrors(newErrors);
-//     return Object.keys(newErrors).length === 0;
-//   };
-
-//   const handleSubmit = async (e) => {
-//     e.preventDefault();
-
-//     if (validateForm()) {
-//       setLoading(true);
-
-//       // Remove confirmPassword before sending the data
-//       const { confirmPassword, ...dataToSend } = formData;
-
-//       try {
-//         // Send data to next page or backend
-//         setVendorData(dataToSend);
-//         navigate("/vendor/organization");
-//       } catch (error) {
-//         console.error(
-//           "Error submitting form:",
-//           error.response ? error.response.data : error.message
-//         );
-//         alert("Something went wrong");
-//       } finally {
-//         setLoading(false);
-//       }
-//     }
-//   };
-
-//   // const googleLogin = async () => {
-//   //   try {
-//   //     signInWithRedirect(auth, provider);
-
-//   //     alert("Registration successful");
-//   //     navigate('/')
-//   //   } catch (error) {
-//   //     console.error("Google Sign-in Failed:", error);
-//   //     toast.error("Google Sign-in Failed. Try Again.");
-//   //   }
-//   // };
-
-//   return (
-//     <Box>
-//       {/* <Header /> */}
-//       <Box
-//         component="form"
-//         onSubmit={handleSubmit}
-//         sx={{
-//           display: "flex",
-//           justifyContent: "center",
-//           alignItems: "center",
-//           height: "90vh",
-//           width: "100%",
-//           margin: "0 auto",
-//           backgroundColor: "#fff",
-//         }}
-//       >
-//         {/* Left Side - Register Form */}
-//         <Box sx={{ width: "30%", textAlign: "left", padding: "2rem" }}>
-//           <Typography
-//             variant="h3"
-//             sx={{
-//               fontWeight: "bold",
-//               color: "#1a1033",
-//               fontFamily: "Albert Sans",
-//             }}
-//           >
-//             Register
-//           </Typography>
-
-//           {/* Username Field */}
-//           <TextField
-//             fullWidth
-//             variant="outlined"
-//             label="Username"
-//             name="username"
-//             value={formData.username}
-//             onChange={handleChange}
-//             sx={{
-//               marginTop: "1.5rem",
-//               backgroundColor: "#f8f7fc",
-//               "& .MuiInputBase-input": { fontFamily: "Albert Sans" },
-//               "& .MuiInputLabel-root": { fontFamily: "Albert Sans" },
-//               "& .MuiOutlinedInput-root": {
-//                 "& fieldset": {
-//                   borderColor: errors.username ? "red" : "#ccc",
-//                 },
-//               },
-//             }}
-//           />
-//           {errors.username && (
-//             <Box
-//               sx={{
-//                 display: "flex",
-//                 alignItems: "center",
-//                 gap: "2%",
-//                 color: "red",
-//                 marginTop: "2%",
-//                 ml: "2%",
-//               }}
-//             >
-//               <ErrorOutline fontSize="small" />
-//               <Typography
-//                 sx={{
-//                   fontSize: "14px",
-//                   fontFamily: "albert sans",
-//                   fontWeight: "400",
-//                 }}
-//               >
-//                 {errors.username}
-//               </Typography>
-//             </Box>
-//           )}
-
-//           {/* Email Field */}
-//           <TextField
-//             fullWidth
-//             variant="outlined"
-//             label="Email ID"
-//             name="email"
-//             value={formData.email}
-//             onChange={handleChange}
-//             sx={{
-//               marginTop: "1.5rem",
-//               backgroundColor: "#f8f7fc",
-//               "& .MuiInputBase-input": { fontFamily: "Albert Sans" },
-//               "& .MuiInputLabel-root": { fontFamily: "Albert Sans" },
-//               "& .MuiOutlinedInput-root": {
-//                 "& fieldset": {
-//                   borderColor: errors.email ? "red" : "#ccc",
-//                 },
-//               },
-//             }}
-//           />
-//           {errors.email && (
-//             <Box
-//               sx={{
-//                 display: "flex",
-//                 alignItems: "center",
-//                 gap: "2%",
-//                 color: "red",
-//                 marginTop: "2%",
-//                 ml: "2%",
-//               }}
-//             >
-//               <ErrorOutline fontSize="small" />
-//               <Typography
-//                 sx={{
-//                   fontSize: "14px",
-//                   fontFamily: "albert sans",
-//                   fontWeight: "400",
-//                 }}
-//               >
-//                 {errors.email}
-//               </Typography>
-//             </Box>
-//           )}
-
-//           {/* Password Field */}
-//           <TextField
-//             fullWidth
-//             variant="outlined"
-//             label="Password"
-//             type="password"
-//             name="password"
-//             value={formData.password}
-//             onChange={handleChange}
-//             sx={{
-//               marginTop: "1rem",
-//               backgroundColor: "#f8f7fc",
-//               "& .MuiInputBase-input": { fontFamily: "Albert Sans" },
-//               "& .MuiInputLabel-root": { fontFamily: "Albert Sans" },
-//               "& .MuiOutlinedInput-root": {
-//                 "& fieldset": {
-//                   borderColor: errors.password ? "red" : "#ccc",
-//                 },
-//               },
-//             }}
-//           />
-//           {errors.password && (
-//             <Box
-//               sx={{
-//                 display: "flex",
-//                 alignItems: "center",
-//                 gap: "2%",
-//                 color: "red",
-//                 marginTop: "2%",
-//                 ml: "2%",
-//               }}
-//             >
-//               <ErrorOutline fontSize="small" />
-//               <Typography
-//                 sx={{
-//                   fontSize: "14px",
-//                   fontFamily: "albert sans",
-//                   fontWeight: "400",
-//                 }}
-//               >
-//                 {errors.password}
-//               </Typography>
-//             </Box>
-//           )}
-
-//           {/* Confirm Password Field */}
-//           <TextField
-//             fullWidth
-//             variant="outlined"
-//             label="Confirm Password"
-//             type="password"
-//             name="confirmPassword"
-//             value={formData.confirmPassword}
-//             onChange={handleChange}
-//             sx={{
-//               marginTop: "1rem",
-//               backgroundColor: "#f8f7fc",
-//               "& .MuiInputBase-input": { fontFamily: "Albert Sans" },
-//               "& .MuiInputLabel-root": { fontFamily: "Albert Sans" },
-//               "& .MuiOutlinedInput-root": {
-//                 "& fieldset": {
-//                   borderColor: errors.confirmPassword ? "red" : "#ccc",
-//                 },
-//               },
-//             }}
-//           />
-//           {errors.confirmPassword && (
-//             <Box
-//               sx={{
-//                 display: "flex",
-//                 alignItems: "center",
-//                 gap: "2%",
-//                 color: "red",
-//                 marginTop: "2%",
-//                 ml: "2%",
-//               }}
-//             >
-//               <ErrorOutline fontSize="small" />
-//               <Typography
-//                 sx={{
-//                   fontSize: "14px",
-//                   fontFamily: "albert sans",
-//                   fontWeight: "400",
-//                 }}
-//               >
-//                 {errors.confirmPassword}
-//               </Typography>
-//             </Box>
-//           )}
-
-//           {/* Register Button */}
-//           <Button
-//             fullWidth
-//             type="submit"
-//             variant="contained"
-//             disabled={loading}
-//             sx={{
-//               marginTop: "1.5rem",
-//               backgroundColor: loading ? "#ccc" : "#53a8d8",
-//               color: "#fff",
-//               padding: "0.8rem",
-//               "&:hover": { backgroundColor: loading ? "#ccc" : "#4795c2" },
-//             }}
-//           >
-//             {loading ? "Registering..." : "Register"}
-//           </Button>
-//           {/* <Button
-//             fullWidth
-//             variant="outlined"
-//             sx={{
-//               marginTop: "1rem",
-//               backgroundColor: "#fff",
-//               border: "1px solid #ccc",
-//               color: "#000",
-//             }}
-//           >
-//             Sign in with Google
-//           </Button> */}
-
-//           {/* Already Have an Account? */}
-//           <Box sx={{ display: "flex", mt: "4%", gap: "2%" }}>
-//             <Typography sx={{ fontFamily: "Albert Sans", fontSize: "18px" }}>
-//               Already have an account?
-//             </Typography>
-//             <Typography
-//               sx={{
-//                 fontFamily: "Albert Sans",
-//                 fontSize: "18px",
-//                 cursor: "pointer",
-//                 color: "rgba(25, 174, 220, 4)",
-//                 fontWeight: "600",
-//                 "&:hover": { textDecoration: "underline" },
-//               }}
-//               onClick={() => navigate("/vendorlogin")}
-//             >
-//               Log in
-//             </Typography>
-//           </Box>
-//         </Box>
-
-//         {/* Right Side - Animated Text */}
-//         {/* <Box
-//           sx={{
-//             width: "40%",
-//             textAlign: "center",
-//             alignItems: "flex-end",
-//             justifyItems: "right",
-//             marginLeft: "10%",
-//           }}
-//         >
-//           <motion.div
-//             initial={{ opacity: 0, y: 20 }}
-//             animate={{ opacity: 1, y: 0 }}
-//             transition={{
-//               duration: 0.8,
-//               repeat: Infinity,
-//               repeatType: "mirror",
-//             }}
-//           >
-//             <Typography
-//               variant="h3"
-//               sx={{
-//                 fontWeight: "bold",
-//                 color: "#000",
-//                 textTransform: "uppercase",
-//               }}
-//             >
-//               Some <br />
-//               Animation/
-//               <br />
-//               Words <br />
-//               Goes Here
-//             </Typography>
-//           </motion.div>
-//         </Box> */}
-//       </Box>
-//       {/* <Footer /> */}
-//     </Box>
-//   );
-// };
-
-// export default VendorRegister;
-
-
-
 import React, { useState, useEffect } from "react";
 import {
   TextField,
@@ -627,7 +190,6 @@ const VendorRegister = () => {
     }
   };
 
-  // For debugging
   useEffect(() => {
     console.log("Current loginCase:", loginCase);
   }, [loginCase]);
@@ -645,7 +207,7 @@ const VendorRegister = () => {
         }}
       >
         <CircularProgress />
-        <Typography variant="h5" sx={{ ml: 2 }}>
+        <Typography variant="h5" sx={{ fontFamily: "albert sans", ml: 2 }}>
           Loading...
         </Typography>
       </Box>
@@ -681,7 +243,7 @@ const VendorRegister = () => {
             sx={{
               fontWeight: "bold",
               color: "#1e1e1e",
-              fontFamily: "Arial, sans-serif",
+              fontFamily: "albert sans",
               fontSize: { xs: "2rem", md: "2.5rem" },
               marginBottom: "2rem",
             }}
@@ -689,7 +251,6 @@ const VendorRegister = () => {
             Register {loginCase === "google" && "(Google Sign-in)"}
           </Typography>
 
-          {/* Username */}
           <TextField
             fullWidth
             label="Username"
@@ -698,11 +259,34 @@ const VendorRegister = () => {
             value={formData.username}
             onChange={handleChange}
             disabled={loginCase === "google" || loginCase === "manual"}
-            sx={{
+           sx={{
               mb: 2,
-              backgroundColor: "#f8f8fa",
+              "& .MuiInputBase-input": {
+                fontFamily: "Albert Sans",
+              },
+              "& .MuiInputLabel-root": {
+                fontFamily: "Albert Sans",
+                "&.Mui-focused": {
+                  color: "#19AEDC", 
+                },
+              },
               "& .MuiOutlinedInput-root": {
                 borderRadius: "4px",
+                fontFamily: "Albert Sans",
+                "& fieldset": {
+                  borderColor: "#ccc",
+                },
+
+                "&.Mui-focused fieldset": {
+                  borderColor: "#19AEDC", 
+                },
+
+                "&.Mui-error fieldset": {
+                  borderColor: "#d32f2f",
+                },
+              },
+              "& .MuiFormHelperText-root": {
+                fontFamily: "Albert Sans",
               },
             }}
             error={!!errors.username}
@@ -720,9 +304,32 @@ const VendorRegister = () => {
             onChange={handleChange}
             sx={{
               mb: 2,
-              backgroundColor: "#f8f8fa",
+              "& .MuiInputBase-input": {
+                fontFamily: "Albert Sans",
+              },
+              "& .MuiInputLabel-root": {
+                fontFamily: "Albert Sans",
+                "&.Mui-focused": {
+                  color: "#19AEDC", 
+                },
+              },
               "& .MuiOutlinedInput-root": {
                 borderRadius: "4px",
+                fontFamily: "Albert Sans",
+                "& fieldset": {
+                  borderColor: "#ccc",
+                },
+
+                "&.Mui-focused fieldset": {
+                  borderColor: "#19AEDC", 
+                },
+
+                "&.Mui-error fieldset": {
+                  borderColor: "#d32f2f",
+                },
+              },
+              "& .MuiFormHelperText-root": {
+                fontFamily: "Albert Sans",
               },
             }}
             error={!!errors.email}
@@ -739,10 +346,33 @@ const VendorRegister = () => {
             value={formData.password}
             onChange={handleChange}
             sx={{
-              mb: 3,
-              backgroundColor: "#f8f8fa",
+              mb: 2,
+              "& .MuiInputBase-input": {
+                fontFamily: "Albert Sans",
+              },
+              "& .MuiInputLabel-root": {
+                fontFamily: "Albert Sans",
+                "&.Mui-focused": {
+                  color: "#19AEDC", 
+                },
+              },
               "& .MuiOutlinedInput-root": {
                 borderRadius: "4px",
+                fontFamily: "Albert Sans",
+                "& fieldset": {
+                  borderColor: "#ccc",
+                },
+
+                "&.Mui-focused fieldset": {
+                  borderColor: "#19AEDC", 
+                },
+
+                "&.Mui-error fieldset": {
+                  borderColor: "#d32f2f",
+                },
+              },
+              "& .MuiFormHelperText-root": {
+                fontFamily: "Albert Sans",
               },
             }}
             error={!!errors.password}
@@ -770,11 +400,34 @@ const VendorRegister = () => {
             variant="outlined"
             value={formData.confirmPassword}
             onChange={handleChange}
-            sx={{
-              mb: 3,
-              backgroundColor: "#f8f8fa",
+           sx={{
+              mb: 2,
+              "& .MuiInputBase-input": {
+                fontFamily: "Albert Sans",
+              },
+              "& .MuiInputLabel-root": {
+                fontFamily: "Albert Sans",
+                "&.Mui-focused": {
+                  color: "#19AEDC", 
+                },
+              },
               "& .MuiOutlinedInput-root": {
                 borderRadius: "4px",
+                fontFamily: "Albert Sans",
+                "& fieldset": {
+                  borderColor: "#ccc",
+                },
+
+                "&.Mui-focused fieldset": {
+                  borderColor: "#19AEDC", 
+                },
+
+                "&.Mui-error fieldset": {
+                  borderColor: "#d32f2f",
+                },
+              },
+              "& .MuiFormHelperText-root": {
+                fontFamily: "Albert Sans",
               },
             }}
             error={!!errors.confirmPassword}
@@ -800,6 +453,7 @@ const VendorRegister = () => {
             variant="contained"
             disabled={loading}
             sx={{
+              fontFamily: "albert sans",
               py: 1.5,
               backgroundColor: loading ? "#ccc" : "#53a8d8",
               "&:hover": {
@@ -815,12 +469,18 @@ const VendorRegister = () => {
 
           {/* Redirect to Login */}
           <Box sx={{ display: "flex", mt: 2 }}>
-            <Typography sx={{ color: "#333", mr: 1 }}>
+            <Typography
+              sx={{ fontFamily: "albert sans", color: "#333", mr: 1 }}
+            >
               Already have an account?
             </Typography>
             <Typography
               onClick={() => navigate("/vendorlogin")}
-              sx={{ color: "#53a8d8", cursor: "pointer" }}
+              sx={{
+                fontFamily: "albert sans",
+                color: "#53a8d8",
+                cursor: "pointer",
+              }}
             >
               Log in
             </Typography>

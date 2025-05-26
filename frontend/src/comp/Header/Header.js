@@ -18,8 +18,8 @@ const MainHeader = () => {
   const navigate = useNavigate();
 
   return (
-    <Box>
-      <Box sx={{ margin: "1% 2% 0.5% 2%" }}>
+    <Box sx={{ backgroundColor:'white'}}>
+      <Box sx={{ padding: "1% 2% 0.5% 2%" }}>
         <Box
           sx={{
             display: "flex",

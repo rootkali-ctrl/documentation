@@ -1,8 +1,19 @@
 import React, { useEffect, useState } from "react";
-import { TextField, Button, Box, Typography, FormControl, FormControlLabel, RadioGroup, Radio } from "@mui/material";
+import {
+  TextField,
+  Button,
+  Box,
+  Typography,
+  FormControl,
+  FormControlLabel,
+  RadioGroup,
+  Radio,
+  useMediaQuery,
+} from "@mui/material";
 import { motion } from "framer-motion";
 import Footer from "../Footer/Footer";
 import Header from "../Header/Header";
+import HeaderVendor1 from "../Header/HeaderVendor";
 import { ErrorOutline } from "@mui/icons-material";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useVendor } from "./VendorContext";
@@ -10,6 +21,8 @@ import { useVendor } from "./VendorContext";
 const VendorOrganization = () => {
   const navigate = useNavigate();
   const { vendorData, setVendorData } = useVendor();
+  const isMobile = useMediaQuery("(max-width:900px)");
+  const isRight = useMediaQuery("(max-width:1080px");
 
   useEffect(() => {
     if (!vendorData) {
@@ -87,7 +100,7 @@ const VendorOrganization = () => {
         // as it's just for UI control and setting GSTIN to empty if hasGSTIN was "no"
         const cleanedData = {
           ...orgData,
-          GSTIN: orgData.hasGSTIN === "yes" ? orgData.GSTIN : ""
+          GSTIN: orgData.hasGSTIN === "yes" ? orgData.GSTIN : "",
         };
         delete cleanedData.hasGSTIN;
 
@@ -108,16 +121,17 @@ const VendorOrganization = () => {
   };
 
   return (
-    <Box>
-      <Header />
+    <Box sx={{ backgroundColor: "#F9FAFB", minHeight: "100vh" }}>
+      {!isMobile ? <Header /> : <Typography>Hello world</Typography>}
       <Typography
-        variant="h4"
         sx={{
+          fontSize: { lg: "40px", md: "36px", sm: "32px", xs: "26px" },
           fontWeight: "bold",
-          mt: "3%",
+          pt: "3%",
           color: "#1a1033",
           textAlign: "center",
-          width: "100%",
+          width: "95%",
+          margin: '0 auto',
           fontFamily: "Albert Sans",
         }}
       >
@@ -128,7 +142,9 @@ const VendorOrganization = () => {
           fontWeight: "light",
           color: "#1a1033",
           textAlign: "center",
-          width: "100%",
+          width: "95%",
+          margin: "0 auto",
+          fontSize: { lg: "20px", md: "18px", sm: "18px", xs: "16px" },
           fontFamily: "Albert Sans",
         }}
       >
@@ -142,18 +158,21 @@ const VendorOrganization = () => {
           alignItems: "center",
           height: "auto",
           width: "90%",
-          margin: "2% auto",
-          backgroundColor: "#fff",
+          margin: "0 auto",
+          padding:'2% 0',
+          gap: { lg: "6%", md: "4%" },
+          backgroundColor: "#F9FAFB",
         }}
       >
         {/* Left Side - Register Form */}
         <Box
           sx={{
-            width: "55%",
+            mt: { lg: "0", md: "0", sm: "2%", xs: "2%" },
+            width: { lg: "50%", md: "60%", sm: "80%", xs: "80%" },
             borderRadius: "10px",
             alignItems: "center",
             boxShadow: 3,
-            padding: "2rem",
+            padding: { lg: "2rem", md: "2rem", sm: "2rem", xs: "2rem" },
           }}
         >
           <TextField
@@ -164,12 +183,20 @@ const VendorOrganization = () => {
             value={orgData.organisationName}
             onChange={handleChange}
             sx={{
-              marginTop: "1.5rem",
-              backgroundColor: "#f8f7fc",
+              marginTop: {
+                lg: "1.5rem",
+                md: "1.5rem",
+                sm: "1.5rem",
+                xs: "0rem",
+              },
+
               "& .MuiInputBase-input": { fontFamily: "Albert Sans" },
               "& .MuiInputLabel-root": { fontFamily: "Albert Sans" },
               "& .MuiOutlinedInput-root": {
                 "& fieldset": { borderColor: "#ccc" },
+                "&.Mui-focused fieldset": {
+                  borderColor: "#19AEDC",
+                },
               },
             }}
           />
@@ -206,11 +233,14 @@ const VendorOrganization = () => {
             onChange={handleChange}
             sx={{
               marginTop: "1rem",
-              backgroundColor: "#f8f7fc",
+
               "& .MuiInputBase-input": { fontFamily: "Albert Sans" },
               "& .MuiInputLabel-root": { fontFamily: "Albert Sans" },
               "& .MuiOutlinedInput-root": {
                 "& fieldset": { borderColor: "#ccc" },
+                "&.Mui-focused fieldset": {
+                  borderColor: "#19AEDC",
+                },
               },
             }}
           />
@@ -257,13 +287,27 @@ const VendorOrganization = () => {
               >
                 <FormControlLabel
                   value="yes"
-                  control={<Radio />}
+                  control={
+                    <Radio
+                      sx={{
+                        
+                        "&.Mui-checked": {
+                          color: "#19AEDC",
+                        },
+                      }}
+                    />
+                  }
                   label="Yes"
                   sx={{ fontFamily: "Albert Sans" }}
                 />
+
                 <FormControlLabel
                   value="no"
-                  control={<Radio />}
+                  control={<Radio  sx={{
+                        "&.Mui-checked": {
+                          color: "#19AEDC",
+                        },
+                      }} />}
                   label="No"
                   sx={{ fontFamily: "Albert Sans" }}
                 />
@@ -283,11 +327,14 @@ const VendorOrganization = () => {
                 onChange={handleChange}
                 sx={{
                   marginTop: "1rem",
-                  backgroundColor: "#f8f7fc",
+
                   "& .MuiInputBase-input": { fontFamily: "Albert Sans" },
                   "& .MuiInputLabel-root": { fontFamily: "Albert Sans" },
                   "& .MuiOutlinedInput-root": {
                     "& fieldset": { borderColor: "#ccc" },
+                    "&.Mui-focused fieldset": {
+                      borderColor: "#19AEDC",
+                    },
                   },
                 }}
               />
@@ -326,11 +373,14 @@ const VendorOrganization = () => {
             onChange={handleChange}
             sx={{
               marginTop: "1rem",
-              backgroundColor: "#f8f7fc",
+
               "& .MuiInputBase-input": { fontFamily: "Albert Sans" },
               "& .MuiInputLabel-root": { fontFamily: "Albert Sans" },
               "& .MuiOutlinedInput-root": {
                 "& fieldset": { borderColor: "#ccc" },
+                "&.Mui-focused fieldset": {
+                  borderColor: "#19AEDC",
+                },
               },
             }}
           />
@@ -368,11 +418,14 @@ const VendorOrganization = () => {
             type="text"
             sx={{
               marginTop: "1rem",
-              backgroundColor: "#f8f7fc",
+
               "& .MuiInputBase-input": { fontFamily: "Albert Sans" },
               "& .MuiInputLabel-root": { fontFamily: "Albert Sans" },
               "& .MuiOutlinedInput-root": {
                 "& fieldset": { borderColor: "#ccc" },
+                "&.Mui-focused fieldset": {
+                  borderColor: "#19AEDC",
+                },
               },
             }}
           />
@@ -405,6 +458,7 @@ const VendorOrganization = () => {
             variant="contained"
             disabled={loading}
             sx={{
+              fontFamily: "albert sans",
               marginTop: "1.5rem",
               backgroundColor: "#53a8d8",
               color: "#fff",
@@ -418,72 +472,77 @@ const VendorOrganization = () => {
         </Box>
 
         {/* Right Side - Animated Text */}
-        <Box
-          sx={{
-            width: "45%",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            textAlign: "center",
-            marginLeft: "10%",
-          }}
-        >
-          <Typography
-            variant="h4"
-            sx={{
-              fontWeight: "bold",
-              color: "#19AEDC",
-              fontFamily: "Albert Sans",
-            }}
-          >
-            Create Memorable Events
-          </Typography>
-          <Typography
-            sx={{ fontFamily: "Albert Sans", fontSize: "18px", mt: "3%" }}
-          >
-            Join our platform to manage and organize spectacular events that
-            leave lasting impressions
-          </Typography>
-
-          {/* Grid Layout for 4 Feature Boxes */}
+        {!isMobile ? (
           <Box
             sx={{
-              display: "grid",
-              gridTemplateColumns: "repeat(2, 1fr)", // 2 columns per row
-              gap: "20px", // Space between boxes
-              width: "100%",
-              marginTop: "5%",
+              width: { lg: "44%", md: "36%" },
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              textAlign: "center",
+              px: { lg: 0, md: "1rem" },
             }}
           >
-            {features.map((feature, index) => (
-              <Box
-                key={index}
-                sx={{
-                  backgroundColor: "#f8f7fc",
-                  padding: "20px",
-                  borderRadius: "8px",
-                  boxShadow: "0px 4px 6px rgba(0, 0, 0, 0.1)",
-                  backgroundColor: "#EEF2FF",
-                  fontFamily: "Albert Sans",
-                  fontSize: "16px",
-                  fontWeight: "500",
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                }}
-              >
-                <Typography>{feature.animation}</Typography>
-                <Typography
-                  sx={{ marginTop: "10px", fontFamily: "Albert sans" }}
+            <Typography
+              sx={{
+                fontSize: { lg: "35px", md: "30px" },
+                fontWeight: "bold",
+                color: "#19AEDC",
+                lineHeight: "40px",
+                fontFamily: "Albert Sans",
+                pl: isRight ? "8%" : "0%",
+              }}
+            >
+              Create Memorable Events
+            </Typography>
+            <Typography
+              sx={{
+                fontFamily: "Albert Sans",
+                fontSize: { lg: "18px", md: "16px" },
+                mt: "3%",
+                pl: isRight ? "8%" : "0%",
+              }}
+            >
+              Join our platform to manage and organize spectacular events that
+              leave lasting impressions
+            </Typography>
+
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: "repeat(2, 1fr)",
+                gap: { lg: "20px", md: "15px" },
+                width: "100%",
+                mt: "5%",
+              }}
+            >
+              {features.map((feature, index) => (
+                <Box
+                  key={index}
+                  sx={{
+                    backgroundColor: "#EEF2FF",
+                    padding: "20px",
+                    borderRadius: "8px",
+                    boxShadow: "0px 4px 6px rgba(0, 0, 0, 0.1)",
+                    fontFamily: "Albert Sans",
+                    fontSize: "16px",
+                    fontWeight: "500",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                  }}
                 >
-                  {feature.title}
-                </Typography>
-              </Box>
-            ))}
+                  <Typography>{feature.animation}</Typography>
+                  <Typography sx={{ mt: "10px" }}>{feature.title}</Typography>
+                </Box>
+              ))}
+            </Box>
           </Box>
-        </Box>
+        ) : (
+          <></>
+        )}
       </Box>
-      <Footer />
     </Box>
   );
 };
