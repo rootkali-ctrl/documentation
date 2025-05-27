@@ -29,6 +29,7 @@ const PaymentPortalPage = () => {
   } = location.state || {};
   const [taxIncluded, setTaxIncluded] = useState(false);
   const isMobile = useMediaQuery("(max-width:600px)");
+  const [paddingBottom, setPaddingBottom] = useState(10);
   useEffect(() => {
     const fetchTaxData = async () => {
       try {
@@ -58,6 +59,18 @@ const PaymentPortalPage = () => {
       }
     };
     fetchTaxData();
+     let lastScrollY = window.scrollY;
+
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      const isScrollingDown = currentScrollY > lastScrollY;
+
+      setPaddingBottom(isScrollingDown ? 30 : 10);
+      lastScrollY = currentScrollY;
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
   }, [event.id]);
 
   const formattedDate = event.date
@@ -190,14 +203,15 @@ const PaymentPortalPage = () => {
   };
 
   return (
-    <Box sx={{ backgroundColor: "#FFFFFF", minHeight: "100vh",overflowX: "hidden", overflowY: "hidden" }}>
+    <Box sx={{ backgroundColor: "#FFFFFF", minHeight: "100vh",overflowX: "hidden", overflowY: "hidden",mb:isMobile?9:0 }}>
       <Header />
   
       <Stepper
         activeStep={2}
         alternativeLabel
         sx={{
-          padding: { xs: "20px 5%", md: "20px 5%" },
+          padding: { xs: "20px 0%", md: "20px 5%" },
+
           width: { xs: "100%", sm: "80%", md: "50%" },
           margin: "0 auto",
         }}
@@ -553,7 +567,8 @@ const PaymentPortalPage = () => {
                       width: "100%",
                       backgroundColor: "#ffffff",
                       boxShadow: "0 -2px 6px rgba(0,0,0,0.1)",
-                      py: 1,
+                       padding: `10px 0 ${paddingBottom}px 0`,
+                    transition: "padding 0.5s ease-in-out",
                       zIndex: 1000,
                       display: "flex",
                       justifyContent: "center",
@@ -568,8 +583,8 @@ const PaymentPortalPage = () => {
               color: "#fff",
               borderRadius: "25px",
               padding: "10px",
-              width: "90%",
-              fontSize: { xs: "18px", md: "20px" },
+              width: "60%",
+              fontSize: { xs: "14px", md: "20px" },
               "&:hover": { backgroundColor: "#3995D1" },
             }}
             onClick={handleProceedToPayment}

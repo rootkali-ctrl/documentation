@@ -749,176 +749,214 @@ const TicketPricePage = ({ activeStep = 0 }) => {
 
       {/* Food Modal */}
       <Modal
-        open={openBiteModal}
-        onClose={() => setOpenBiteModal(false)}
-        sx={{ display: "flex", alignItems: "center", justifyContent: "center" }}
+  open={openBiteModal}
+  onClose={() => setOpenBiteModal(false)}
+  sx={{
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    p: 2, // ensures padding on smaller screens
+  }}
+>
+  <Card
+    sx={{
+      maxWidth: 800,
+      maxHeight: "90vh",
+      overflowY: "auto",
+      p: { xs: 2, sm: 3 },
+      width: "100%", // full width with padding will help responsiveness
+    }}
+  >
+    <Box
+      sx={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        mb: 2,
+        flexDirection:"row",
+        gap: 1,
+      }}
+    >
+      <Typography
+        variant="h6"
+        component="h2"
+        fontWeight="bold"
+        textAlign={{ xs: "center", sm: "left" }}
       >
-        <Card
+        Add Snacks & Beverages
+      </Typography>
+      <IconButton onClick={() => setOpenBiteModal(false)}>
+        <CloseIcon />
+      </IconButton>
+    </Box>
+
+    {foodItems.length > 0 ? (
+      <>
+        <Tabs
+          value={selectedCategory}
+          onChange={(e, newValue) => setSelectedCategory(newValue)}
+          variant="scrollable"
+          scrollButtons="auto"
           sx={{
-            maxWidth: 800,
-            maxHeight: "90vh",
-            overflow: "auto",
-            p: 3,
-            width: "90%",
+            mb: 2,
+            borderBottom: 1,
+            borderColor: "divider",
           }}
         >
-          <Box
-            sx={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              mb: 2,
-            }}
-          >
-            <Typography variant="h5" component="h2" fontWeight="bold">
-              Add Snacks & Beverages
-            </Typography>
-            <IconButton onClick={() => setOpenBiteModal(false)}>
-              <CloseIcon />
-            </IconButton>
-          </Box>
+          {foodCategories.map((category) => (
+            <Tab
+              key={category}
+              label={category}
+              value={category}
+              sx={{
+                fontWeight:
+                  selectedCategory === category ? "bold" : "normal",
+                color:
+                  selectedCategory === category ? "#19AEDC" : "inherit",
+              }}
+            />
+          ))}
+        </Tabs>
 
-          {foodItems.length > 0 ? (
-            <>
-              <Tabs
-                value={selectedCategory}
-                onChange={(e, newValue) => setSelectedCategory(newValue)}
-                sx={{ mb: 2, borderBottom: 1, borderColor: "divider" }}
-                variant="scrollable"
-                scrollButtons="auto"
-              >
-                {foodCategories.map((category) => (
-                  <Tab
-                    key={category}
-                    label={category}
-                    value={category}
+        <Grid container spacing={2}>
+          {filteredFoodItems.map((item) => {
+            const count = selectedFoodItems[item.id] || 0;
+
+            return (
+              <Grid item xs={12} sm={6} md={4} key={item.id}>
+                <Card
+                  sx={{
+                    display: "flex",
+                    flexDirection: "column",
+                    height: !isMobile?"100%":"100%",
+                    width: !isMobile?"100%":"80%",
+                    boxShadow:
+                      count > 0
+                        ? "0 0 0 2px #19AEDC"
+                        : "0px 4px 12px rgba(0, 0, 0, 0.05)",
+                    transition: "all 0.2s ease-in-out",
+                    "&:hover": {
+                      transform: "translateY(-4px)",
+                      boxShadow: "0px 8px 16px rgba(0, 0, 0, 0.1)",
+                    },
+                  }}
+                >
+                  <Box sx={{ height: 140, overflow: "hidden" }}>
+                    <img
+                      src={item.image}
+                      alt={item.name}
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                      }}
+                    />
+                  </Box>
+                  <Box sx={{ p: 2, flexGrow: 1 }}>
+                    <Typography
+                      variant="h6"
+                      component="h3"
+                      fontSize={{ xs: "1rem", sm: "1.1rem" }}
+                      gutterBottom
+                    >
+                      {item.name}
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ mb: 1, fontSize: { xs: "0.85rem", sm: "0.95rem" } }}
+                    >
+                      {item.description}
+                    </Typography>
+                    <Typography variant="subtitle1" fontWeight="bold">
+                      ₹{item.price}
+                    </Typography>
+                  </Box>
+                  <Box
                     sx={{
-                      fontWeight:
-                        selectedCategory === category ? "bold" : "normal",
-                      color:
-                        selectedCategory === category ? "#19AEDC" : "inherit",
+                      p: 2,
+                      display: "flex",
+                      justifyContent:
+                        count > 0 ? "space-between" : "flex-end",
+                      alignItems: "center",
                     }}
-                  />
-                ))}
-              </Tabs>
-
-              <Grid container spacing={2}>
-                {filteredFoodItems.map((item) => {
-                  const count = selectedFoodItems[item.id] || 0;
-
-                  return (
-                    <Grid item xs={12} sm={6} md={4} key={item.id}>
-                      <Card
+                  >
+                    {count > 0 ? (
+                      <>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleFoodDecrement(item.id)}
+                          sx={{ color: "#19AEDC" }}
+                        >
+                          <RemoveIcon />
+                        </IconButton>
+                        <Typography fontWeight="bold">{count}</Typography>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleFoodIncrement(item.id)}
+                          sx={{ color: "#19AEDC" }}
+                        >
+                          <AddIcon />
+                        </IconButton>
+                      </>
+                    ) : (
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={() => handleFoodIncrement(item.id)}
                         sx={{
-                          display: "flex",
-                          flexDirection: "column",
-                          height: "100%",
-                          boxShadow:
-                            count > 0
-                              ? "0 0 0 2px #19AEDC"
-                              : "0px 4px 12px rgba(0, 0, 0, 0.05)",
-                          transition: "all 0.2s ease-in-out",
-                          "&:hover": {
-                            transform: "translateY(-4px)",
-                            boxShadow: "0px 8px 16px rgba(0, 0, 0, 0.1)",
-                          },
+                          borderColor: "#19AEDC",
+                          color: "#19AEDC",
+                          fontSize: { xs: "0.75rem", sm: "0.875rem" },
                         }}
                       >
-                        <Box sx={{ height: 140, overflow: "hidden" }}>
-                          <img
-                            src={item.image}
-                            alt={item.name}
-                            style={{
-                              width: "100%",
-                              height: "100%",
-                              objectFit: "cover",
-                            }}
-                          />
-                        </Box>
-                        <Box sx={{ p: 2, flexGrow: 1 }}>
-                          <Typography variant="h6" component="h3" gutterBottom>
-                            {item.name}
-                          </Typography>
-                          <Typography
-                            variant="body2"
-                            color="text.secondary"
-                            sx={{ mb: 1 }}
-                          >
-                            {item.description}
-                          </Typography>
-                          <Typography variant="subtitle1" fontWeight="bold">
-                            ₹{item.price}
-                          </Typography>
-                        </Box>
-                        <Box
-                          sx={{
-                            p: 2,
-                            display: "flex",
-                            justifyContent:
-                              count > 0 ? "space-between" : "flex-end",
-                            alignItems: "center",
-                          }}
-                        >
-                          {count > 0 ? (
-                            <>
-                              <IconButton
-                                size="small"
-                                onClick={() => handleFoodDecrement(item.id)}
-                                sx={{ color: "#19AEDC" }}
-                              >
-                                <RemoveIcon />
-                              </IconButton>
-                              <Typography fontWeight="bold">{count}</Typography>
-                              <IconButton
-                                size="small"
-                                onClick={() => handleFoodIncrement(item.id)}
-                                sx={{ color: "#19AEDC" }}
-                              >
-                                <AddIcon />
-                              </IconButton>
-                            </>
-                          ) : (
-                            <Button
-                              variant="outlined"
-                              size="small"
-                              onClick={() => handleFoodIncrement(item.id)}
-                              sx={{ borderColor: "#19AEDC", color: "#19AEDC" }}
-                            >
-                              Add
-                            </Button>
-                          )}
-                        </Box>
-                      </Card>
-                    </Grid>
-                  );
-                })}
+                        Add
+                      </Button>
+                    )}
+                  </Box>
+                </Card>
               </Grid>
-            </>
-          ) : (
-            <Typography variant="body1" sx={{ textAlign: "center", py: 4 }}>
-              No food items available for this event.
-            </Typography>
-          )}
+            );
+          })}
+        </Grid>
+      </>
+    ) : (
+      <Typography variant="body1" sx={{ textAlign: "center", py: 4 }}>
+        No food items available for this event.
+      </Typography>
+    )}
 
-          <Box sx={{ display: "flex", justifyContent: "space-between", mt: 3 }}>
-            <Typography variant="h6">
-              {getTotalFoodCount() > 0
-                ? `${getTotalFoodCount()} items selected`
-                : "No items selected"}
-            </Typography>
-            <Button
-              variant="contained"
-              onClick={() => setOpenBiteModal(false)}
-              sx={{
-                backgroundColor: "#19AEDC",
-                "&:hover": { backgroundColor: "#148db1" },
-              }}
-            >
-              Done
-            </Button>
-          </Box>
-        </Card>
-      </Modal>
+    <Box
+      sx={{
+        display: "flex",
+        flexDirection: { xs: "column", sm: "row" },
+        justifyContent: "space-between",
+        alignItems: { xs: "stretch", sm: "center" },
+        mt: 3,
+        gap: 2,
+      }}
+    >
+      <Typography variant="h6" fontSize={{ xs: "1rem", sm: "1.2rem" }}>
+        {getTotalFoodCount() > 0
+          ? `${getTotalFoodCount()} items selected`
+          : "No items selected"}
+      </Typography>
+      <Button
+        variant="contained"
+        fullWidth={true}
+        onClick={() => setOpenBiteModal(false)}
+        sx={{
+          backgroundColor: "#19AEDC",
+          "&:hover": { backgroundColor: "#148db1" },
+          maxWidth: { sm: "200px" },
+          alignSelf: { xs: "center", sm: "auto" },
+        }}
+      >
+        Done
+      </Button>
+    </Box>
+  </Card>
+</Modal>
 
       {/* Footer with Price Summary */}
       <Box

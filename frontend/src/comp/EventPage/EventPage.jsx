@@ -62,6 +62,7 @@ const EventPage = () => {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const shareTextRef = useRef(null);
+  const [paddingBottom, setPaddingBottom] = useState(10);
 
   // Extract YouTube video ID from URL
   // const extractYoutubeId = (url) => {
@@ -115,6 +116,18 @@ const EventPage = () => {
     if (eventId) {
       fetchEventDetails();
     }
+    let lastScrollY = window.scrollY;
+
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      const isScrollingDown = currentScrollY > lastScrollY;
+
+      setPaddingBottom(isScrollingDown ? 20 : 2);
+      lastScrollY = currentScrollY;
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
   }, [eventId, navigate]);
 
   // Fetch similar events based on category
@@ -384,7 +397,7 @@ const EventPage = () => {
                   component="img"
                   image={event.bannerImages?.[0] || eventImg}
                   alt={event.name}
-                  sx={{ width: "100%", height: "400px", objectFit: "cover" }}
+                  sx={{ width: "100%", height:isMobile?"200px":"400px", objectFit: "cover" }}
                 />
                 
                {isMobile && <Box
@@ -737,7 +750,7 @@ const EventPage = () => {
           position: "relative",
           borderRadius: "10px",
           overflow: "hidden",
-          width:'500px'
+          width:isMobile ? "100%" : "500px",
         }}
       >
         <Slider
@@ -850,7 +863,7 @@ const EventPage = () => {
 
           {/* Similar Events Section */}
           {similarEvents.length > 0 && (
-            <Card sx={{ mt: isMobile ? 1 : 3, borderRadius: "20px", boxShadow: "none" ,mb: isMobile ? 3: 0}}>
+            <Card sx={{ mt: isMobile ? 1 : 3, borderRadius: "20px", boxShadow: "none" ,mb: isMobile ? 9: 0}}>
               <CardContent>
                 <Typography variant="h6" sx={{ fontWeight: "bold", mb: 2 }}>
                   Similar Events
@@ -898,73 +911,44 @@ const EventPage = () => {
       </Box>
       
       {!isMobile && <Footer />}
-      {isMobile && (
-      <Box
+   {isMobile && (
+  <Box
         sx={{
           position: "fixed",
           bottom: 0,
           left: 0,
+          right: 0,
           width: "100%",
-          backgroundColor: "#ffffff",
-          boxShadow: "0 -2px 6px rgba(0,0,0,0.1)",
-          py: 1,
-          zIndex: 1000,
+          backgroundColor: "#fff",
+          boxShadow: "0 -2px 10px rgba(0,0,0,0.1)",
+          padding: `10px 0 ${paddingBottom}px 0`,
+          zIndex: 1300,
           display: "flex",
           justifyContent: "center",
+          alignItems: "center",
+          transition: "padding 0.3s ease-in-out",
         }}
       >
-        <Box
+        <Button
+          variant="contained"
+          onClick={() => navigate(`/ticketpricepage/${eventId}`)}
           sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            width: "90%",
-            margin: "0 auto",
-            maxWidth: "500px",
+            backgroundColor: "#19AEDC",
+            color: "#FFFFFF",
+            borderRadius: "25px",
+            width: "60%",
+            padding: "12px",
+            textTransform: "none",
+            fontSize: "16px",
+            "&:hover": {
+              backgroundColor: "#1789AE",
+            },
           }}
         >
-          {/* Price Info - Left Side */}
-          <Box sx={{ display: "flex", flexDirection: "column" }}>
-            <Typography
-              variant="body2"
-              sx={{ fontSize: "14px", color: "#4B5563" }}
-            >
-              Price
-            </Typography>
-            <Typography
-              variant="body1"
-              sx={{
-                fontWeight: "bold",
-                fontSize: "16px",
-                color: "#19AEDC",
-              }}
-            >
-              {getTicketPrice(event.pricing)}
-            </Typography>
-          </Box>
-
-          {/* Get Tickets Button - Right Side */}
-          <Button
-            variant="contained"
-            onClick={() => navigate(`/ticketpricepage/${eventId}`)}
-            sx={{
-              backgroundColor: "#19AEDC",
-              color: "#FFFFFF",
-              borderRadius: "25px",
-              padding: "10px 20px",
-              fontSize: "16px",
-              textTransform: "none",
-              "&:hover": {
-                backgroundColor: "#1789AE",
-              },
-            }}
-          >
-            Get Tickets
-          </Button>
-        </Box>
+          Get Tickets
+        </Button>
       </Box>
-    )}
-
+)}
 
 
       {/* Snackbar for notifications */}

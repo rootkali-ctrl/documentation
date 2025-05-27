@@ -35,8 +35,10 @@ const ProceedToPayPage = () => {
   const [bannerImages, setBannerImages] = useState([]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const isMobile = useMediaQuery("(max-width:600px)");
+  const [paddingBottom, setPaddingBottom] = useState(10);
   // Get the data passed from the TicketPricePage
   useEffect(() => {
+
     if (location.state) {
       const {
         event: eventData,
@@ -75,6 +77,18 @@ const ProceedToPayPage = () => {
         setEvent(eventData);
       }
     }
+    let lastScrollY = window.scrollY;
+
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      const isScrollingDown = currentScrollY > lastScrollY;
+
+      setPaddingBottom(isScrollingDown ? 30 : 10);
+      lastScrollY = currentScrollY;
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
   }, [location.state]);
 
   // Check if this is a free event (all tickets are free)
@@ -810,7 +824,7 @@ const ProceedToPayPage = () => {
             )}
           </Box>
            {isMobile && 
-            <Box mt={isMobile?2:4} mb={isMobile?10:0} >
+            <Box mt={isMobile?2:4} mb={isMobile?15:0} >
               <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>
                 Coupon & Discount FAQs
               </Typography>
@@ -837,7 +851,7 @@ const ProceedToPayPage = () => {
               {/* Available Coupons Section */}
               {eventCoupons.length > 0 && (
                 <Box mt={3}>
-                  <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>
+                  <Typography variant="h6" fontWeight="bold" sx={{ mb:2 }}>
                     Available Coupons
                   </Typography>
                   {eventCoupons.map((coupon, index) => {
@@ -963,6 +977,8 @@ const ProceedToPayPage = () => {
                 py: 1,
                 zIndex: 1000,
                 display: "flex",
+                padding: `10px 0 ${paddingBottom}px 0`,
+                transition: "padding 0.5s ease-in-out",
                 justifyContent: "center",
               }}
              >
@@ -973,10 +989,10 @@ const ProceedToPayPage = () => {
             sx={{
               backgroundColor: "#19AEDC",
               color: "#fff",
-              width: "90%",
+              width: "60%",
               borderRadius: "25px",
               padding: "3%",
-              fontSize: "18px",
+              fontSize: "14px",
               "&:hover": { backgroundColor: "#0c8baf" },
             }}
             onClick={() => navigate(`/paymentportalpage`, {

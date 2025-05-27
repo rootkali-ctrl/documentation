@@ -137,10 +137,10 @@ const EventCard = ({ event }) => {
         cursor: "pointer",
         scrollbarWidth: "none",
         transition: "transform 0.2s",
-        "&:hover": {
+        "&:hover": !isMobile ?{
           transform: "translateY(-4px)",
           boxShadow: "0 6px 12px rgba(0,0,0,0.1)",
-        },
+        }:null,
       }}
       onClick={() => navigate(`/eventpage/${event.id}`)}
     >
@@ -184,7 +184,7 @@ const EventCard = ({ event }) => {
             </Typography>
           </Box>
         )}
-        <Box
+        {/* <Box
           sx={{
             position: "absolute",
             top: 10,
@@ -200,7 +200,7 @@ const EventCard = ({ event }) => {
           }}
         >
           <ArrowForwardIcon fontSize="small" sx={{color:"rgb(25, 174, 220)"}}/>
-        </Box>
+        </Box> */}
       </Box>
 
       <CardContent sx={{ padding: "16px" }}>
