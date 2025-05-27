@@ -7,7 +7,11 @@ const {
   getAllEventStatistics,
   getEventStatistics,
   getVendorById,
-    checkVendorEmail
+    checkVendorEmail,
+    vendorGetWithPass,
+    vendorUpdateDetails,
+    lastlogin,
+    fetchLastLogin
 
 }=require('../controllers/vendorController')
 const router=require("express").Router();
@@ -33,8 +37,11 @@ router.get('/eventStatistics/:eventId',getEventStatistics);
 router.get('/check-email', checkVendorEmail);
 router.get('/exists/:email', checkVendorEmail);
 router.get('/:vendorId', getVendorById);
+router.get('/vendorupdate/:vendorId', vendorGetWithPass);
+router.put('/update/:vendorId', vendorUpdateDetails);
 
-
+router.post("/lastlogin", lastlogin)
+router.get("/vendorLastLogin/:vendorId", fetchLastLogin)
 module.exports=router
 
 

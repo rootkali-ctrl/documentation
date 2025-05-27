@@ -18,13 +18,15 @@ import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import CachedIcon from "@mui/icons-material/Cached";
 import DoneIcon from "@mui/icons-material/Done";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
+import { getAuth } from "firebase/auth";
 
 const VendorDocument = () => {
   const navigate = useNavigate();
   const { vendorData } = useVendor();
   const isTab = useMediaQuery("(max-width:900px)");
   const isMobile = useMediaQuery("(max-width:600px)");
-
+  const auth = getAuth();
+  const user = auth.currentUser;
   useEffect(() => {
     if (!vendorData) {
       navigate("/vendor/register");
@@ -97,6 +99,8 @@ const VendorDocument = () => {
 
       const mergedData = {
         ...vendorData,
+        firebaseUid: user.uid,
+        lastLogin: null,
         panNumber: docData.panNumber,
         aadharNumber: docData.aadharNumber,
         AccountNumber: docData.AccountNumber,

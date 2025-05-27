@@ -1,7 +1,8 @@
 import { React, useState, useEffect } from "react";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
 import VendorBeforeLogin from "../Header/VendorBeforeLogin";
-import { getAuth } from "firebase/auth";
+import { getAuth } from 'firebase/auth';
+
 import { writeBatch } from "firebase/firestore";
 import {
   Box,
@@ -84,11 +85,15 @@ const EditEventPage = () => {
     "Education", "Business", "Lifestyle", "Entertainment", "Community"
   ];
 
-  // Fetch event data - Modified to use Firestore directly
+  // Fetch event data with vendorId validation
   useEffect(() => {
     const fetchEventData = async () => {
       try {
         if (location.state && location.state.eventData) {
+          // Validate vendorId from URL params against event data
+          if (location.state.eventData.vendorId !== vendorId) {
+            throw new Error("Unauthorized: You cannot edit this event");
+          }
           formatEventData(location.state.eventData);
         } else {
           console.log(`Fetching event data for ID: ${eventId}`);
@@ -98,13 +103,29 @@ const EditEventPage = () => {
           const eventDoc = await getDoc(eventDocRef);
 
           if (eventDoc.exists()) {
-            console.log("Firestore Document Data:", eventDoc.data());
-            formatEventData(eventDoc.data());
+            const eventDocData = eventDoc.data();
+            console.log("Firestore Document Data:", eventDocData);
+            
+            // VENDOR ID VALIDATION - Main security check
+            if (eventDocData.vendorId !== vendorId) {
+              console.error("Vendor ID mismatch:");
+              console.error("URL vendorId:", vendorId);
+              console.error("Event vendorId:", eventDocData.vendorId);
+              throw new Error("Unauthorized: You cannot edit this event");
+            }
+            
+            formatEventData(eventDocData);
           } else {
             // Fallback to API if needed
             try {
               const response = await axios.get(`http://localhost:8080/api/event/${eventId}`);
               console.log("API Response:", response.data);
+              
+              // Validate vendorId from API response too
+              if (response.data.vendorId !== vendorId) {
+                throw new Error("Unauthorized: You cannot edit this event");
+              }
+              
               formatEventData(response.data);
             } catch (apiError) {
               console.error("API fetch failed:", apiError);
@@ -116,18 +137,31 @@ const EditEventPage = () => {
         console.error("Error fetching event data:", error);
         setSnackbar({
           open: true,
-          message: "Failed to load event data",
+          message: error.message || "Failed to load event data",
           severity: "error"
         });
+        
+        // Redirect back if unauthorized
+        if (error.message.includes("Unauthorized")) {
+          setTimeout(() => {
+            navigate(`/vendor/${vendorId}`);
+          }, 2000);
+        }
       } finally {
         setLoading(false);
       }
     };
 
     fetchEventData();
-  }, [eventId, location.state]);
+  }, [eventId, location.state, vendorId, navigate]);
 
   const formatEventData = (data) => {
+    console.log("=== EVENT DATA DEBUGGING ===");
+    console.log("Event document vendorId:", data.vendorId);
+    console.log("URL vendorId parameter:", vendorId);
+    console.log("VendorIds match:", data.vendorId === vendorId);
+    console.log("================================");
+
     const id = data._id || eventId;
     const eventDate = data.eventDate ? new Date(data.eventDate) : null;
     const eventHost = data.eventHost ? new Date(data.eventHost) : null;
@@ -146,9 +180,6 @@ const EditEventPage = () => {
       pincode: ""
     };
 
-    // Make sure to preserve the creatorId from the original data
-    const creatorId = data.creatorId || vendorId;
-
     setEventData({
       ...data,
       _id: id,
@@ -160,8 +191,7 @@ const EditEventPage = () => {
       speaker,
       perks,
       FAQ,
-      vendorId,
-      creatorId, // Ensure creatorId is preserved
+      vendorId, // Use vendorId from URL params
       venueDetails
     });
   };
@@ -360,18 +390,15 @@ const EditEventPage = () => {
     }));
   };
 
-  // Modified handleSubmit function to fix permission issues
+  // Simplified handleSubmit - removed complex auth checks
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
 
     try {
-      // Get the current auth state
-      const auth = getAuth();
-      const currentUser = auth.currentUser;
-
-      if (!currentUser) {
-        throw new Error("User not authenticated. Please sign in again.");
+      // Double-check vendorId before submitting
+      if (eventData.vendorId !== vendorId) {
+        throw new Error("Unauthorized: VendorId mismatch");
       }
 
       // First, upload new banner images if any
@@ -402,17 +429,14 @@ const EditEventPage = () => {
         updatedBannerImages.push(downloadURL);
       }
 
-      // Prepare data for update
+      // Prepare data for update - ensure vendorId is preserved
       const updatedEventData = {
-        // Only include fields we want to update - fewer fields reduce chance of permission errors
         name: eventData.name,
         description: eventData.description,
         category: eventData.category,
         tags: eventData.tags,
         bannerImages: updatedBannerImages,
-        vendorId: vendorId,
-        // Make sure to set the creatorId to the original value, or the current user
-        creatorId: eventData.creatorId || currentUser.uid,
+        vendorId: vendorId, // Always use vendorId from URL params
         eventDate: eventData.eventDate ? new Date(eventData.eventDate).toISOString() : null,
         eventHost: eventData.eventHost ? new Date(eventData.eventHost).toISOString() : null,
         mediaLink: eventData.mediaLink,
@@ -439,7 +463,7 @@ const EditEventPage = () => {
 
       console.log("Updating event document with data:", updatedEventData);
 
-      // Use setDoc with merge option instead of updateDoc to handle permissions better
+      // Use setDoc with merge option
       const eventDocRef = doc(db, "events", eventId);
       await setDoc(eventDocRef, updatedEventData, { merge: true });
 
@@ -452,66 +476,16 @@ const EditEventPage = () => {
       });
 
       setTimeout(() => {
-        navigate(`/vendor/${vendorId}`);
+        navigate(`/vendorhome/${vendorId}`);
       }, 2000);
 
     } catch (error) {
-      console.error("Error updating event in Firestore:", error);
-
-      // Simplified error handling approach
-      try {
-        console.log("Attempting alternative update method...");
-
-        // Get token for API calls
-        const auth = getAuth();
-        const idToken = await auth.currentUser.getIdToken();
-
-        // Prepare minimal data needed to update
-        const minimalUpdateData = {
-          name: eventData.name,
-          description: eventData.description,
-          category: eventData.category,
-          tags: eventData.tags,
-          bannerImages: eventData.bannerImages,
-          vendorId: vendorId,
-          creatorId: eventData.creatorId || vendorId, // Make sure this is the original creator
-          eventDate: eventData.eventDate ? new Date(eventData.eventDate).toISOString() : null,
-          mediaLink: eventData.mediaLink,
-          contact: eventData.contact,
-          venueDetails: eventData.venueDetails,
-          lastUpdated: new Date()
-        };
-
-        // Try using Axios with the API endpoint
-        const apiUrl = `http://localhost:8080/api/event/${eventId}`;
-        const response = await axios.put(apiUrl, minimalUpdateData, {
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${idToken}`
-          }
-        });
-
-        if (response.status >= 200 && response.status < 300) {
-          console.log("API Update response:", response);
-          setSnackbar({
-            open: true,
-            message: "Event updated successfully via API",
-            severity: "success"
-          });
-
-          setTimeout(() => {
-            navigate(`/vendor/${vendorId}`);
-          }, 2000);
-        }
-      } catch (apiError) {
-        console.error("API update failed:", apiError);
-
-        setSnackbar({
-          open: true,
-          message: "Failed to update event. Please try again later or contact support.",
-          severity: "error"
-        });
-      }
+      console.error("Error updating event:", error);
+      setSnackbar({
+        open: true,
+        message: error.message || "Failed to update event. Please try again.",
+        severity: "error"
+      });
     } finally {
       setSubmitting(false);
     }

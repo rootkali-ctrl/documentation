@@ -22,7 +22,10 @@ import { useNavigate } from "react-router-dom";
 import { useParams } from "react-router-dom";
 import axios from "axios";
 import { collection, query, where, getDocs } from "firebase/firestore";
-import { db } from "../../firebase_config";
+import { db, auth } from "../../firebase_config";
+import { Snackbar, Alert } from "@mui/material";
+import HeaderVendorLogged from "../Header/HeaderVendorLogged";
+import { onAuthStateChanged, signOut } from "firebase/auth";
 
 const VendorHome = () => {
   const navigate = useNavigate();
@@ -49,6 +52,66 @@ const VendorHome = () => {
   const [salesGrowth, setSalesGrowth] = useState(15);
 
   const eventsPerPage = 8;
+
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [passvendorId, passsetVendorId] = useState(null);
+  const [username, setUsername] = useState("");
+
+  const [userProfile, setUserProfile] = useState(null);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        setIsAuthenticated(true);
+        const derivedUsername = user.displayName || user.email.split("@")[0];
+        setUsername(derivedUsername);
+
+        // Add this userProfile setting
+        setUserProfile({
+          photoURL: user.photoURL,
+          displayName: user.displayName,
+          email: user.email,
+          uid: user.uid,
+        });
+
+        try {
+          const res = await fetch("http://localhost:8080/api/user/post-email", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: user.email }),
+          });
+
+          const data = await res.json();
+          if (res.ok) {
+            localStorage.setItem("vendorId", data.vendorId);
+            passsetVendorId(data.vendorId); // Make sure you set this in state
+          } else {
+            console.error("Vendor not found:", data.message);
+          }
+        } catch (error) {
+          console.error("Error fetching vendor data:", error);
+        }
+      } else {
+        setIsAuthenticated(false);
+        setUsername("");
+        setUserProfile(null); // Add this
+        passsetVendorId(null); // Add this
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      localStorage.removeItem("vendorId"); // Add this line
+      navigate("/");
+    } catch (error) {
+      console.error("Logout error:", error);
+      alert("Failed to log out. Please try again.");
+    }
+  };
 
   const handleChange = (event) => {
     setStatus(event.target.value);
@@ -99,9 +162,9 @@ const VendorHome = () => {
 
   // Update event data with status
   const updateEventDataWithStatus = (events) => {
-    return events.map(event => ({
+    return events.map((event) => ({
       ...event,
-      status: getEventStatus(event)
+      status: getEventStatus(event),
     }));
   };
 
@@ -149,7 +212,9 @@ const VendorHome = () => {
         setTotalEvents(events.length);
 
         const now = new Date();
-        const active = events.filter(event => new Date(event.eventDate) > now).length;
+        const active = events.filter(
+          (event) => new Date(event.eventDate) > now
+        ).length;
         setActiveEvents(active);
 
         let cumulativeTicketsSold = 0;
@@ -168,10 +233,13 @@ const VendorHome = () => {
             let eventTicketCount = 0;
             let eventGrossSales = 0;
 
-            ticketSnapshots.forEach(doc => {
+            ticketSnapshots.forEach((doc) => {
               const ticketData = doc.data();
-              if (ticketData.ticketSummary && Array.isArray(ticketData.ticketSummary)) {
-                ticketData.ticketSummary.forEach(summary => {
+              if (
+                ticketData.ticketSummary &&
+                Array.isArray(ticketData.ticketSummary)
+              ) {
+                ticketData.ticketSummary.forEach((summary) => {
                   const quantity = Number(summary.quantity) || 0;
                   eventTicketCount += quantity;
                   const price = Number(summary.price) || 0;
@@ -218,24 +286,41 @@ const VendorHome = () => {
   const handleUpdateEvent = (e) => {
     e.stopPropagation();
     if (selectedEvent) {
-      navigate(`/editevent/${vendorId}/${selectedEvent.eventId}`, { state: { eventData: selectedEvent } });
+      navigate(`/editevent/${vendorId}/${selectedEvent.eventId}`, {
+        state: { eventData: selectedEvent },
+      });
       handleClose();
     }
   };
+
+  const [showSuccess, setShowSuccess] = useState(false);
 
   const handleDeleteEvent = async (e) => {
     e.stopPropagation();
     if (selectedEvent) {
       try {
-        if (window.confirm("Are you sure you want to delete this event? This action cannot be undone.")) {
-          await axios.delete(`http://localhost:8080/api/event/${selectedEvent.eventId}`);
-          setEventData(prevEvents => prevEvents.filter(event => event.eventId !== selectedEvent.eventId));
-          setTotalEvents(prevTotal => prevTotal - 1);
+        if (
+          window.confirm(
+            "Are you sure you want to delete this event? This action cannot be undone."
+          )
+        ) {
+          await axios.delete(
+            `http://localhost:8080/api/event/${selectedEvent.eventId}`
+          );
+          setEventData((prevEvents) =>
+            prevEvents.filter(
+              (event) => event.eventId !== selectedEvent.eventId
+            )
+          );
+          setTotalEvents((prevTotal) => prevTotal - 1);
           if (new Date(selectedEvent.eventDate) > new Date()) {
-            setActiveEvents(prevActive => prevActive - 1);
+            setActiveEvents((prevActive) => prevActive - 1);
           }
-          setTicketsSold(prevSold => prevSold - (selectedEvent.ticketsSold || 0));
-          setGrossSales(prevSales => prevSales - (selectedEvent.gross || 0));
+          setTicketsSold(
+            (prevSold) => prevSold - (selectedEvent.ticketsSold || 0)
+          );
+          setGrossSales((prevSales) => prevSales - (selectedEvent.gross || 0));
+          setShowSuccess(true); // 👈 show snackbar
           handleClose();
         }
       } catch (err) {
@@ -249,7 +334,26 @@ const VendorHome = () => {
 
   return (
     <div>
-      <VendorBeforeLogin />
+      <Snackbar
+        open={showSuccess}
+        autoHideDuration={3000}
+        onClose={() => setShowSuccess(false)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert
+          onClose={() => setShowSuccess(false)}
+          severity="success"
+          sx={{ width: "100%" }}
+        >
+          Event deleted successfully!
+        </Alert>
+      </Snackbar>
+
+      <HeaderVendorLogged
+        vendorId={vendorId}
+        userProfile={userProfile}
+        onLogout={handleLogout}
+      />
       <Box sx={{ display: "flex", flexDirection: "column", width: "100%" }}>
         <Box
           sx={{
@@ -322,12 +426,13 @@ const VendorHome = () => {
                 alignItems: "center",
                 gap: "8px",
               }}
-                onClick={() => navigate(`/vendorhome/QRScanner/${vendorId}`)}
+              onClick={() =>
+                navigate(`/vendorprofile/vendorscanner/${vendorId}`)
+              }
             >
               Scan tickets
             </Button>
           </Box>
-        
         </Box>
 
         <Box
@@ -760,16 +865,20 @@ const VendorHome = () => {
                         {event.name}
                       </Typography>
                       <Typography sx={{ fontSize: "14px", color: "gray" }}>
-                        {event.venueDetails?.area || event.venueDetails?.venueName || "Venue not specified"}
+                        {event.venueDetails?.area ||
+                          event.venueDetails?.venueName ||
+                          "Venue not specified"}
                       </Typography>
                     </Box>
                   </Box>
 
                   <Typography sx={{ width: "12%", textAlign: "center" }}>
-                    {event.eventDate ? new Date(event.eventDate).toLocaleString("en-IN", {
-                      dateStyle: "medium",
-                      timeStyle: "short",
-                    }) : "N/A"}
+                    {event.eventDate
+                      ? new Date(event.eventDate).toLocaleString("en-IN", {
+                          dateStyle: "medium",
+                          timeStyle: "short",
+                        })
+                      : "N/A"}
                   </Typography>
 
                   <Typography sx={{ width: "12%", textAlign: "center" }}>
@@ -790,15 +899,21 @@ const VendorHome = () => {
                     <Typography
                       sx={{
                         backgroundColor:
-                          getEventStatus(event) === "On Sale" ? "#DBEAFE" :
-                          getEventStatus(event) === "Ticket Full" ? "#FEE2E2" :
-                          getEventStatus(event) === "Almost Full" ? "#FEF3C7" :
-                          "#F3F4F6",
+                          getEventStatus(event) === "On Sale"
+                            ? "#DBEAFE"
+                            : getEventStatus(event) === "Ticket Full"
+                            ? "#FEE2E2"
+                            : getEventStatus(event) === "Almost Full"
+                            ? "#FEF3C7"
+                            : "#F3F4F6",
                         color:
-                          getEventStatus(event) === "On Sale" ? "#1E40AF" :
-                          getEventStatus(event) === "Ticket Full" ? "#991B1B" :
-                          getEventStatus(event) === "Almost Full" ? "#92400E" :
-                          "#4B5563",
+                          getEventStatus(event) === "On Sale"
+                            ? "#1E40AF"
+                            : getEventStatus(event) === "Ticket Full"
+                            ? "#991B1B"
+                            : getEventStatus(event) === "Almost Full"
+                            ? "#92400E"
+                            : "#4B5563",
                         ml: 1,
                         px: 2,
                         py: 0.5,
@@ -831,7 +946,10 @@ const VendorHome = () => {
                       Edit
                     </Typography>
                     <Popover
-                      open={Boolean(anchorEl) && selectedEvent?.eventId === event.eventId}
+                      open={
+                        Boolean(anchorEl) &&
+                        selectedEvent?.eventId === event.eventId
+                      }
                       anchorEl={anchorEl}
                       onClose={handleClose}
                       anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
@@ -852,7 +970,10 @@ const VendorHome = () => {
                         <MenuItem onClick={handleUpdateEvent}>
                           Update Event
                         </MenuItem>
-                        <MenuItem onClick={handleDeleteEvent} sx={{ color: "red" }}>
+                        <MenuItem
+                          onClick={handleDeleteEvent}
+                          sx={{ color: "red" }}
+                        >
                           Delete Event
                         </MenuItem>
                       </Box>
@@ -892,12 +1013,15 @@ const VendorHome = () => {
               }}
             >
               <Typography sx={{ fontSize: "14px", color: "#6B7280" }}>
-                Showing {startIndex + 1} to {Math.min(endIndex, filteredEvents.length)}{" "}
-                of {filteredEvents.length} entries
+                Showing {startIndex + 1} to{" "}
+                {Math.min(endIndex, filteredEvents.length)} of{" "}
+                {filteredEvents.length} entries
               </Typography>
               <Box>
                 <Button
-                  onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.max(prev - 1, 1))
+                  }
                   disabled={currentPage === 1}
                   sx={{
                     mr: 1,

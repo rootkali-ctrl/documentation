@@ -449,10 +449,31 @@ const getEventsByVendor = async (req, res) => {
     }
   };
 
+const deleteEvent = async (req, res) => {
+  try{
+    const {eventId} = req.params;
+    if(!eventId){
+      return res.status(400).json({error: "Event id is required"})
+    }
+    const eventRef = db.collection("events").doc(eventId);
+    const doc = await eventRef.get();
+
+    if(!doc.exists){
+      return res.status(400).json({error: "Event does not exist"})
+    }
+    await eventRef.delete();
+    return res.status(200).json({message: "Event deleted successfully"})
+  } catch(err) {
+    console.log("Error in deleting event", err);
+    res.status(500).json({error: err.message})
+  }
+  
+}
 
 module.exports = {
     addEvent,
     getAllEvents,
     getEventById,
-    getEventsByVendor
+    getEventsByVendor,
+    deleteEvent
 };

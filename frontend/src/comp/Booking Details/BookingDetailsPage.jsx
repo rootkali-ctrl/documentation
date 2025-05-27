@@ -1,15 +1,25 @@
-import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import { db,auth } from '../../firebase/firebase_config'
-import { Calendar, Clock, MapPin, User, Mail, Phone, Ticket, DollarSign, CheckCircle, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { db, auth } from "../../firebase/firebase_config";
+import { CheckCircle, AlertCircle } from "lucide-react";
+import {
+  Box,
+  Paper,
+  Typography,
+  Button,
+  CircularProgress,
+  Container,
+  Divider,
+} from "@mui/material";
+import qrimage from "../QR image/QRimage.png";
 
 const BookingDetailsPage = () => {
   const [bookingData, setBookingData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [checkingIn, setCheckingIn] = useState(false);
-  const [error, setError] = useState('');
-
+  const [error, setError] = useState("");
+  const navigate = useNavigate();
   const { bookingId, vendorId } = useParams();
 
   useEffect(() => {
@@ -22,44 +32,42 @@ const BookingDetailsPage = () => {
       setError(null);
 
       if (!bookingId) {
-        throw new Error('No booking ID provided');
+        throw new Error("No booking ID provided");
       }
 
       if (!vendorId) {
-        throw new Error('No vendor ID provided');
+        throw new Error("No vendor ID provided");
       }
 
-      // Fetch booking document from Firestore
-      const bookingDoc = await getDoc(doc(db, 'tickets', bookingId));
-      
+      const bookingDoc = await getDoc(doc(db, "tickets", bookingId));
+
       if (!bookingDoc.exists()) {
-        throw new Error('Booking not found');
+        throw new Error("Booking not found");
       }
 
       const data = bookingDoc.data();
-      
-      // Verify vendor ownership - check if vendorId matches ownerId or vendorId field
+
       if (data.ownerId !== vendorId && data.vendorId !== vendorId) {
-        throw new Error('Unauthorized access to this booking');
+        throw new Error("Unauthorized access to this booking");
       }
 
-      // Format the data for display
       const formattedData = {
         ...data,
-        bookingDate: data.createdAt ? new Date(data.createdAt).toLocaleDateString('en-US', {
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit'
-        }) : 'N/A',
-        eventDate: data.eventDate || 'N/A',
-        eventTime: data.eventTime || 'N/A',
-        phone: data.phone || 'N/A',
-        email: data.email || 'N/A',
-        eventName: data.eventName || 'N/A',
-        location: data.location || 'N/A',
-        // Ensure financial object exists with default values
+        bookingDate: data.createdAt
+          ? new Date(data.createdAt).toLocaleDateString("en-US", {
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+            })
+          : "N/A",
+        eventDate: data.eventDate || "N/A",
+        eventTime: data.eventTime || "N/A",
+        phone: data.phone || "N/A",
+        email: data.email || "N/A",
+        eventName: data.eventName || "N/A",
+        location: data.location || "N/A",
         financial: {
           convenienceFee: 0,
           discount: 0,
@@ -67,21 +75,19 @@ const BookingDetailsPage = () => {
           subtotal: 0,
           tax: 0,
           totalAmount: 0,
-          ...data.financial
+          ...data.financial,
         },
-        // Ensure arrays exist
         ticketSummary: data.ticketSummary || [],
         foodSummary: data.foodSummary || [],
-        status: data.status || 'active',
+        status: data.status || "active",
         checkedIn: data.checkedIn || false,
-        checkedInTime: data.checkedInTime || null
+        checkedInTime: data.checkedInTime || null,
       };
 
       setBookingData(formattedData);
-
     } catch (error) {
-      console.error('Error fetching booking:', error);
-      setError(error.message || 'Failed to load booking details');
+      console.error("Error fetching booking:", error);
+      setError(error.message || "Failed to load booking details");
     } finally {
       setLoading(false);
     }
@@ -89,29 +95,27 @@ const BookingDetailsPage = () => {
 
   const handleCheckIn = async () => {
     try {
-         console.log('Current user:', auth.currentUser?.uid);
-    console.log('Vendor ID from URL:', vendorId);
-    console.log('Ticket vendor ID:', bookingData.vendorId);
+      console.log("Current user:", auth.currentUser?.uid);
+      console.log("Vendor ID from URL:", vendorId);
+      console.log("Ticket vendor ID:", bookingData.vendorId);
       setCheckingIn(true);
 
-      // Update booking document in Firestore
-      await updateDoc(doc(db, 'tickets', bookingId), {
+      await updateDoc(doc(db, "tickets", bookingId), {
         checkedIn: true,
-        checkedInTime: new Date().toISOString()
+        checkedInTime: new Date().toISOString(),
       });
 
-      // Update local state
-      setBookingData(prev => ({
+      setBookingData((prev) => ({
         ...prev,
         checkedIn: true,
-        checkedInTime: new Date().toISOString()
+        checkedInTime: new Date().toISOString(),
       }));
 
-      alert('Successfully checked in!');
-
+      alert("Successfully checked in!");
+      navigate(`/vendorprofile/vendorscanner/${vendorId}`)
     } catch (error) {
-      console.error('Error checking in:', error);
-      alert('Failed to check in. Please try again.');
+      console.error("Error checking in:", error);
+      alert("Failed to check in. Please try again.");
     } finally {
       setCheckingIn(false);
     }
@@ -119,207 +123,421 @@ const BookingDetailsPage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading booking details...</p>
-        </div>
-      </div>
+      <Box
+        sx={{
+          minHeight: "100vh",
+          bgcolor: "grey.50",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <Box sx={{ textAlign: "center" }}>
+          <CircularProgress size={48} sx={{ mb: 2 }} />
+          <Typography color="text.secondary">
+            Loading booking details...
+          </Typography>
+        </Box>
+      </Box>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-lg shadow-lg p-6 max-w-md w-full text-center">
-          <AlertCircle className="mx-auto mb-4 text-red-500" size={48} />
-          <h2 className="text-xl font-bold text-gray-800 mb-2">Error</h2>
-          <p className="text-gray-600 mb-4">{error}</p>
-          <button 
-            onClick={() => window.history.back()} 
-            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+      <Box
+        sx={{
+          minHeight: "100vh",
+          bgcolor: "grey.50",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          p: 2,
+        }}
+      >
+        <Paper sx={{ p: 3, maxWidth: 400, width: "100%", textAlign: "center" }}>
+          <AlertCircle
+            color="error"
+            size={48}
+            style={{ margin: "0 auto 16px" }}
+          />
+          <Typography
+            variant="h5"
+            fontWeight="bold"
+            color="text.primary"
+            gutterBottom
           >
+            Error
+          </Typography>
+          <Typography color="text.secondary" sx={{ mb: 2 }}>
+            {error}
+          </Typography>
+          <Button variant="contained" onClick={() => window.history.back()}>
             Go Back
-          </button>
-        </div>
-      </div>
+          </Button>
+        </Paper>
+      </Box>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-6">
+    <Box sx={{ minHeight: "100vh", bgcolor: "grey.50", pb: 3 }}>
       {/* Header */}
-      <div className="bg-white shadow-sm p-4 mb-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-xl font-bold text-gray-800">Booking Details</h1>
-          <div className={`px-3 py-1 rounded-full text-sm ${
-            bookingData.checkedIn 
-              ? 'bg-green-100 text-green-800' 
-              : 'bg-yellow-100 text-yellow-800'
-          }`}>
-            {bookingData.checkedIn ? 'Checked In' : 'Pending Check-in'}
-          </div>
-        </div>
-      </div>
+      <Container
+        maxWidth={false}
+        disableGutters
+        sx={{
+          width: "90%",
+          boxShadow: "0 4px 20px rgba(0, 0, 0, 0.1)",
+          borderRadius: "10px",
+          display: "flex",
+          margin: "2em auto",
+          alignItems: "center",
+          height: "auto",
+          bgcolor: "white",
+          padding: "2% 2% 0 2%",
+          flexDirection: "column",
+        }}
+      >
+        <Typography
+          variant="h5"
+          fontWeight="bold"
+          color="text.primary"
+          fontFamily="albert sans"
+        >
+          Booking Details
+        </Typography>
 
-      <div className="max-w-2xl mx-auto px-4">
-        {/* Booking ID & Status */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-          <div className="text-center">
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">{bookingData.bookingId}</h2>
-            <p className="text-gray-600">Booking Reference</p>
-            {bookingData.checkedIn && (
-              <div className="mt-4 flex items-center justify-center text-green-600">
-                <CheckCircle size={20} className="mr-2" />
-                <span className="font-medium">Checked in at {new Date(bookingData.checkedInTime).toLocaleString()}</span>
-              </div>
-            )}
-          </div>
-        </div>
+        <img
+          src={qrimage}
+          style={{
+            height: "150px",
+            width: "150px",
+            marginTop: "1em",
+            marginBottom: "1em",
+          }}
+        />
 
-        {/* Event Details */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">Event Information</h3>
-          
-          <div className="space-y-3">
-            <div className="flex items-center">
-              <Ticket className="text-gray-400 mr-3" size={20} />
-              <div>
-                <p className="font-medium text-gray-800">{bookingData.eventName}</p>
-                <p className="text-sm text-gray-600">Event Name</p>
-              </div>
-            </div>
-
-            <div className="flex items-center">
-              <Calendar className="text-gray-400 mr-3" size={20} />
-              <div>
-                <p className="font-medium text-gray-800">{bookingData.eventDate}</p>
-                <p className="text-sm text-gray-600">Event Date</p>
-              </div>
-            </div>
-
-            <div className="flex items-center">
-              <Clock className="text-gray-400 mr-3" size={20} />
-              <div>
-                <p className="font-medium text-gray-800">{bookingData.eventTime}</p>
-                <p className="text-sm text-gray-600">Event Time</p>
-              </div>
-            </div>
-
-            <div className="flex items-center">
-              <MapPin className="text-gray-400 mr-3" size={20} />
-              <div>
-                <p className="font-medium text-gray-800">{bookingData.location}</p>
-                <p className="text-sm text-gray-600">Location</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Customer Details */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">Customer Information</h3>
-          
-          <div className="space-y-3">
-            <div className="flex items-center">
-              <Mail className="text-gray-400 mr-3" size={20} />
-              <div>
-                <p className="font-medium text-gray-800">{bookingData.email}</p>
-                <p className="text-sm text-gray-600">Email</p>
-              </div>
-            </div>
-
-            <div className="flex items-center">
-              <Phone className="text-gray-400 mr-3" size={20} />
-              <div>
-                <p className="font-medium text-gray-800">{bookingData.phone}</p>
-                <p className="text-sm text-gray-600">Phone</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Ticket Summary */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">Ticket Summary</h3>
-          
-          {bookingData.ticketSummary && bookingData.ticketSummary.length > 0 ? (
-            bookingData.ticketSummary.map((ticket, index) => (
-              <div key={index} className="border-b border-gray-200 pb-3 mb-3 last:border-b-0 last:pb-0 last:mb-0">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <p className="font-medium text-gray-800">{ticket.type || 'Ticket'}</p>
-                    <p className="text-sm text-gray-600">Quantity: {ticket.quantity || 0}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-medium text-gray-800">${ticket.ticket_total || 0}</p>
-                    <p className="text-sm text-gray-600">${ticket.price || 0} each</p>
-                  </div>
-                </div>
-              </div>
-            ))
-          ) : (
-            <p className="text-gray-500 text-center">No tickets found</p>
-          )}
-        </div>
-
-        {/* Financial Summary */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">Payment Summary</h3>
-          
-          <div className="space-y-2">
-            <div className="flex justify-between">
-              <span className="text-gray-600">Subtotal</span>
-              <span className="text-gray-800">${bookingData.financial.subtotal}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600">Tax</span>
-              <span className="text-gray-800">${bookingData.financial.tax}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600">Convenience Fee</span>
-              <span className="text-gray-800">${bookingData.financial.convenienceFee}</span>
-            </div>
-            {bookingData.financial.discount > 0 && (
-              <div className="flex justify-between text-green-600">
-                <span>Discount</span>
-                <span>-${bookingData.financial.discount}</span>
-              </div>
-            )}
-            <div className="border-t pt-2 flex justify-between font-bold text-lg">
-              <span>Total</span>
-              <span>${bookingData.financial.totalAmount}</span>
-            </div>
-            {bookingData.financial.isFreeEvent && (
-              <p className="text-center text-green-600 font-medium">Free Event</p>
-            )}
-          </div>
-        </div>
-
-        {/* Check-in Button */}
-        {!bookingData.checkedIn && (
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <button
-              onClick={handleCheckIn}
-              disabled={checkingIn}
-              className={`w-full py-4 px-6 rounded-lg font-semibold text-white text-lg ${
-                checkingIn 
-                  ? 'bg-gray-400 cursor-not-allowed' 
-                  : 'bg-green-500 hover:bg-green-600 active:bg-green-700'
-              }`}
-            >
-              {checkingIn ? 'Checking In...' : 'Check In Customer'}
-            </button>
-          </div>
+        {bookingData.checkedIn && (
+          <Box
+            sx={{
+              mt: 1,
+              mb: 2,
+              fontFamily: "albert sans",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "success.main",
+            }}
+          >
+            <CheckCircle
+              size={20}
+              style={{ marginRight: 8, fontFamily: "albert sans" }}
+            />
+            <Typography fontWeight="medium" sx={{ fontFamily: "albert sans" }}>
+              Checked in at{" "}
+              {new Date(bookingData.checkedInTime).toLocaleString()}
+            </Typography>
+          </Box>
         )}
 
-        {/* Booking Metadata */}
-        <div className="mt-6 text-center text-sm text-gray-500">
-          <p>Booked on {bookingData.bookingDate}</p>
-          <p>Status: {bookingData.status}</p>
-        </div>
-      </div>
-    </div>
+        <Typography
+          sx={{
+            fontFamily: "albert sans",
+            fontSize: "20px",
+            fontWeight: "600",
+            alignSelf: "flex-start",
+            width: "100%",
+            textAlign: "left",
+            pl: "1em",
+            mb: "0.5em",
+          }}
+        >
+          {bookingData.eventName}
+        </Typography>
+
+        <Box
+          sx={{
+            display: "flex",
+            alignSelf: "flex-start",
+            width: "100%",
+            gap: "1em",
+          }}
+        >
+          <Typography
+            sx={{
+              fontFamily: "albert sans",
+              fontSize: "20px",
+              fontWeight: "600",
+              textAlign: "left",
+              color: "#4B5563",
+              pl: "1em",
+            }}
+          >
+            {bookingData.eventDate}
+          </Typography>
+          <Typography
+            sx={{
+              fontFamily: "albert sans",
+              fontSize: "20px",
+              fontWeight: "600",
+              color: "#D1D5DB",
+            }}
+          >
+            |
+          </Typography>
+          <Typography
+            sx={{
+              fontFamily: "albert sans",
+              color: "#4B5563",
+              fontSize: "20px",
+              fontWeight: "600",
+              textAlign: "left",
+            }}
+          >
+            {bookingData.eventTime}
+          </Typography>
+        </Box>
+
+        <Divider sx={{ width: "100%", m: "20px 0", borderColor: "#ADAEBC" }} />
+
+        <Box
+          sx={{
+            display: "flex",
+            width: "90%",
+            mb: "1em",
+            justifyContent: "space-between",
+          }}
+        >
+          <Typography
+            sx={{
+              fontFamily: "albert sans",
+              fontSize: "18px",
+              fontWeight: "600",
+            }}
+          >
+            Booking ID:
+          </Typography>
+          <Typography sx={{ fontFamily: "albert sans", fontSize: "18px" }}>
+            {bookingData.bookingId}
+          </Typography>
+        </Box>
+
+        {bookingData.ticketSummary && bookingData.ticketSummary.length > 0 ? (
+          bookingData.ticketSummary.map((ticket, index) => (
+            <Box key={index} sx={{ width: "90%" }}>
+              {" "}
+              {/* Add width here to match other elements */}
+              <Box
+                sx={{
+                  width: "100%",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  py: 1.5,
+                }}
+              >
+                <Typography
+                  sx={{
+                    fontFamily: "albert sans",
+                    fontSize: "18px",
+                    fontWeight: "600",
+                    textAlign: "left",
+                  }}
+                >
+                  {ticket.type || "Ticket"}
+                </Typography>
+
+                <Typography
+                  sx={{
+                    fontFamily: "albert sans",
+                    fontSize: "18px",
+                    fontWeight: "600",
+                    textAlign: "right",
+                  }}
+                >
+                  {ticket.quantity || 0} tickets
+                </Typography>
+              </Box>
+              {index < bookingData.ticketSummary.length - 1 && (
+                <Divider sx={{ width: "100%" }} />
+              )}
+            </Box>
+          ))
+        ) : (
+          <Typography color="text.secondary" sx={{ textAlign: "center" }}>
+            No tickets found
+          </Typography>
+        )}
+
+        <Divider sx={{ width: "100%", m: "20px 0", borderColor: "#ADAEBC" }} />
+
+        <Box
+          sx={{
+            mb: "0.5em",
+            display: "flex",
+            width: "90%",
+            justifyContent: "space-between",
+          }}
+        >
+          <Typography
+            sx={{
+              fontFamily: "albert sans",
+              fontSize: "18px",
+              fontWeight: "500",
+            }}
+          >
+            Ticket Amount
+          </Typography>
+          <Typography sx={{ fontFamily: "albert sans", fontSize: "18px" }}>
+            ₹
+            {bookingData.ticketSummary?.reduce(
+              (total, item) => total + (item.subtotal || 0),
+              0
+            )}
+          </Typography>
+        </Box>
+
+        <Box sx={{ width: "90%", marginBottom: "1em" }}>
+          <Typography
+            sx={{
+              fontFamily: "albert sans",
+              fontSize: "18px",
+              fontWeight: "500",
+            }}
+          >
+            Grab a bite
+          </Typography>
+
+          {bookingData.foodSummary && bookingData.foodSummary.length > 0 && (
+            <>
+              {bookingData.foodSummary.map((food, index) => (
+                <Box
+                  key={index}
+                  sx={{
+                    pl: "0.5em",
+                    mb: "0.3em",
+                    display: "flex",
+                    width: "100%",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
+                  <Box
+                    sx={{ display: "flex", flexDirection: "column", flex: 1 }}
+                  >
+                    <Typography
+                      sx={{
+                        fontFamily: "albert sans",
+                        fontSize: "18px",
+                        // fontWeight: "500",
+                      }}
+                    >
+                      {food.name} x {food.quantity}
+                    </Typography>
+                  </Box>
+                  <Typography
+                    sx={{ fontFamily: "albert sans", fontSize: "18px" }}
+                  >
+                    ₹{food.food_total}
+                  </Typography>
+                </Box>
+              ))}
+            </>
+          )}
+        </Box>
+
+        <Box
+          sx={{
+            mb: "0.5em",
+            display: "flex",
+            width: "90%",
+            justifyContent: "space-between",
+          }}
+        >
+          <Typography
+            sx={{
+              fontFamily: "albert sans",
+              fontSize: "18px",
+              fontWeight: "500",
+            }}
+          >
+            Tax
+          </Typography>
+          <Typography sx={{ fontFamily: "albert sans", fontSize: "18px" }}>
+            ₹{bookingData.financial.tax}
+          </Typography>
+        </Box>
+
+        <Box
+          sx={{
+            mb: "0.5em",
+            display: "flex",
+            width: "90%",
+            justifyContent: "space-between",
+          }}
+        >
+          <Typography
+            sx={{
+              fontFamily: "albert sans",
+              fontSize: "18px",
+              fontWeight: "500",
+            }}
+          >
+            Convenience fee
+          </Typography>
+          <Typography sx={{ fontFamily: "albert sans", fontSize: "18px" }}>
+            ₹{bookingData.financial.convenienceFee}
+          </Typography>
+        </Box>
+
+        <Box
+          sx={{
+            bgcolor: "rgba(209,213,219,0.3)",
+            mt: "2em",
+            width: "calc(100% - 4%)",
+            overflow: "hidden",
+            display: "flex",
+            justifyContent: "space-between",
+            padding: "1em",
+            borderRadius: "0 0 10px 10px",
+          }}
+        >
+          <Typography
+            sx={{
+              fontFamily: "albert sans",
+              fontSize: "18px",
+              fontWeight: "500",
+            }}
+          >
+            Total amount Amount
+          </Typography>
+          <Typography sx={{ fontFamily: "albert sans", fontSize: "18px" }}>
+            ₹
+            {bookingData.financial.subtotal +
+              bookingData.financial.tax +
+              bookingData.financial.convenienceFee -
+              bookingData.financial.discount}
+          </Typography>
+        </Box>
+      </Container>
+
+      <Container maxWidth="md">
+        {/* Check-in Button */}
+        {!bookingData.checkedIn && (
+          <Button
+            onClick={handleCheckIn}
+            disabled={checkingIn}
+            variant="contained"
+            color="success"
+            size="large"
+            fullWidth
+            sx={{ textTransform: "none", backgroundColor: "#19AEDC" }}
+          >
+            {checkingIn ? "Checking In..." : "Check In Customer"}
+          </Button>
+        )}
+      </Container>
+    </Box>
   );
 };
 

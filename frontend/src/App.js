@@ -41,6 +41,10 @@ import AdminDashboard from "./comp/Admin/AdminDashboard";
 import ScrollToTop from "./utils/ScrollToTop";
 import QRScannerPage from "./comp/QR Scanner/QRScannerPage";
 import BookingDetailsPage from './comp/Booking Details/BookingDetailsPage';
+import VendorScanner from "./comp/Vendor/Vendor Profile/VendorScanner";
+import VendorProfile from "./comp/Vendor/Vendor Profile/VendorProfile";
+import VendorDoc from "./comp/Vendor/Vendor Profile/VendorDoc";
+import VendorOrg from "./comp/Vendor/Vendor Profile/VendorOrg";
 
 function App() {
   return (
@@ -73,7 +77,7 @@ function App() {
             <Route path="/signin" element={<Signin />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/settings" element={<Settings />} />
-            <Route path='/vendorlogin' element={<VendorLogin />} />
+            <Route path='/vendorlogin/:vendorId' element={<VendorLogin />} />
 
             {/* Vendor Routes */}
             <Route
@@ -110,13 +114,20 @@ function App() {
             {/* Dashboard Routes */}
             <Route path='/vendorhome/:vendorId' element={<VendorHome />} />
             <Route path="/vendorhome/QRScanner/:vendorId" element={<QRScannerPage/>} />
-            <Route path="/vendor/:vendorId/booking/:bookingId" element={<BookingDetailsPage />} />
             <Route path='/eventdashboard' element={<EventDashboard />} />
             <Route path='/eventdashboard/:eventId' element={<EventDashboard />} />
             <Route path="/admindashboard" element={<AdminDashboard />} />
             <Route path="/eventpreview" element={<EventPreview />} />
             <Route path="/priceperk" element={<PricePerk />} />
             <Route path="/finalsetup" element={<FinalSetup />} />
+
+            {/*Vendor profile*/}
+            <Route path='/vendorprofile/vendorscanner/:vendorId' element={<VendorScanner/>} />
+            <Route path='/vendorprofile/vendorprofile/:vendorId' element={<VendorProfile/>} />            
+            <Route path='/vendorprofile/vendordocuments/:vendorId' element={<VendorDoc/>} />            
+            <Route path='/vendorprofile/vendororganization/:vendorId' element={<VendorOrg/>} />
+            <Route path="/vendorprofile/:vendorId/booking/:bookingId" element={<BookingDetailsPage />} />
+
 
             {/* Create Event Routes */}
             <Route path="/createevent/:vendorId/*" element={<CreateEventLayout />}>

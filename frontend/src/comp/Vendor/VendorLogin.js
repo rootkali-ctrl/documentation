@@ -1,201 +1,16 @@
-// import React, { useState } from "react";
-// import { TextField, Button, Box, Typography } from "@mui/material";
-
-// import { motion } from "framer-motion";
-// import { useNavigate } from "react-router-dom";
-// import Header from "../Header/Header";
-// import Footer from "../Footer/Footer";
-// import axios from "axios";
-
-// const VendorLogin = () => {
-//   const handleLogin = async () => {
-//     if (!username || !password) {
-//       alert("Please enter both username and password.");
-//       return;
-//     }
-
-//     try {
-//       const response = await axios.post(
-//         "http://localhost:8080/api/vendor/login",
-//         {
-//           username,
-//           password,
-//         }
-//       );
-
-//       if (response.data.Message === "Login successful") {
-//         alert("Login successful");
-//         navigate(`/vendorhome/${response.data.vendorId}`);
-//       } else {
-//         alert(response.data.Message);
-//       }
-//     } catch (error) {
-//       console.error(error);
-//       alert(
-//         "Login failed. " +
-//           (error.response?.data?.Message || "Please try again later.")
-//       );
-//     }
-//   };
-
-//   const [username, setUsername] = useState("");
-//   const [password, setPassword] = useState("");
-
-//   const navigate = useNavigate();
-//   return (
-//     <Box>
-//       <Header />
-//       <Box
-//         sx={{
-//           display: "flex",
-//           justifyContent: "center",
-//           alignItems: "center",
-//           height: "70vh",
-//           width: "80%",
-//           margin: "1% auto",
-//           backgroundColor: "#fff",
-//         }}
-//       >
-//         <Box sx={{ width: "30%", textAlign: "left", padding: "2rem" }}>
-//           <Typography
-//             variant="h3"
-//             sx={{
-//               fontWeight: "bold",
-//               color: "#1a1033",
-//               fontFamily: "Albert Sans",
-//             }}
-//           >
-//             Log in
-//           </Typography>
-
-//           <TextField
-//             fullWidth
-//             value={username}
-//             onChange={(e) => setUsername(e.target.value)}
-//             variant="outlined"
-//             label="Usrename"
-//             sx={{
-//               marginTop: "1.5rem",
-//               backgroundColor: "#f8f7fc",
-//               "& .MuiInputBase-input": { fontFamily: "Albert Sans" },
-//               "& .MuiInputLabel-root": { fontFamily: "Albert Sans" },
-//               "& .MuiOutlinedInput-root": {
-//                 "& fieldset": { borderColor: "#ccc" },
-//               },
-//             }}
-//           />
-
-//           <TextField
-//             fullWidth
-//             variant="outlined"
-//             label="Password"
-//             type="password"
-//             value={password}
-//             onChange={(e) => setPassword(e.target.value)}
-//             sx={{
-//               marginTop: "1rem",
-//               backgroundColor: "#f8f7fc",
-//               "& .MuiInputBase-input": { fontFamily: "Albert Sans" },
-//               "& .MuiInputLabel-root": { fontFamily: "Albert Sans" },
-//               "& .MuiOutlinedInput-root": {
-//                 "& fieldset": { borderColor: "#ccc" },
-//               },
-//             }}
-//           />
-
-//           <Button
-//             fullWidth
-//             variant="contained"
-//             sx={{
-//               marginTop: "1.5rem",
-//               backgroundColor: "#53a8d8",
-//               color: "#fff",
-//               padding: "0.8rem",
-//               "&:hover": { backgroundColor: "#4795c2" },
-//               fontFamily: "Albert Sans",
-//             }}
-//             onClick={handleLogin}
-//           >
-//             Log in
-//           </Button>
-
-//           <Box sx={{ display: "flex", mt: "4%", gap: "2%" }}>
-//             <Typography sx={{ fontFamily: "Albert Sans", fontSize: "18px" }}>
-//               Don't have an account?
-//             </Typography>
-//             <Typography
-//               sx={{
-//                 fontFamily: "Albert Sans",
-//                 fontSize: "18px",
-//                 cursor: "pointer",
-//                 color: "rgba(25, 174, 220, 4)",
-//                 fontWeight: "600",
-//                 "&:hover": { textDecoration: "underline" },
-//               }}
-//               onClick={() => navigate("/vendor/register")}
-//             >
-//               Sign Up
-//             </Typography>
-//           </Box>
-//         </Box>
-
-//         <Box
-//           sx={{
-//             width: "40%",
-//             textAlign: "center",
-//             alignItems: "center",
-//             justifyItems: "right",
-//           }}
-//         >
-//           <motion.div
-//             initial={{ opacity: 0, y: 20 }}
-//             animate={{ opacity: 1, y: 0 }}
-//             transition={{
-//               duration: 0.8,
-//               repeat: Infinity,
-//               repeatType: "mirror",
-//             }}
-//           >
-//             <Typography
-//               variant="h3"
-//               sx={{
-//                 fontWeight: "bold",
-//                 color: "#000",
-//                 textTransform: "uppercase",
-//                 fontFamily: "Albert Sans",
-//               }}
-//             >
-//               Some <br />
-//               Animation/
-//               <br />
-//               Words <br />
-//               Goes Here
-//             </Typography>
-//           </motion.div>
-//         </Box>
-//       </Box>
-//       {/* <Footer/> */}
-//     </Box>
-//   );
-// };
-
-// export default VendorLogin;
-
-
-
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { TextField, Button, Box, Typography, Modal, IconButton, CircularProgress } from "@mui/material";
 import { ArrowBack } from "@mui/icons-material";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, useParams } from "react-router-dom";
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 import Header from "../Header/MainHeader";
-import Footer from "../Footer/Footer";
 import axios from "axios";
 
 // Set the base URL for Axios (adjust if your backend runs on a different port)
 axios.defaults.baseURL = 'http://localhost:8080';
 
 const VendorLogin = () => {
+  const vendorId = useParams();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
@@ -225,32 +40,31 @@ const VendorLogin = () => {
     }
   }, [location]);
 
-  const handleLogin = async () => {
-    if (!username || !password) {
-      alert("Please enter both username and password.");
-      return;
-    }
 
-    try {
-      const response = await axios.post("/api/vendor/login", {
-        username,
-        password,
-      });
+const handleLogin = async () => {
+  if (!username || !password) {
+    alert("Please enter both username and password.");
+    return;
+  }
 
-      if (response.data.Message === "Login successful") {
-        alert("Login successful");
-        navigate(`/vendorhome/${response.data.vendorId}`);
-      } else {
-        alert(response.data.Message);
-      }
-    } catch (error) {
-      console.error(error);
-      alert(
-        "Login failed. " +
-          (error.response?.data?.Message || "Please try again later.")
-      );
+  try {
+    const response = await axios.post(`http://localhost:8080/api/vendor/lastlogin`, {
+      username,
+    });
+
+    if (response.data.Message === "Login successful") {
+      navigate(`/vendorhome/${response.data.vendorId}`);
+    } else {
+      alert(response.data.Message);
     }
-  };
+  } catch (error) {
+    console.error(error);
+    alert(
+      "Login failed. " +
+      (error.response?.data?.Message || "Please try again later.")
+    );
+  }
+};
 
   const handleForgotPassword = async () => {
     if (!emailRegex.test(resetEmail)) {

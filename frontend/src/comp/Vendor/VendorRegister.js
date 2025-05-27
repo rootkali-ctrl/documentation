@@ -475,7 +475,7 @@ const VendorRegister = () => {
               Already have an account?
             </Typography>
             <Typography
-              onClick={() => navigate("/vendorlogin")}
+              onClick={() => navigate(`/vendorlogin/${vendorId}`)}
               sx={{
                 fontFamily: "albert sans",
                 color: "#53a8d8",

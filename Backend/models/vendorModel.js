@@ -34,6 +34,7 @@ const insertNewVendor = async ({
   aadharNumber,
   AccountNumber,
   IFSCNumber,
+  lastLogin,
   createdAt,
   documents 
 }) => {
@@ -53,6 +54,7 @@ const insertNewVendor = async ({
       aadharNumber,
       AccountNumber,
       IFSCNumber,
+      lastLogin,
       status: false, // status will be set to pending by default
       createdAt,
       documents 

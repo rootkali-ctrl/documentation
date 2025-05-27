@@ -1,12 +1,13 @@
-import { Box, Typography, IconButton, Button, Menu, MenuItem } from "@mui/material";
-import SearchIcon from "@mui/icons-material/Search";
-import LocationOnIcon from "@mui/icons-material/LocationOn";
+
+import { Box, Typography, IconButton, Button, Menu, MenuItem, Avatar } from "@mui/material";
 import AccountCircleOutlinedIcon from "@mui/icons-material/AccountCircleOutlined";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
-const HeaderVendorLogged = () => {
+const HeaderVendorLogged = ({ vendorId, userProfile, onLogout }) => {
   const [anchorEl, setAnchorEl] = useState(null);
   const [openMenu, setOpenMenu] = useState(false);
+  const navigate = useNavigate();
 
   const handleMenuClick = (event) => {
     setAnchorEl(event.currentTarget);
@@ -17,6 +18,25 @@ const HeaderVendorLogged = () => {
     setOpenMenu(false);
   };
 
+  const handleProfileClick = () => {
+    handleMenuClose();
+    navigate(`/vendorprofile/vendorprofile/${vendorId}`);
+  };
+
+  const handleSettingsClick = () => {
+    handleMenuClose();
+    // Navigate to vendor settings page - update this path as needed
+    navigate(`/vendorprofile/vendorscanner/${vendorId}`);
+  };
+
+  const handleLogoutClick = () => {
+    handleMenuClose();
+    // Call the logout function passed from parent
+    if (onLogout) {
+      onLogout();
+    }
+  };
+
   return (
     <div>
       <Box sx={{ margin: "1% 2%" }}>
@@ -25,8 +45,8 @@ const HeaderVendorLogged = () => {
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
-            width: "100%",
-            mt: "1%",
+            width: "95%",
+            margin:'0 auto'
           }}
         >
           {/* Left Section */}
@@ -53,82 +73,64 @@ const HeaderVendorLogged = () => {
               justifyContent: "flex-end",
             }}
           >
-            <Box sx={{ width: "25%" }}>
-              <Button
-                sx={{
-                  fontFamily: "Albert Sans",
-                  backgroundColor: "transparent",
-                  border: "1px solid rgb(25, 174, 220)",
-                  color: "rgb(25, 174, 220)",
-                  fontSize: "17px",
-                  borderRadius: "20px",
-                  padding: "6px 20px",
-                  textTransform: "none",
-                  fontWeight: "600",
-                  "&:hover": {
-                    backgroundColor: "rgb(25, 174, 220)",
-                    color: "white",
-                  },
-                }}
-              >
-                Create Event
-              </Button>
-            </Box>
-            <Box sx={{ width: "25%", display: "flex", alignItems: "center" }}>
+            <Box sx={{ display: "flex", alignItems: "center" }}>
               <IconButton onClick={handleMenuClick}>
-                <AccountCircleOutlinedIcon sx={{ fontSize: 30, color: "black" }} />
+                {userProfile && userProfile.photoURL ? (
+                  <Avatar 
+                    src={userProfile.photoURL} 
+                    alt={userProfile.displayName || "Profile"}
+                    sx={{ width: 40, height: 40 ,  bgcolor: "rgb(25, 174, 220)", }}
+                  />
+                ) : (
+                  <AccountCircleOutlinedIcon sx={{ fontSize: 40,  }} />
+                )}
               </IconButton>
-              <Typography sx={{ fontFamily: "Albert Sans", fontSize: 16, ml: "1%" }}>
-                Vendor Name!
-              </Typography>
 
               {/* Account Menu */}
-              {/* Account Menu */}
-            <Menu
+              <Menu
                 anchorEl={anchorEl}
                 open={openMenu}
                 onClose={handleMenuClose}
                 MenuListProps={{
-                    "aria-labelledby": "basic-button",
+                  "aria-labelledby": "basic-button",
                 }}
                 sx={{
-                    "& .MuiPaper-root": {
+                  "& .MuiPaper-root": {
                     width: "150px", 
-                    },
+                  },
                 }}
-                >
+              >
                 <MenuItem
-                    onClick={handleMenuClose}
-                    sx={{
+                  onClick={handleProfileClick}
+                  sx={{
                     fontFamily: "Albert Sans",
                     fontSize: "16px",
                     fontWeight: "500",
-                    }}
+                  }}
                 >
-                    Profile
+                  Profile
                 </MenuItem>
                 <MenuItem
-                    onClick={handleMenuClose}
-                    sx={{
+                  onClick={handleSettingsClick}
+                  sx={{
                     fontFamily: "Albert Sans",
                     fontSize: "16px",
                     fontWeight: "500",
-                    }}
+                  }}
                 >
-                    Settings
+                  Scanner
                 </MenuItem>
                 <MenuItem
-                    onClick={handleMenuClose}
-                    sx={{
+                  onClick={handleLogoutClick}
+                  sx={{
                     fontFamily: "Albert Sans",
                     fontSize: "16px",
                     fontWeight: "500",
-                    }}
+                  }}
                 >
-                    Log Out
+                  Log Out
                 </MenuItem>
-            </Menu>
-
+              </Menu>
             </Box>
           </Box>
         </Box>
