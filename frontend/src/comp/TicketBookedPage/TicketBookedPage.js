@@ -8,7 +8,8 @@ import {
   Alert,
   CircularProgress,
   useMediaQuery,
-  Card, CardContent,
+  Card,
+  CardContent,
 } from "@mui/material";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
@@ -72,8 +73,6 @@ const formatEventDateTime = (isoDateString) => {
   }
 };
 
-
-
 const TicketBookedPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -103,8 +102,6 @@ const TicketBookedPage = () => {
       isFreeEvent: true,
     },
   } = location.state || {};
-
-
 
   // Generate a unique booking ID based on timestamp and random characters
   const [bookingId] = useState(() => {
@@ -375,7 +372,7 @@ const TicketBookedPage = () => {
         location: event.location || "N/A",
         phone: userPhone,
         email: userEmail,
-          vendorId: event.vendorId || null,
+        vendorId: event.vendorId || null,
         ticketSummary: ticketSummary,
         foodSummary: foodSummary || [],
         financial: financial,
@@ -518,7 +515,13 @@ const TicketBookedPage = () => {
     handleInitialSetup();
   }, []);
 
-
+  console.log(location.state);
+  const totalTicketsBooked = ticketSummary.reduce(
+    (acc, ticket) => acc + ticket.quantity,
+    0
+  );
+  const ticketTypes = ticketSummary.map((ticket) => ticket.type).join(", ");
+  const foodNote = foodSummary.length > 0 ? "Grab a bite applied" : "";
 
   // Implementation for downloading the ticket as PDF
   // const handleDownloadTicket = () => {
@@ -572,325 +575,362 @@ const TicketBookedPage = () => {
   // };
 
   const handleDownloadTicket = async () => {
-  if (!ticketRef.current) {
-    alert("Cannot find the ticket element to download.");
-    return;
-  }
+    if (!ticketRef.current) {
+      alert("Cannot find the ticket element to download.");
+      return;
+    }
 
-  try {
-    // Show loading message
-    setBookingStatus({
-      status: bookingStatus.status,
-      message: "Preparing your ticket for download...",
-    });
-
-    // Wait a bit to ensure button state returns to normal
-    await new Promise(resolve => setTimeout(resolve, 200));
-
-    // Preload the event image to avoid CORS issues
-    const preloadImage = (src) => {
-      return new Promise((resolve, reject) => {
-        if (!src || src.includes('placeholder')) {
-          resolve(null);
-          return;
-        }
-        
-        const img = new Image();
-        img.crossOrigin = 'anonymous'; // Enable CORS
-        img.onload = () => resolve(img);
-        img.onerror = () => resolve(null); // Resolve with null if image fails
-        img.src = src;
+    try {
+      // Show loading message
+      setBookingStatus({
+        status: bookingStatus.status,
+        message: "Preparing your ticket for download...",
       });
+
+      // Wait a bit to ensure button state returns to normal
+      await new Promise((resolve) => setTimeout(resolve, 200));
+
+      // Preload the event image to avoid CORS issues
+      const preloadImage = (src) => {
+        return new Promise((resolve, reject) => {
+          if (!src || src.includes("placeholder")) {
+            resolve(null);
+            return;
+          }
+
+          const img = new Image();
+          img.crossOrigin = "anonymous"; // Enable CORS
+          img.onload = () => resolve(img);
+          img.onerror = () => resolve(null); // Resolve with null if image fails
+          img.src = src;
+        });
+      };
+
+      // Preload the event image
+      const preloadedImage = await preloadImage(eventImage);
+
+      // Configure html2canvas with better options
+      const canvas = await html2canvas(ticketRef.current, {
+        scale: 2,
+        logging: false,
+        useCORS: true,
+        allowTaint: false,
+        foreignObjectRendering: false,
+        imageTimeout: 15000,
+        removeContainer: true,
+        backgroundColor: "#ffffff",
+        onclone: (clonedDoc, element) => {
+          // Find and fix any images in the cloned document
+          const images = clonedDoc.querySelectorAll("img");
+          images.forEach((img) => {
+            // If we have a preloaded image and this is the event image
+            if (preloadedImage && img.src === eventImage) {
+              // Create a canvas element to replace the img
+              const imgCanvas = clonedDoc.createElement("canvas");
+              const ctx = imgCanvas.getContext("2d");
+
+              // Set canvas size to match the image display size
+              const computedStyle = window.getComputedStyle(img);
+              imgCanvas.width =
+                parseInt(computedStyle.width) || img.offsetWidth;
+              imgCanvas.height =
+                parseInt(computedStyle.height) || img.offsetHeight;
+
+              // Draw the preloaded image onto the canvas
+              ctx.drawImage(
+                preloadedImage,
+                0,
+                0,
+                imgCanvas.width,
+                imgCanvas.height
+              );
+
+              // Replace the img with canvas
+              img.parentNode.replaceChild(imgCanvas, img);
+            }
+          });
+
+          // Remove any button focus/active states
+          const buttons = clonedDoc.querySelectorAll("button");
+          buttons.forEach((btn) => {
+            btn.blur();
+            btn.style.boxShadow = "none";
+            btn.style.transform = "none";
+          });
+        },
+      });
+
+      // Create PDF
+      const imgData = canvas.toDataURL("image/png", 1.0);
+      const pdf = new jsPDF({
+        orientation: "landscape",
+        unit: "mm",
+        format: "a4",
+      });
+
+      // Calculate dimensions for PDF (maintain aspect ratio)
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = canvas.width;
+      const imgHeight = canvas.height;
+
+      // Calculate scaling to fit the page while maintaining aspect ratio
+      const scale = Math.min(
+        (pdfWidth - 20) / (imgWidth * 0.264583), // 0.264583 converts pixels to mm
+        (pdfHeight - 20) / (imgHeight * 0.264583)
+      );
+
+      const scaledWidth = imgWidth * 0.264583 * scale;
+      const scaledHeight = imgHeight * 0.264583 * scale;
+
+      // Center the image on the page
+      const x = (pdfWidth - scaledWidth) / 2;
+      const y = (pdfHeight - scaledHeight) / 2;
+
+      // Add image to PDF
+      pdf.addImage(imgData, "PNG", x, y, scaledWidth, scaledHeight);
+
+      // Save PDF with a clean filename
+      const cleanBookingId = bookingId.replace("#", "");
+      const eventName = (event.name || "Event").replace(/[^a-zA-Z0-9]/g, "_");
+      pdf.save(`${eventName}_Ticket_${cleanBookingId}.pdf`);
+
+      // Show success message
+      setBookingStatus({
+        status: bookingStatus.status,
+        message: "Ticket downloaded successfully!",
+      });
+
+      // Clear success message after 3 seconds
+      setTimeout(() => {
+        if (bookingStatus.status === "success") {
+          setBookingStatus({
+            status: "success",
+            message: "Ticket booked successfully!",
+          });
+        }
+      }, 3000);
+    } catch (error) {
+      console.error("Error with download function:", error);
+      alert(
+        "There was an error downloading your ticket. Please try taking a screenshot instead, or contact support if the issue persists."
+      );
+
+      // Reset status message
+      setBookingStatus({
+        status: bookingStatus.status,
+        message:
+          bookingStatus.status === "success"
+            ? "Ticket booked successfully!"
+            : bookingStatus.message,
+      });
+    }
+  };
+
+  const EventImageComponent = () => {
+    const [imageLoaded, setImageLoaded] = useState(false);
+    const [imageError, setImageError] = useState(false);
+
+    const handleImageLoad = () => {
+      setImageLoaded(true);
+      setImageError(false);
     };
 
-    // Preload the event image
-    const preloadedImage = await preloadImage(eventImage);
+    const handleImageError = (e) => {
+      console.error("Image failed to load:", e);
+      setImageError(true);
+      // Set a placeholder image
+      e.target.src =
+        "https://via.placeholder.com/270x180/e0e0e0/757575?text=Event+Image";
+    };
 
-    // Configure html2canvas with better options
-    const canvas = await html2canvas(ticketRef.current, {
-      scale: 2,
-      logging: false,
-      useCORS: true,
-      allowTaint: false,
-      foreignObjectRendering: false,
-      imageTimeout: 15000,
-      removeContainer: true,
-      backgroundColor: '#ffffff',
-      onclone: (clonedDoc, element) => {
-        // Find and fix any images in the cloned document
-        const images = clonedDoc.querySelectorAll('img');
-        images.forEach((img) => {
-          // If we have a preloaded image and this is the event image
-          if (preloadedImage && img.src === eventImage) {
-            // Create a canvas element to replace the img
-            const imgCanvas = clonedDoc.createElement('canvas');
-            const ctx = imgCanvas.getContext('2d');
-            
-            // Set canvas size to match the image display size
-            const computedStyle = window.getComputedStyle(img);
-            imgCanvas.width = parseInt(computedStyle.width) || img.offsetWidth;
-            imgCanvas.height = parseInt(computedStyle.height) || img.offsetHeight;
-            
-            // Draw the preloaded image onto the canvas
-            ctx.drawImage(preloadedImage, 0, 0, imgCanvas.width, imgCanvas.height);
-            
-            // Replace the img with canvas
-            img.parentNode.replaceChild(imgCanvas, img);
-          }
-        });
-
-        // Remove any button focus/active states
-        const buttons = clonedDoc.querySelectorAll('button');
-        buttons.forEach(btn => {
-          btn.blur();
-          btn.style.boxShadow = 'none';
-          btn.style.transform = 'none';
-        });
-      }
-    });
-
-    // Create PDF
-    const imgData = canvas.toDataURL('image/png', 1.0);
-    const pdf = new jsPDF({
-      orientation: 'landscape',
-      unit: 'mm',
-      format: 'a4',
-    });
-
-    // Calculate dimensions for PDF (maintain aspect ratio)
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = pdf.internal.pageSize.getHeight();
-    const imgWidth = canvas.width;
-    const imgHeight = canvas.height;
-    
-    // Calculate scaling to fit the page while maintaining aspect ratio
-    const scale = Math.min(
-      (pdfWidth - 20) / (imgWidth * 0.264583), // 0.264583 converts pixels to mm
-      (pdfHeight - 20) / (imgHeight * 0.264583)
-    );
-    
-    const scaledWidth = (imgWidth * 0.264583) * scale;
-    const scaledHeight = (imgHeight * 0.264583) * scale;
-    
-    // Center the image on the page
-    const x = (pdfWidth - scaledWidth) / 2;
-    const y = (pdfHeight - scaledHeight) / 2;
-
-    // Add image to PDF
-    pdf.addImage(imgData, 'PNG', x, y, scaledWidth, scaledHeight);
-
-    // Save PDF with a clean filename
-    const cleanBookingId = bookingId.replace('#', '');
-    const eventName = (event.name || 'Event').replace(/[^a-zA-Z0-9]/g, '_');
-    pdf.save(`${eventName}_Ticket_${cleanBookingId}.pdf`);
-
-    // Show success message
-    setBookingStatus({
-      status: bookingStatus.status,
-      message: "Ticket downloaded successfully!",
-    });
-
-    // Clear success message after 3 seconds
-    setTimeout(() => {
-      if (bookingStatus.status === 'success') {
-        setBookingStatus({
-          status: 'success',
-          message: 'Ticket booked successfully!',
-        });
-      }
-    }, 3000);
-
-  } catch (error) {
-    console.error("Error with download function:", error);
-    alert(
-      "There was an error downloading your ticket. Please try taking a screenshot instead, or contact support if the issue persists."
-    );
-    
-    // Reset status message
-    setBookingStatus({
-      status: bookingStatus.status,
-      message: bookingStatus.status === 'success' ? 'Ticket booked successfully!' : bookingStatus.message,
-    });
-  }
-};
-
-const EventImageComponent = () => {
-  const [imageLoaded, setImageLoaded] = useState(false);
-  const [imageError, setImageError] = useState(false);
-
-  const handleImageLoad = () => {
-    setImageLoaded(true);
-    setImageError(false);
-  };
-
-  const handleImageError = (e) => {
-    console.error("Image failed to load:", e);
-    setImageError(true);
-    // Set a placeholder image
-    e.target.src = "https://via.placeholder.com/270x180/e0e0e0/757575?text=Event+Image";
-  };
-
-  return (
-    <Box
-      component="img"
-      src={eventImage || "https://via.placeholder.com/270x180/e0e0e0/757575?text=Event+Image"}
-      alt={event.name || "Event"}
-      crossOrigin="anonymous" // Add CORS support
-      sx={{
-        width: "100%",
-        height: "auto",
-        maxWidth: 270,
-        borderRadius: 1,
-        objectFit: "cover",
-        pr: 5,
-        opacity: imageLoaded ? 1 : 0.8,
-        transition: "opacity 0.3s ease",
-        // Ensure image is fully loaded before capture
-        imageRendering: "crisp-edges",
-      }}
-      onLoad={handleImageLoad}
-      onError={handleImageError}
-    />
-  );
-};
-
-// 2. Update your download button to prevent focus states during capture
-const DownloadButton = () => {
-  const [isDownloading, setIsDownloading] = useState(false);
-
-  const handleDownloadClick = async () => {
-    setIsDownloading(true);
-    
-    // Wait a moment for the button to return to normal state
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
-    try {
-      await handleDownloadTicket();
-    } finally {
-      setIsDownloading(false);
-    }
-  };
-
-  return (
-    <Button
-      variant="contained"
-      startIcon={<DownloadIcon />}
-      size="small"
-      sx={{
-        backgroundColor: "#19AEDC",
-        color: "#fff",
-        borderRadius: 4,
-        textTransform: "none",
-        px: 2,
-        py: 0.5,
-        fontSize: 14,
-        // Prevent visual feedback during download
-        '&:focus': {
-          boxShadow: 'none',
-        },
-        '&:active': {
-          transform: 'none',
-          boxShadow: 'none',
-        },
-        // Disable during download process
-        opacity: isDownloading ? 0.7 : 1,
-        pointerEvents: isDownloading ? 'none' : 'auto',
-      }}
-      onClick={handleDownloadClick}
-      disabled={bookingStatus.status === "pending" || isDownloading}
-      onMouseDown={(e) => {
-        // Prevent the button from staying in pressed state
-        setTimeout(() => e.target.blur(), 100);
-      }}
-    >
-      {isDownloading ? "Downloading..." : "Download Ticket"}
-    </Button>
-  );
-};
-
-// 3. Alternative approach: Use a proxy image or convert to base64
-const convertImageToBase64 = async (imageUrl) => {
-  try {
-    const response = await fetch(imageUrl, {
-      mode: 'cors',
-    });
-    
-    if (!response.ok) {
-      throw new Error('Failed to fetch image');
-    }
-    
-    const blob = await response.blob();
-    
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
-  } catch (error) {
-    console.error('Error converting image to base64:', error);
-    return null;
-  }
-};
-
-// 4. Updated fetch event image function with CORS handling
-const fetchEventImageWithCORS = async () => {
-  try {
-    console.log("Fetching event image for:", event.name, "with ID:", event.id);
-
-    if (event.id) {
-      const eventDocRef = doc(db, "events", event.id);
-      const eventDoc = await getDoc(eventDocRef);
-
-      if (eventDoc.exists()) {
-        const eventData = eventDoc.data();
-        console.log("Event data retrieved:", eventData);
-
-        if (Array.isArray(eventData.bannerImages) && eventData.bannerImages.length > 0) {
-          let imageUrl = eventData.bannerImages[0];
-          
-          // Convert to base64 if it's an external URL to avoid CORS issues
-          if (imageUrl.startsWith('http') && !imageUrl.includes('firebasestorage')) {
-            const base64Image = await convertImageToBase64(imageUrl);
-            if (base64Image) {
-              setEventImage(base64Image);
-              return;
-            }
-          }
-          
-          setEventImage(imageUrl);
-          return;
+    return (
+      <Box
+        component="img"
+        src={
+          eventImage ||
+          "https://via.placeholder.com/270x180/e0e0e0/757575?text=Event+Image"
         }
+        alt={event.name || "Event"}
+        crossOrigin="anonymous" // Add CORS support
+        sx={{
+          width: "100%",
+          height: "auto",
+          maxWidth: 270,
+          borderRadius: 1,
+          objectFit: "cover",
+          pr: 5,
+          opacity: imageLoaded ? 1 : 0.8,
+          transition: "opacity 0.3s ease",
+          // Ensure image is fully loaded before capture
+          imageRendering: "crisp-edges",
+        }}
+        onLoad={handleImageLoad}
+        onError={handleImageError}
+      />
+    );
+  };
 
-        // Check other image fields...
-        const possibleImageFields = ["imageUrl", "bannerImage", "thumbnail", "image"];
-        for (const field of possibleImageFields) {
-          if (eventData[field]) {
-            let imageUrl = eventData[field];
-            
-            // Convert external URLs to base64
-            if (imageUrl.startsWith('http') && !imageUrl.includes('firebasestorage')) {
+  // 2. Update your download button to prevent focus states during capture
+  const DownloadButton = () => {
+    const [isDownloading, setIsDownloading] = useState(false);
+
+    const handleDownloadClick = async () => {
+      setIsDownloading(true);
+
+      // Wait a moment for the button to return to normal state
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      try {
+        await handleDownloadTicket();
+      } finally {
+        setIsDownloading(false);
+      }
+    };
+
+    return (
+      <Button
+        variant="contained"
+        startIcon={<DownloadIcon />}
+        size="small"
+        sx={{
+          backgroundColor: "#19AEDC",
+          color: "#fff",
+          borderRadius: 4,
+          textTransform: "none",
+          px: 2,
+          py: 0.5,
+          fontSize: 14,
+          // Prevent visual feedback during download
+          "&:focus": {
+            boxShadow: "none",
+          },
+          "&:active": {
+            transform: "none",
+            boxShadow: "none",
+          },
+          // Disable during download process
+          opacity: isDownloading ? 0.7 : 1,
+          pointerEvents: isDownloading ? "none" : "auto",
+        }}
+        onClick={handleDownloadClick}
+        disabled={bookingStatus.status === "pending" || isDownloading}
+        onMouseDown={(e) => {
+          // Prevent the button from staying in pressed state
+          setTimeout(() => e.target.blur(), 100);
+        }}
+      >
+        {isDownloading ? "Downloading..." : "Download Ticket"}
+      </Button>
+    );
+  };
+
+  // 3. Alternative approach: Use a proxy image or convert to base64
+  const convertImageToBase64 = async (imageUrl) => {
+    try {
+      const response = await fetch(imageUrl, {
+        mode: "cors",
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch image");
+      }
+
+      const blob = await response.blob();
+
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    } catch (error) {
+      console.error("Error converting image to base64:", error);
+      return null;
+    }
+  };
+
+  // 4. Updated fetch event image function with CORS handling
+  const fetchEventImageWithCORS = async () => {
+    try {
+      console.log(
+        "Fetching event image for:",
+        event.name,
+        "with ID:",
+        event.id
+      );
+
+      if (event.id) {
+        const eventDocRef = doc(db, "events", event.id);
+        const eventDoc = await getDoc(eventDocRef);
+
+        if (eventDoc.exists()) {
+          const eventData = eventDoc.data();
+          console.log("Event data retrieved:", eventData);
+
+          if (
+            Array.isArray(eventData.bannerImages) &&
+            eventData.bannerImages.length > 0
+          ) {
+            let imageUrl = eventData.bannerImages[0];
+
+            // Convert to base64 if it's an external URL to avoid CORS issues
+            if (
+              imageUrl.startsWith("http") &&
+              !imageUrl.includes("firebasestorage")
+            ) {
               const base64Image = await convertImageToBase64(imageUrl);
               if (base64Image) {
                 setEventImage(base64Image);
                 return;
               }
             }
-            
+
             setEventImage(imageUrl);
             return;
           }
+
+          // Check other image fields...
+          const possibleImageFields = [
+            "imageUrl",
+            "bannerImage",
+            "thumbnail",
+            "image",
+          ];
+          for (const field of possibleImageFields) {
+            if (eventData[field]) {
+              let imageUrl = eventData[field];
+
+              // Convert external URLs to base64
+              if (
+                imageUrl.startsWith("http") &&
+                !imageUrl.includes("firebasestorage")
+              ) {
+                const base64Image = await convertImageToBase64(imageUrl);
+                if (base64Image) {
+                  setEventImage(base64Image);
+                  return;
+                }
+              }
+
+              setEventImage(imageUrl);
+              return;
+            }
+          }
         }
       }
-    }
 
-    // Fallback to placeholder
-    setEventImage("https://via.placeholder.com/270x180/e0e0e0/757575?text=Event+Image");
-  } catch (error) {
-    console.error("Error in image fetching process:", error);
-    setEventImage("https://via.placeholder.com/270x180/e0e0e0/757575?text=Event+Image");
-  }
-};
+      // Fallback to placeholder
+      setEventImage(
+        "https://via.placeholder.com/270x180/e0e0e0/757575?text=Event+Image"
+      );
+    } catch (error) {
+      console.error("Error in image fetching process:", error);
+      setEventImage(
+        "https://via.placeholder.com/270x180/e0e0e0/757575?text=Event+Image"
+      );
+    }
+  };
   // Fallback download function if html2canvas/jsPDF are not available
   const fallbackDownload = () => {
     try {
@@ -938,7 +978,13 @@ const fetchEventImageWithCORS = async () => {
   }
 
   return (
-    <Box sx={{ minHeight: "100vh", backgroundColor: "#f5f5f5" ,overflowX: "hidden"}}>
+    <Box
+      sx={{
+        minHeight: "100vh",
+        backgroundColor: "#f5f5f5",
+        overflowX: "hidden",
+      }}
+    >
       <Header />
 
       {/* Status alerts */}
@@ -964,7 +1010,7 @@ const fetchEventImageWithCORS = async () => {
 
       {/* Success Header - Only show if booking was successful */}
       {bookingStatus.status === "success" && (
-        <Box sx={{ textAlign: "center", mt: isMobile?2:5, mb: 3 }}>
+        <Box sx={{ textAlign: "center", mt: isMobile ? 2 : 5, mb: 3 }}>
           <Box
             sx={{
               display: "flex",
@@ -976,17 +1022,24 @@ const fetchEventImageWithCORS = async () => {
             <CheckCircleIcon
               sx={{
                 color: "white",
-                fontSize: isMobile?20:28,
+                fontSize: isMobile ? 20 : 28,
                 backgroundColor: "#4CAF50",
                 borderRadius: "50%",
                 p: 0.8,
               }}
             />
           </Box>
-          <Typography variant="h5" fontWeight="bold" sx={{ fontSize: isMobile?20:24 }}>
+          <Typography
+            variant="h5"
+            fontWeight="bold"
+            sx={{ fontSize: isMobile ? 20 : 24 }}
+          >
             Ticket Booked Successfully, Pal!
           </Typography>
-          <Typography variant="body1" sx={{ mt: 0.5, fontSize: isMobile?14:16 }}>
+          <Typography
+            variant="body1"
+            sx={{ mt: 0.5, fontSize: isMobile ? 14 : 16 }}
+          >
             Get ready for an amazing experience! 🎉
           </Typography>
         </Box>
@@ -1025,210 +1078,215 @@ const fetchEventImageWithCORS = async () => {
       {/* Ticket Card */}
       <Box
         sx={{
-          maxWidth: isMobile?"100%":1000,
+          maxWidth: isMobile ? "100%" : 1000,
           mx: "auto",
           position: "relative",
         }}
       >
         {/* Ticket top notch */}
         {!isMobile && (
-        <Box
-          sx={{
-            position: "absolute",
-            width: 70,
-            height: 30,
-            backgroundColor: "#f5f5f5",
-            borderRadius: "0 0 30px 30px",
-            top: 0,
-            left: "37%",
-            transform: "translateX(-50%)",
-            zIndex: 1,
-          }}
-        />)}
+          <Box
+            sx={{
+              position: "absolute",
+              width: 70,
+              height: 30,
+              backgroundColor: "#f5f5f5",
+              borderRadius: "0 0 30px 30px",
+              top: 0,
+              left: "37%",
+              transform: "translateX(-50%)",
+              zIndex: 1,
+            }}
+          />
+        )}
 
         {/* Desktop Ticket body */}
         {!isMobile && (
-        <Paper
-          elevation={3}
-          sx={{
-            borderRadius: 2,
-            overflow: "hidden",
-            position: "relative",
-            opacity: bookingStatus.status === "pending" ? 0.7 : 1,
-            boxShadow: 0,
-          }}
-          ref={ticketRef}
-          id="ticket-card"
-        >
-          <Box sx={{ display: "flex" }}>
-            {/* Left section - Event image */}
-            <Box
-              sx={{
-                width: "35%",
-                pt: 2,
-                pb: 2,
-                pl: 5,
-                pr: 8,
-                borderRight: "1px dashed #ddd",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <Box
-                component="img"
-                src={
-                  eventImage ||
-                  "https://via.placeholder.com/270x180?text=Event+Image"
-                }
-                alt={event.name || "Event"}
-                sx={{
-                  width: "100%",
-                  height: 270,
-                  maxWidth: 270,
-                  borderRadius: 1,
-                  objectFit: "cover",
-                 
-                }}
-                onError={(e) => {
-                  console.error("Image failed to load:", e);
-                  e.target.src =
-                    "https://via.placeholder.com/270x180?text=Event+Image";
-                }}
-              />
-            </Box>
-
-            {/* Middle - Event Details */}
-            <Box
-              sx={{ width: "35%", p: 2, borderRight: "1px dashed #ddd", ml: 5 }}
-            >
-              <Typography
-                variant="h6"
-                fontWeight="bold"
-                sx={{ borderBottom: "1px solid #000", pb: 1, mb: 2 }}
-              >
-                {event.name || "Event"}
-              </Typography>
-
-              <Box
-                mt={1}
-                sx={{ display: "flex", alignItems: "center", gap: 1 }}
-              >
-                <CalendarTodayIcon sx={{ fontSize: 18 }} />
-                <Typography variant="body2">{formattedDate}</Typography>
-              </Box>
-
-              <Box
-                mt={1}
-                sx={{ display: "flex", alignItems: "center", gap: 1 }}
-              >
-                <AccessTimeIcon sx={{ fontSize: 18 }} />
-                <Typography variant="body2">{eventTime}</Typography>
-              </Box>
-
-              <Box
-                mt={1}
-                sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}
-              >
-                <LocationOnIcon sx={{ fontSize: 18 }} />
-                <Typography variant="body2">
-                  {event.location || "N/A"}
-                </Typography>
-              </Box>
-
-              <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
-                <Typography variant="body2">
-                  Number of Tickets: {totalTickets}
-                </Typography>
-                {ticketSummary.length > 0 && (
-                  <Box
-                    sx={{ ml: "auto", display: "flex", alignItems: "center" }}
-                  >
-                    <DirectionsCarIcon sx={{ mr: 0.5, fontSize: 18 }} />
-                    <Typography variant="body2" fontWeight="bold">
-                      {ticketSummary[0].type}
-                    </Typography>
-                  </Box>
-                )}
-              </Box>
-
-              <Typography variant="body2">Ticket sent to</Typography>
-              <Box sx={{ display: "flex", alignItems: "center", mt: 0.5 }}>
-                <PhoneIcon sx={{ fontSize: 16, mr: 0.5 }} />
-                <Typography variant="body2">
-                  {userProfileData?.phoneNumber ||
-                    userProfileData?.phone ||
-                    user?.phone ||
-                    "N/A"}
-                </Typography>
-              </Box>
-              <Box sx={{ display: "flex", alignItems: "center", mt: 0.5 }}>
-                <EmailIcon sx={{ fontSize: 16, mr: 0.5 }} />
-                <Typography variant="body2">{user?.email}</Typography>
-              </Box>
-            </Box>
-
-            {/* Right - Price info and QR code */}
-            <Box sx={{ width: "34%", p: 2 }}>
+          <Paper
+            elevation={3}
+            sx={{
+              borderRadius: 2,
+              overflow: "hidden",
+              position: "relative",
+              opacity: bookingStatus.status === "pending" ? 0.7 : 1,
+              boxShadow: 0,
+            }}
+            ref={ticketRef}
+            id="ticket-card"
+          >
+            <Box sx={{ display: "flex" }}>
+              {/* Left section - Event image */}
               <Box
                 sx={{
+                  width: "35%",
+                  pt: 2,
+                  pb: 2,
+                  pl: 5,
+                  pr: 8,
+                  borderRight: "1px dashed #ddd",
                   display: "flex",
-                  flexDirection: "column",
                   alignItems: "center",
-                  mb: 3,
+                  justifyContent: "center",
                 }}
               >
-                {/* MODIFIED: QR Code implementation with just the booking ID */}
-                <div ref={qrRef}>
-                  <QRCode
-                    value={qrCodeData}
-                    size={120}
-                    level="H"
-                    includeMargin={true}
-                    id="qrcode"
-                  />
-                </div>
-                <Typography
-                  variant="caption"
-                  sx={{
-                    textAlign: "center",
-                    display: "block",
-                    color: "#666",
-                    mb: 1,
-                    mt: 1,
-                  }}
-                >
-                  Present this QR code at the venue
-                  <br />
-                  entrance for validation
-                </Typography>
-                <Button
-                  variant="contained"
-                  startIcon={<DownloadIcon />}
-                  size="small"
-                  sx={{
-                    backgroundColor: "#19AEDC",
-                    color: "#fff",
-                    borderRadius: 4,
-                    textTransform: "none",
-                    px: 2,
-                    py: 0.5,
-                    fontSize: 14,
-                  }}
-                  onClick={
-                    typeof html2canvas !== "undefined"
-                      ? handleDownloadTicket
-                      : fallbackDownload
+                <Box
+                  component="img"
+                  src={
+                    eventImage ||
+                    "https://via.placeholder.com/270x180?text=Event+Image"
                   }
-                  disabled={bookingStatus.status === "pending"}
-                >
-                  Download Ticket
-                </Button>
+                  alt={event.name || "Event"}
+                  sx={{
+                    width: "100%",
+                    height: 270,
+                    maxWidth: 270,
+                    borderRadius: 1,
+                    objectFit: "cover",
+                  }}
+                  onError={(e) => {
+                    console.error("Image failed to load:", e);
+                    e.target.src =
+                      "https://via.placeholder.com/270x180?text=Event+Image";
+                  }}
+                />
               </Box>
 
-              <Box>
-                {/* Display ticket prices */}
-                {/* {ticketSummary.map((ticket, index) => (
+              {/* Middle - Event Details */}
+              <Box
+                sx={{
+                  width: "35%",
+                  p: 2,
+                  borderRight: "1px dashed #ddd",
+                  ml: 5,
+                }}
+              >
+                <Typography
+                  variant="h6"
+                  fontWeight="bold"
+                  sx={{ borderBottom: "1px solid #000", pb: 1, mb: 2 }}
+                >
+                  {event.name || "Event"}
+                </Typography>
+
+                <Box
+                  mt={1}
+                  sx={{ display: "flex", alignItems: "center", gap: 1 }}
+                >
+                  <CalendarTodayIcon sx={{ fontSize: 18 }} />
+                  <Typography variant="body2">{formattedDate}</Typography>
+                </Box>
+
+                <Box
+                  mt={1}
+                  sx={{ display: "flex", alignItems: "center", gap: 1 }}
+                >
+                  <AccessTimeIcon sx={{ fontSize: 18 }} />
+                  <Typography variant="body2">{eventTime}</Typography>
+                </Box>
+
+                <Box
+                  mt={1}
+                  sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}
+                >
+                  <LocationOnIcon sx={{ fontSize: 18 }} />
+                  <Typography variant="body2">
+                    {event.location || "N/A"}
+                  </Typography>
+                </Box>
+
+                <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
+                  <Typography variant="body2">
+                    Number of Tickets: {totalTickets}
+                  </Typography>
+                  {ticketSummary.length > 0 && (
+                    <Box
+                      sx={{ ml: "auto", display: "flex", alignItems: "center" }}
+                    >
+                      <DirectionsCarIcon sx={{ mr: 0.5, fontSize: 18 }} />
+                      <Typography variant="body2" fontWeight="bold">
+                        {ticketSummary[0].type}
+                      </Typography>
+                    </Box>
+                  )}
+                </Box>
+
+                <Typography variant="body2">Ticket sent to</Typography>
+                <Box sx={{ display: "flex", alignItems: "center", mt: 0.5 }}>
+                  <PhoneIcon sx={{ fontSize: 16, mr: 0.5 }} />
+                  <Typography variant="body2">
+                    {userProfileData?.phoneNumber ||
+                      userProfileData?.phone ||
+                      user?.phone ||
+                      "N/A"}
+                  </Typography>
+                </Box>
+                <Box sx={{ display: "flex", alignItems: "center", mt: 0.5 }}>
+                  <EmailIcon sx={{ fontSize: 16, mr: 0.5 }} />
+                  <Typography variant="body2">{user?.email}</Typography>
+                </Box>
+              </Box>
+
+              {/* Right - Price info and QR code */}
+              <Box sx={{ width: "34%", p: 2 }}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    mb: 3,
+                  }}
+                >
+                  {/* MODIFIED: QR Code implementation with just the booking ID */}
+                  <div ref={qrRef}>
+                    <QRCode
+                      value={qrCodeData}
+                      size={120}
+                      level="H"
+                      includeMargin={true}
+                      id="qrcode"
+                    />
+                  </div>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      textAlign: "center",
+                      display: "block",
+                      color: "#666",
+                      mb: 1,
+                      mt: 1,
+                    }}
+                  >
+                    Present this QR code at the venue
+                    <br />
+                    entrance for validation
+                  </Typography>
+                  <Button
+                    variant="contained"
+                    startIcon={<DownloadIcon />}
+                    size="small"
+                    sx={{
+                      backgroundColor: "#19AEDC",
+                      color: "#fff",
+                      borderRadius: 4,
+                      textTransform: "none",
+                      px: 2,
+                      py: 0.5,
+                      fontSize: 14,
+                    }}
+                    onClick={
+                      typeof html2canvas !== "undefined"
+                        ? handleDownloadTicket
+                        : fallbackDownload
+                    }
+                    disabled={bookingStatus.status === "pending"}
+                  >
+                    Download Ticket
+                  </Button>
+                </Box>
+
+                <Box>
+                  {/* Display ticket prices */}
+                  {/* {ticketSummary.map((ticket, index) => (
                   <Box key={index} sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
                     <Typography variant="body2">
                       {ticket.type} ({ticket.quantity}x)
@@ -1238,29 +1296,29 @@ const fetchEventImageWithCORS = async () => {
                     </Typography>
                   </Box>
                 ))} */}
-                {ticketSummary.map((ticket, index) => (
-                  <Box
-                    key={index}
-                    sx={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      mb: 1,
-                    }}
-                  >
-                    <Typography variant="body2">
-                      {ticket.type || "Ticket"} ({ticket.quantity || 0}x)
-                    </Typography>
-                    <Typography fontWeight="bold">
-                      {(ticket.price || 0) === 0
-                        ? "FREE"
-                        : formatCurrency(
-                            (ticket.price || 0) * (ticket.quantity || 0)
-                          )}
-                    </Typography>
-                  </Box>
-                ))}
-                {/* Food items */}
-                {/* {foodSummary && foodSummary.length > 0 && (
+                  {ticketSummary.map((ticket, index) => (
+                    <Box
+                      key={index}
+                      sx={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        mb: 1,
+                      }}
+                    >
+                      <Typography variant="body2">
+                        {ticket.type || "Ticket"} ({ticket.quantity || 0}x)
+                      </Typography>
+                      <Typography fontWeight="bold">
+                        {(ticket.price || 0) === 0
+                          ? "FREE"
+                          : formatCurrency(
+                              (ticket.price || 0) * (ticket.quantity || 0)
+                            )}
+                      </Typography>
+                    </Box>
+                  ))}
+                  {/* Food items */}
+                  {/* {foodSummary && foodSummary.length > 0 && (
                   <>
                     {foodSummary.map((food, index) => (
                       <Box key={index} sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
@@ -1275,32 +1333,32 @@ const fetchEventImageWithCORS = async () => {
                   </>
                 )} */}
 
-                {foodSummary && foodSummary.length > 0 && (
-                  <>
-                    {foodSummary.map((food, index) => (
-                      <Box
-                        key={index}
-                        sx={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          mb: 1,
-                        }}
-                      >
-                        <Typography variant="body2">
-                          {food.name || "Food Item"} ({food.quantity || 0}x)
-                        </Typography>
-                        <Typography fontWeight="bold">
-                          {formatCurrency(
-                            (food.price || 0) * (food.quantity || 0)
-                          )}
-                        </Typography>
-                      </Box>
-                    ))}
-                  </>
-                )}
+                  {foodSummary && foodSummary.length > 0 && (
+                    <>
+                      {foodSummary.map((food, index) => (
+                        <Box
+                          key={index}
+                          sx={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            mb: 1,
+                          }}
+                        >
+                          <Typography variant="body2">
+                            {food.name || "Food Item"} ({food.quantity || 0}x)
+                          </Typography>
+                          <Typography fontWeight="bold">
+                            {formatCurrency(
+                              (food.price || 0) * (food.quantity || 0)
+                            )}
+                          </Typography>
+                        </Box>
+                      ))}
+                    </>
+                  )}
 
-                {/* Only show these for paid events */}
-                {/* {!financial.isFreeEvent && (
+                  {/* Only show these for paid events */}
+                  {/* {!financial.isFreeEvent && (
                   <>
                     <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.5 }}>
                       <Typography variant="body2">Convenience fee</Typography>
@@ -1327,22 +1385,8 @@ const fetchEventImageWithCORS = async () => {
                   </>
                 )} */}
 
-                {!financial.isFreeEvent && (
-                  <>
-                    <Box
-                      sx={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        mb: 0.5,
-                      }}
-                    >
-                      <Typography variant="body2">Convenience fee</Typography>
-                      <Typography fontWeight="bold">
-                        {formatCurrency(financial.convenienceFee || 0)}
-                      </Typography>
-                    </Box>
-
-                    {(financial.discount || 0) > 0 && (
+                  {!financial.isFreeEvent && (
+                    <>
                       <Box
                         sx={{
                           display: "flex",
@@ -1350,333 +1394,607 @@ const fetchEventImageWithCORS = async () => {
                           mb: 0.5,
                         }}
                       >
-                        <Typography variant="body2" sx={{ color: "#19AEDC" }}>
-                          Discount
-                        </Typography>
-                        <Typography fontWeight="bold" sx={{ color: "#19AEDC" }}>
-                          -{formatCurrency(financial.discount || 0)}
+                        <Typography variant="body2">Convenience fee</Typography>
+                        <Typography fontWeight="bold">
+                          {formatCurrency(financial.convenienceFee || 0)}
                         </Typography>
                       </Box>
-                    )}
+
+                      {(financial.discount || 0) > 0 && (
+                        <Box
+                          sx={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            mb: 0.5,
+                          }}
+                        >
+                          <Typography variant="body2" sx={{ color: "#19AEDC" }}>
+                            Discount
+                          </Typography>
+                          <Typography
+                            fontWeight="bold"
+                            sx={{ color: "#19AEDC" }}
+                          >
+                            -{formatCurrency(financial.discount || 0)}
+                          </Typography>
+                        </Box>
+                      )}
+
+                      <Box
+                        sx={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          mb: 0.5,
+                        }}
+                      >
+                        <Typography variant="body2">GST (18%)</Typography>
+                        <Typography fontWeight="bold">
+                          {formatCurrency(financial.gst || 0)}
+                        </Typography>
+                      </Box>
+
+                      <Typography
+                        variant="caption"
+                        sx={{ color: "#666", display: "block", mb: 1 }}
+                      >
+                        Incl. of taxes
+                      </Typography>
+                    </>
+                  )}
+
+                  <Divider sx={{ my: 1 }} />
+
+                  <Box
+                    sx={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      mt: 1,
+                    }}
+                  >
+                    <Typography variant="body1" fontWeight="bold">
+                      Total Amount
+                    </Typography>
+                    <Typography
+                      variant="body1"
+                      fontWeight="bold"
+                      sx={{
+                        color: financial.isFreeEvent ? "#19AEDC" : "inherit",
+                      }}
+                    >
+                      {financial.isFreeEvent
+                        ? "FREE"
+                        : formatCurrency(financial.totalAmount || 0)}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Box>
+            </Box>
+
+            {/* Bottom notch */}
+            <Box
+              sx={{
+                position: "absolute",
+                width: 70,
+                height: 30,
+                backgroundColor: "#f5f5f5",
+                borderRadius: "30px 30px 0 0",
+                bottom: 0,
+                left: "37%",
+                transform: "translateX(-50%)",
+                zIndex: 1,
+              }}
+            />
+
+            {/* Booking Info footer */}
+            <Box
+              sx={{
+                backgroundColor: "#ffff",
+                p: 2,
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                borderTop: "1px solid #eee",
+              }}
+            >
+              <Box>
+                <Typography variant="caption" sx={{ color: "#777" }}>
+                  Booking Date & Time
+                </Typography>
+                <Typography variant="body2" fontWeight="medium">
+                  {currentDate} {currentTime}
+                </Typography>
+              </Box>
+              <Box>
+                <Typography variant="caption" sx={{ color: "#777" }}>
+                  Booking ID
+                </Typography>
+                <Typography variant="body2" fontWeight="medium">
+                  {bookingId}
+                </Typography>
+              </Box>
+              <Box>
+                <Typography variant="caption" sx={{ color: "#777" }}>
+                  Booking Status
+                </Typography>
+                <Typography
+                  variant="body2"
+                  fontWeight="medium"
+                  sx={{ color: ticketIsSaved ? "#4CAF50" : "#f57c00" }}
+                >
+                  {ticketIsSaved ? "Confirmed" : "Pending Confirmation"}
+                </Typography>
+              </Box>
+            </Box>
+          </Paper>
+        )}
+          
+          {/* Mobile Ticket body */}
+          {isMobile && (
+            <Box
+              sx={{
+                position: "absolute",
+                width: 40,
+                height: 50,
+                backgroundColor: "#f5f5f5",
+                borderRadius: "0 30px 30px 0px",
+                top: "30%",
+                left: "10%",
+                transform: "translateX(-60%)",
+                zIndex: 1,
+              }}
+            />
+          )}
+          {isMobile && (
+            <Box
+              sx={{
+                position: "absolute",
+                width: 40,
+                height: 50,
+                backgroundColor: "#f5f5f5",
+                borderRadius: "30px 0px 0px 30px",
+                top: "30%",
+                left: "10%",
+                transform: "translateX(750%)",
+                zIndex: 1,
+              }}
+            />
+          )}
+          {isMobile && (
+            <Box sx={{ width: "90%", mx: "auto", mt: 3 }}>
+              <Card
+                sx={{
+                  width: "100%",
+                  borderRadius: 6,
+                  p: 0,
+                  overflow: "hidden",
+                }}
+                ref={ticketRef}
+              >
+                <CardContent sx={{ p: 2 }}>
+                  <Box sx={{ display: "flex", gap: 3, mb: 3, p: 1 }}>
+                    <Box
+                      component="img"
+                      src={
+                        eventImage ||
+                        "https://via.placeholder.com/270x180?text=Event+Image"
+                      }
+                      alt={event.name || "Event"}
+                      sx={{
+                        width: "50%",
+                        height: 170,
+                        borderRadius: 1,
+                        objectFit: "cover",
+                        border: "1px solid",
+                        borderColor: "black",
+                      }}
+                      onError={(e) => {
+                        console.error("Image failed to load:", e);
+                        e.target.src =
+                          "https://via.placeholder.com/270x180?text=Event+Image";
+                      }}
+                    />
+                    <Box>
+                      <Typography
+                        sx={{
+                          fontFamily: "'Poppins', Helvetica",
+                          fontWeight: 600,
+                          fontSize: 14,
+                          mb: 1,
+                        }}
+                      >
+                        {event.name || "Event"}
+                      </Typography>
+
+                      <Box sx={{ display: "flex", alignItems: "center" }}>
+                        <CalendarTodayIcon
+                          sx={{ fontSize: 11, color: "text.secondary" }}
+                        />
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            fontFamily: "'Poppins', Helvetica",
+                            color: "text.secondary",
+                            fontSize: 11,
+                            pl: 0.2,
+                          }}
+                        >
+                          {formattedDate}
+                        </Typography>
+                        <Divider
+                          orientation="vertical"
+                          sx={{ mx: 1, height: 16 }}
+                        />
+                        <AccessTimeIcon
+                          sx={{ fontSize: 11, color: "text.secondary" }}
+                        />
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            fontFamily: "'Poppins', Helvetica",
+                            color: "text.secondary",
+                            fontSize: 11,
+                            pl: 0.2,
+                          }}
+                        >
+                          {eventTime}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ display: "flex", alignItems: "center", mt: 1 }}>
+                        <LocationOnIcon
+                          sx={{ fontSize: 11, color: "text.secondary" }}
+                        />
+                        <Typography
+                          sx={{
+                            fontFamily: "'Poppins', Helvetica",
+                            color: "#adaebc",
+                            fontSize: 11,
+                            pl: 0.2,
+                          }}
+                        >
+                          {event.location || "N/A"}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Box>
+
+                  <Divider sx={{ my: 2, mb: 4 }} />
+
+                  <Box
+                    sx={{ bgcolor: "#d1d5db4c", p: 1, borderRadius: 2, mt: 2 }}
+                  >
+                    <Box sx={{ display: "flex" }}>
+                      <Box
+                        sx={{
+                          bgcolor: "white",
+                          p: 1,
+                          width: 96,
+                          height: 100,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <div ref={qrRef}>
+                          <QRCode
+                            value={qrCodeData}
+                            size={120}
+                            level="H"
+                            includeMargin={true}
+                            id="qrcode"
+                          />
+                        </div>
+                      </Box>
+
+                      <Box
+                        sx={{
+                          ml: 2,
+                          display: "flex",
+                          flexDirection: "column",
+                          justifyContent: "space-between",
+                          py: 1,
+                        }}
+                      >
+                        <Typography
+                          sx={{
+                            fontFamily: "'Albert Sans', Helvetica",
+                            color: "text.secondary",
+                            fontSize: 12,
+                          }}
+                        >
+                          {totalTickets} Tickets
+                        </Typography>
+                        <Typography
+                          sx={{
+                            fontFamily: "'Albert Sans', Helvetica",
+                            color: "text.secondary",
+                            fontSize: 13,
+                          }}
+                        >
+                          {ticketTypes}
+                        </Typography>
+                        <Box sx={{ display: "flex", mt: 1 }}>
+                          <Typography
+                            sx={{
+                              fontFamily: "'Albert Sans', Helvetica",
+                              fontWeight: 600,
+                              fontSize: 10,
+                            }}
+                          >
+                            Booking ID :
+                          </Typography>
+                          <Typography
+                            sx={{
+                              fontFamily: "'Albert Sans', Helvetica",
+                              fontWeight: 600,
+                              fontSize: 10,
+                              ml: 0.5,
+                            }}
+                          >
+                            {bookingId}
+                          </Typography>
+                        </Box>
+                        <Typography
+                          sx={{
+                            fontFamily: "'Albert Sans', Helvetica",
+                            color: "#6f7287",
+                            fontSize: 10,
+                          }}
+                        >
+                          {foodNote}
+                        </Typography>
+                      </Box>
+                    </Box>
 
                     <Box
                       sx={{
                         display: "flex",
                         justifyContent: "space-between",
-                        mb: 0.5,
+                        alignItems: "center",
+                        mt: 1,
                       }}
                     >
-                      <Typography variant="body2">GST (18%)</Typography>
-                      <Typography fontWeight="bold">
-                        {formatCurrency(financial.gst || 0)}
+                      <Typography
+                        sx={{
+                          fontFamily: "'Poppins', Helvetica",
+                          fontSize: 9,
+                          textAlign: "center",
+                        }}
+                      >
+                        Present this QR code at
+                        <br />
+                        the venue for validation
+                      </Typography>
+                      <Button
+                        variant="contained"
+                        size="small"
+                        startIcon={<DownloadIcon sx={{ fontSize: 12 }} />}
+                        sx={{
+                          height: 21,
+                          bgcolor: "#19aedc",
+                          borderRadius: 4,
+                          fontSize: 8,
+                          fontFamily: "'Poppins', Helvetica",
+                          fontWeight: 600,
+                          textTransform: "none",
+                          mr: 5,
+                        }}
+                      >
+                        Download Ticket
+                      </Button>
+                    </Box>
+                  </Box>
+
+                  <Box sx={{ mt: 2.5 }}>
+                    {/* Price per Ticket - list each ticket type */}
+                    <Box
+                      sx={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        mb: 1,
+                      }}
+                    >
+                      <Box>
+                        <Typography
+                          sx={{
+                            fontFamily: "'Albert Sans', Helvetica",
+                            fontWeight: 300,
+                            fontSize: 12,
+                          }}
+                        >
+                          Price per Ticket
+                        </Typography>
+                        {ticketSummary?.map((ticket, idx) => (
+                          <Typography
+                            key={idx}
+                            sx={{
+                              fontFamily: "'Albert Sans', Helvetica",
+                              fontWeight: 200,
+                              fontSize: 10,
+                              ml: 1,
+                            }}
+                          >
+                            {ticket.type} x {ticket.quantity}
+                          </Typography>
+                        ))}
+                      </Box>
+                      <Typography
+                        sx={{
+                          fontFamily: "'Albert Sans', Helvetica",
+                          fontWeight: 300,
+                          fontSize: 12,
+                        }}
+                      >
+                        ₹
+                        {ticketSummary?.reduce(
+                          (total, item) => total + (item.subtotal || 0),
+                          0
+                        )}
                       </Typography>
                     </Box>
 
-                    <Typography
-                      variant="caption"
-                      sx={{ color: "#666", display: "block", mb: 1 }}
+                    {/* Discount */}
+                    <Box
+                      sx={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        mb: 1,
+                      }}
                     >
-                      Incl. of taxes
-                    </Typography>
-                  </>
-                )}
+                      <Typography
+                        sx={{
+                          fontFamily: "'Albert Sans', Helvetica",
+                          fontWeight: 300,
+                          fontSize: 12,
+                        }}
+                      >
+                        Discount
+                      </Typography>
+                      <Typography
+                        sx={{
+                          fontFamily: "'Albert Sans', Helvetica",
+                          fontWeight: 300,
+                          fontSize: 12,
+                        }}
+                      >
+                        ₹{financial?.discount || 0}
+                      </Typography>
+                    </Box>
 
-                <Divider sx={{ my: 1 }} />
+                    {/* Grab a bite fees */}
+                    {foodSummary?.length > 0 && (
+                      <Box
+                        sx={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          mb: 1,
+                        }}
+                      >
+                        <Box>
+                          <Typography
+                            sx={{
+                              fontFamily: "'Albert Sans', Helvetica",
+                              fontWeight: 300,
+                              fontSize: 12,
+                            }}
+                          >
+                            Grab a bite fees
+                          </Typography>
+                          {foodSummary.map((food, idx) => (
+                            <Typography
+                              key={idx}
+                              sx={{
+                                fontFamily: "'Albert Sans', Helvetica",
+                                fontWeight: 200,
+                                fontSize: 10,
+                                ml: 1,
+                              }}
+                            >
+                              {food.name} x {food.quantity}
+                            </Typography>
+                          ))}
+                        </Box>
+                        <Typography
+                          sx={{
+                            fontFamily: "'Albert Sans', Helvetica",
+                            fontWeight: 300,
+                            fontSize: 12,
+                          }}
+                        >
+                          ₹
+                          {foodSummary.reduce(
+                            (total, item) => total + item.price * item.quantity,
+                            0
+                          )}
+                        </Typography>
+                      </Box>
+                    )}
 
-                <Box
-                  sx={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    mt: 1,
-                  }}
-                >
-                  <Typography variant="body1" fontWeight="bold">
-                    Total Amount
-                  </Typography>
-                  <Typography
-                    variant="body1"
-                    fontWeight="bold"
+                    {/* Convenience Fees */}
+                    <Box
+                      sx={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        mb: 1,
+                      }}
+                    >
+                      <Box>
+                        <Typography
+                          sx={{
+                            fontFamily: "'Albert Sans', Helvetica",
+                            fontWeight: 300,
+                            fontSize: 12,
+                          }}
+                        >
+                          Convenience fees
+                        </Typography>
+                        <Typography
+                          sx={{
+                            fontFamily: "'Poppins', Helvetica",
+                            fontWeight: 300,
+                            fontSize: 9,
+                            color: "#4b5563e6",
+                          }}
+                        >
+                          Incl. of taxes
+                        </Typography>
+                      </Box>
+                      <Typography
+                        sx={{
+                          fontFamily: "'Albert Sans', Helvetica",
+                          fontWeight: 300,
+                          fontSize: 12,
+                        }}
+                      >
+                        ₹{financial?.convenienceFee || 0}
+                      </Typography>
+                    </Box>
+                  </Box>
+
+                  <Box
                     sx={{
-                      color: financial.isFreeEvent ? "#19AEDC" : "inherit",
+                      bgcolor: "#d1d5db4c",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      p: 2,
+                      mt: 2,
                     }}
                   >
-                    {financial.isFreeEvent
-                      ? "FREE"
-                      : formatCurrency(financial.totalAmount || 0)}
-                  </Typography>
-                </Box>
-              </Box>
-            </Box>
-          </Box>
-
-          {/* Bottom notch */}
-          <Box
-            sx={{
-              position: "absolute",
-              width: 70,
-              height: 30,
-              backgroundColor: "#f5f5f5",
-              borderRadius: "30px 30px 0 0",
-              bottom: 0,
-              left: "37%",
-              transform: "translateX(-50%)",
-              zIndex: 1,
-            }}
-          />
-
-          {/* Booking Info footer */}
-          <Box
-            sx={{
-              backgroundColor: "#ffff",
-              p: 2,
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              borderTop: "1px solid #eee",
-            }}
-          >
-            <Box>
-              <Typography variant="caption" sx={{ color: "#777" }}>
-                Booking Date & Time
-              </Typography>
-              <Typography variant="body2" fontWeight="medium">
-                {currentDate} {currentTime}
-              </Typography>
-            </Box>
-            <Box>
-              <Typography variant="caption" sx={{ color: "#777" }}>
-                Booking ID
-              </Typography>
-              <Typography variant="body2" fontWeight="medium">
-                {bookingId}
-              </Typography>
-            </Box>
-            <Box>
-              <Typography variant="caption" sx={{ color: "#777" }}>
-                Booking Status
-              </Typography>
-              <Typography
-                variant="body2"
-                fontWeight="medium"
-                sx={{ color: ticketIsSaved ? "#4CAF50" : "#f57c00" }}
-              >
-                {ticketIsSaved ? "Confirmed" : "Pending Confirmation"}
-              </Typography>
-            </Box>
-          </Box>
-        </Paper>)}
-
-        {/* Mobile Ticket body */}
-        {isMobile && (
-        <Box
-          sx={{
-            position: "absolute",
-            width: 40,
-            height: 50,
-            backgroundColor: "#f5f5f5",
-            borderRadius: "0 30px 30px 0px",
-            top: "30%",
-            left: "10%",
-            transform: "translateX(-60%)",
-            zIndex: 1,
-          }}
-        />)}
-        {isMobile && (
-        <Box
-          sx={{
-            position: "absolute",
-            width: 40,
-            height: 50,
-            backgroundColor: "#f5f5f5",
-            borderRadius: "30px 0px 0px 30px",
-            top: "30%",
-            left: "10%",
-            transform: "translateX(750%)",
-            zIndex: 1,
-          }}
-        />)}
-        {isMobile &&(
-          <Box sx={{ width: "90%", mx: "auto", mt: 3}}>
-      <Card sx={{ 
-        width: "100%", 
-        borderRadius: 6,
-        p:0,
-        overflow: "hidden"
-      }} ref={ticketRef}>
-        <CardContent sx={{ p: 2 }}>
-          <Box sx={{ display: "flex", gap: 3, mb: 3 ,p:1}}>
-            <Box
-                component="img"
-                src={
-                  eventImage ||
-                  "https://via.placeholder.com/270x180?text=Event+Image"
-                }
-                alt={event.name || "Event"}
-                sx={{
-                  width: "50%",
-                  height: 170,
-                  borderRadius: 1,
-                  objectFit: "cover",
-                   border: "1px solid", borderColor: "black" 
-                }}
-                onError={(e) => {
-                  console.error("Image failed to load:", e);
-                  e.target.src =
-                    "https://via.placeholder.com/270x180?text=Event+Image";
-                }}
-              />
-            <Box>
-              <Typography sx={{ fontFamily: "'Poppins', Helvetica", fontWeight: 600, fontSize: 14, mb: 1 }}>
-                {event.name || "Event"}
-              </Typography>
-          
-              <Box sx={{ display: "flex", alignItems: "center" }}>
-                <CalendarTodayIcon sx={{ fontSize: 11 , color: "text.secondary"}} />
-                <Typography variant="body2" sx={{ fontFamily: "'Poppins', Helvetica", color: "text.secondary", fontSize: 11,pl:0.2 }}>{formattedDate}</Typography>
-                <Divider orientation="vertical" sx={{ mx: 1, height: 16 }} />
-                <AccessTimeIcon sx={{ fontSize: 11 , color: "text.secondary"}} />
-                <Typography variant="body2" sx={{ fontFamily: "'Poppins', Helvetica", color: "text.secondary", fontSize: 11,pl:0.2 }}>{eventTime}</Typography>
-              </Box>
-              <Box sx={{ display: "flex", alignItems: "center", mt: 1 }}>
-              <LocationOnIcon sx={{ fontSize: 11, color: "text.secondary" }} />
-              <Typography sx={{ fontFamily: "'Poppins', Helvetica", color: "#adaebc", fontSize: 11,pl:0.2 }}>
-                 {event.location || "N/A"}
-              </Typography>
-              </Box>
-            </Box>
-          </Box>
-
-          <Divider sx={{ my: 2 ,mb:4}} />
-
-          <Box sx={{ bgcolor: "#d1d5db4c", p: 1, borderRadius: 2 ,mt:2}}>
-            <Box sx={{ display: "flex" }}>
-              <Box sx={{ bgcolor: "white", p: 1, width: 96, height: 100, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <img
-                  style={{ width: 84, height: 84 }}
-                  alt="QR Code"
-                  src="/vaadin-qrcode.svg"
-                />
-                
-              </Box>
-              
-
-              <Box sx={{ ml: 2, display: "flex", flexDirection: "column", justifyContent: "space-between", py: 1 }}>
-                <Typography sx={{ fontFamily: "'Albert Sans', Helvetica", color: "text.secondary", fontSize: 12 }}>
-                  2 Tickets
-                </Typography>
-                <Typography sx={{ fontFamily: "'Albert Sans', Helvetica", fontWeight: 600, fontSize: 14 }}>
-                  Block C1
-                </Typography>
-                <Typography sx={{ fontFamily: "'Albert Sans', Helvetica", color: "text.secondary", fontSize: 13 }}>
-                  VIP Access
-                </Typography>
-                <Box sx={{ display: "flex", mt: 1 }}>
-                  <Typography sx={{ fontFamily: "'Albert Sans', Helvetica", fontWeight: 600, fontSize: 10 }}>
-                    Booking ID :
-                  </Typography>
-                  <Typography sx={{ fontFamily: "'Albert Sans', Helvetica", fontWeight: 600, fontSize: 10, ml: 0.5 }}>
-                    WKSL567
-                  </Typography>
-                </Box>
-                <Typography sx={{ fontFamily: "'Albert Sans', Helvetica", color: "#6f7287", fontSize: 10 }}>
-                  Grab a bite applied
-                </Typography>
-
-                
-              </Box>
-            </Box>
-
-            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mt: 1 }}>
-              <Typography sx={{ fontFamily: "'Poppins', Helvetica", fontSize: 9, textAlign: "center" }}>
-                Present this QR code at<br />
-                the venue for validation
-              </Typography>
-              <Button 
-                variant="contained"
-                size="small"
-                startIcon={<DownloadIcon sx={{ fontSize: 12 }} />}
-                sx={{ 
-                  height: 21,
-                  bgcolor: "#19aedc",
-                  borderRadius: 4,
-                  fontSize: 8,
-                  fontFamily: "'Poppins', Helvetica",
-                  fontWeight: 600,
-                  textTransform: "none",
-                  mr:5
-                }}
-              >
-                Download Ticket
-              </Button>
-            </Box>
-          </Box>
-
-          <Box sx={{ mt: 2.5 }}>
-            {[
-              { label: "Price per Ticket", value: "$100.00" },
-              { label: "Discount", value: "$10.00" },
-              { 
-                label: "Grab a bite fees",
-                value: "$100.00",
-                items: [
-                  "Popcorn (Large) x 2",
-                  "Coke (500 ml) x 1",
-                  "Nachos with Cheese x 1"
-                ]
-              },
-              { 
-                label: "Convenient fees",
-                value: "$25.00",
-                sublabel: "Incl . of taxes"
-              }
-            ].map((item, index) => (
-              <Box key={index} sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
-                <Box>
-                  <Typography sx={{ fontFamily: "'Albert Sans', Helvetica", fontWeight: 300, fontSize: 12 }}>
-                    {item.label}
-                  </Typography>
-                  {item.items && item.items.map((subItem, idx) => (
-                    <Typography key={idx} sx={{ fontFamily: "'Albert Sans', Helvetica", fontWeight: 200, fontSize: 10, ml: 1 }}>
-                      {subItem}
+                    <Typography
+                      sx={{
+                        fontFamily: "'Albert Sans', Helvetica",
+                        fontWeight: 600,
+                        fontSize: 14,
+                      }}
+                    >
+                      Total Amount
                     </Typography>
-                  ))}
-                  {item.sublabel && (
-                    <Typography sx={{ fontFamily: "'Poppins', Helvetica", fontWeight: 300, fontSize: 9, color: "#4b5563e6" }}>
-                      {item.sublabel}
+                    <Typography
+                      sx={{
+                        fontFamily: "'Albert Sans', Helvetica",
+                        fontWeight: 500,
+                        fontSize: 13,
+                      }}
+                    >
+                      ₹{financial.totalAmount}
                     </Typography>
-                  )}
-                </Box>
-                <Typography sx={{ fontFamily: "'Albert Sans', Helvetica", fontWeight: 600, fontSize: 10 }}>
-                  {item.value}
-                </Typography>
-              </Box>
-            ))}
-          </Box>
-
-          <Box sx={{ bgcolor: "#d1d5db4c", display: "flex", justifyContent: "space-between", alignItems: "center", p: 2, mt: 2 }}>
-            <Typography sx={{ fontFamily: "'Albert Sans', Helvetica", fontWeight: 600, fontSize: 14 }}>
-              Total Amount
-            </Typography>
-            <Typography sx={{ fontFamily: "'Albert Sans', Helvetica", fontWeight: 500, fontSize: 13 }}>
-              Rs.100.34
-            </Typography>
-          </Box>
-        </CardContent>
-      </Card>
-    </Box>
-        )}
+                  </Box>
+                </CardContent>
+              </Card>
+            </Box>
+          )}
       </Box>
 
       {/* Action buttons */}
       <Box
         sx={{
-          width:isMobile?"90%":"100%",
+          width: isMobile ? "90%" : "100%",
           mx: "auto",
           display: "flex",
           justifyContent: "center",
           mt: 4,
           mb: 5,
-          gap: !isMobile?3:3,
+          gap: !isMobile ? 3 : 3,
         }}
       >
         <Button
@@ -1684,9 +2002,9 @@ const fetchEventImageWithCORS = async () => {
           sx={{
             backgroundColor: "#19AEDC",
             borderRadius: 2,
-            px: !isMobile?4:2,
+            px: !isMobile ? 4 : 2,
             py: 1,
-            fontSize: !isMobile?16:10,
+            fontSize: !isMobile ? 16 : 10,
             "&:hover": { backgroundColor: "#0e8eb8" },
           }}
           onClick={() => navigate("/mytickets")}
@@ -1699,9 +2017,9 @@ const fetchEventImageWithCORS = async () => {
             borderColor: "#19AEDC",
             color: "#19AEDC",
             borderRadius: 2,
-            px: !isMobile?4:2,
+            px: !isMobile ? 4 : 2,
             py: 1,
-            fontSize: !isMobile?16:10,
+            fontSize: !isMobile ? 16 : 10,
             "&:hover": { borderColor: "#0e8eb8", color: "#0e8eb8" },
           }}
           onClick={() => navigate("/")}
@@ -1711,7 +2029,13 @@ const fetchEventImageWithCORS = async () => {
       </Box>
 
       {/* Important Information */}
-      <Box sx={{width:isMobile?"90%":"70%", mx: "auto", mb: isMobile?9:5}}> 
+      <Box
+        sx={{
+          width: isMobile ? "90%" : "70%",
+          mx: "auto",
+          mb: isMobile ? 9 : 5,
+        }}
+      >
         <Paper elevation={1} sx={{ p: 3, borderRadius: 2 }}>
           <Typography variant="h6" sx={{ mb: 2, fontWeight: "bold" }}>
             Important Information
