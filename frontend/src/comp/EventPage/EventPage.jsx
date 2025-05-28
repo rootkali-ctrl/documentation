@@ -35,7 +35,7 @@ import LinkedInIcon from "@mui/icons-material/LinkedIn";
 import WhatsAppIcon from "@mui/icons-material/WhatsApp";
 import EmailIcon from "@mui/icons-material/Email";
 import eventImg from "./assets/event.jpg"; // Fallback image
-import Header from "../Header/MainHeader.js";
+import Header from "../Header/MainHeaderWOS";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   doc,

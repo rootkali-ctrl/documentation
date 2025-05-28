@@ -314,8 +314,9 @@ return (
                 overflow: "hidden",
                 display: "flex",
                 flexDirection: { xs: "column", sm: "row" },
-                height: { xs: "auto", sm: 160 },
-                position: "relative"
+                height: { xs: "auto", sm: 170 },
+                position: "relative",
+               
               }}
             >
               <Box

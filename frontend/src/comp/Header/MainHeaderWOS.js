@@ -1,5 +1,20 @@
 import React, { useState, useEffect } from "react";
-import { Box, Typography, IconButton, Menu, MenuItem, Avatar } from "@mui/material";
+import {
+  Box,
+  Typography,
+  IconButton,
+  Menu,
+  MenuItem,
+  Avatar,
+  Drawer,
+  List,
+  ListItem,
+  ListItemText,
+  Divider,
+  useMediaQuery
+} from "@mui/material";
+import MenuIcon from "@mui/icons-material/Menu";
+import { useTheme } from "@mui/material/styles";
 import { useNavigate } from "react-router-dom";
 import Login from "../Login/Login";
 import Signin from "../Signin/Signin";
@@ -8,16 +23,23 @@ import { onAuthStateChanged, signOut } from "firebase/auth";
 
 const MainHeader = () => {
   const navigate = useNavigate();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+
   const [openLogin, setOpenLogin] = useState(false);
   const [openSignin, setOpenSignin] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [username, setUsername] = useState("");
 
-  // Profile dropdown menu state
   const [anchorEl, setAnchorEl] = useState(null);
   const open = Boolean(anchorEl);
 
-  // Handle dropdown open/close
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+
+  const handleDrawerToggle = () => {
+    setMobileDrawerOpen(!mobileDrawerOpen);
+  };
+
   const handleClick = (event) => {
     setAnchorEl(event.currentTarget);
   };
@@ -26,35 +48,31 @@ const MainHeader = () => {
     setAnchorEl(null);
   };
 
- useEffect(() => {
-  const unsubscribe = onAuthStateChanged(auth, (user) => {
-    if (user) {
-      setIsAuthenticated(true);
-      const derivedUsername = user.displayName || user.email.split('@')[0];
-      setUsername(derivedUsername);
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setIsAuthenticated(true);
+        const derivedUsername = user.displayName || user.email.split("@")[0];
+        setUsername(derivedUsername);
 
-      localStorage.setItem("userEmail", user.email);
-      localStorage.setItem("loginType", "google"); // Set manually for now — can enhance later
-    } else {
-      setIsAuthenticated(false);
-      setUsername("");
+        localStorage.setItem("userEmail", user.email);
+        localStorage.setItem("loginType", "google");
+      } else {
+        setIsAuthenticated(false);
+        setUsername("");
+        localStorage.removeItem("userEmail");
+        localStorage.removeItem("loginType");
+      }
+    });
 
-      // 🔄 Clear on logout
-      localStorage.removeItem("userEmail");
-      localStorage.removeItem("loginType");
-    }
-  });
+    return () => unsubscribe();
+  }, []);
 
-  return () => unsubscribe();
-}, []);
-
-  // Function to handle successful login
   const handleLoginSuccess = () => {
     setOpenLogin(false);
     setOpenSignin(false);
   };
 
-  // Function to handle logout
   const handleLogout = async () => {
     try {
       await signOut(auth);
@@ -85,41 +103,55 @@ const MainHeader = () => {
     handleClose();
   };
 
+  const navLinks = (
+    <>
+      <Typography
+        onClick={() => navigate("/recent-orders")}
+        sx={{ cursor: "pointer", "&:hover": { textDecoration: "underline" } }}
+      >
+        Recent Orders
+      </Typography>
+      <Typography
+        onClick={() => navigate("/vendor/register")}
+        sx={{ cursor: "pointer", "&:hover": { textDecoration: "underline" } }}
+      >
+        Create Events
+      </Typography>
+    </>
+  );
+
   return (
-    <Box>
-      <Box sx={{ padding: "12px 24px", backgroundColor: "white", borderBottom: "1px solid rgb(238, 237, 242)" }}>
-        <Box sx={{
+    <Box sx={{ width: "100%", backgroundColor: "white", borderBottom: "1px solid rgb(238, 237, 242)" }}>
+      <Box
+        sx={{
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          maxWidth: "1200px",
-          margin: "0 auto",
-          width: "100%"
-        }}>
-          {/* Logo/Title */}
-          <Typography
-            variant="h5"
-            onClick={() => navigate("/")}
-            sx={{
-              fontFamily: "'Albert Sans', sans-serif",
-              fontWeight: "900",
-              fontSize: "30px",
-              color: "rgb(25, 174, 220)",
-              cursor: "pointer",
-            }}
-          >
-            ticketb
-          </Typography>
+          padding: isMobile ? "12px 10px" : "12px 24px",
+          maxWidth: "100%",
+          overflow: "hidden",
+        }}
+      >
+        {/* Logo */}
+        <Typography
+          variant="h5"
+          onClick={() => navigate("/")}
+          sx={{
+            fontFamily: "'Albert Sans', sans-serif",
+            fontWeight: "900",
+            fontSize: "30px",
+            color: "rgb(25, 174, 220)",
+            cursor: "pointer",
+            paddingLeft: isMobile ? "10px" : "10",
+          }}
+        >
+          ticketb
+        </Typography>
 
-          {/* Navigation Links or Profile Icon - Moved to right side */}
+        {/* Desktop Navigation */}
+        {!isMobile && (
           <Box sx={{ display: "flex", alignItems: "center", gap: 3 }}>
-            <Typography sx={{ cursor: "pointer", "&:hover": { textDecoration: "underline" } }}>
-              Recent Orders
-            </Typography>
-            <Typography onClick={() => navigate("/vendor/register")} sx={{ cursor: "pointer", "&:hover": { textDecoration: "underline" } }}>
-              Create Events
-            </Typography>
-
+            {navLinks}
             {isAuthenticated ? (
               <IconButton
                 onClick={handleClick}
@@ -133,7 +165,8 @@ const MainHeader = () => {
                     width: 35,
                     height: 35,
                     bgcolor: "rgb(25, 174, 220)",
-                    "&:hover": { bgcolor: "rgb(20, 140, 180)" }
+                    "&:hover": { bgcolor: "rgb(20, 140, 180)" },
+                    fontSize: "1rem"
                   }}
                 >
                   {username.charAt(0).toUpperCase()}
@@ -141,43 +174,99 @@ const MainHeader = () => {
               </IconButton>
             ) : (
               <>
-                <Typography onClick={() => setOpenLogin(true)} sx={{ cursor: "pointer", "&:hover": { textDecoration: "underline" } }}>
+                <Typography
+                  onClick={() => setOpenLogin(true)}
+                  sx={{ cursor: "pointer", "&:hover": { textDecoration: "underline" } }}
+                >
                   Log In
                 </Typography>
-                <Typography onClick={() => setOpenSignin(true)} sx={{ cursor: "pointer", "&:hover": { textDecoration: "underline" } }}>
+                <Typography
+                  onClick={() => setOpenSignin(true)}
+                  sx={{ cursor: "pointer", "&:hover": { textDecoration: "underline" } }}
+                >
                   Sign Up
                 </Typography>
               </>
             )}
           </Box>
+        )}
 
-          {/* Profile Dropdown Menu */}
-          <Menu
-            id="profile-menu"
-            anchorEl={anchorEl}
-            open={open}
-            onClose={handleClose}
-            MenuListProps={{
-              'aria-labelledby': 'profile-button',
-            }}
-            PaperProps={{
-              elevation: 3,
-              sx: {
-                mt: 1.5,
-                minWidth: 180,
-                borderRadius: 2,
-              }
-            }}
-          >
-            <MenuItem sx={{ fontFamily: "'Albert Sans', sans-serif", fontWeight: "bold", color: "rgb(25, 174, 220)" }}>
-              {username}
-            </MenuItem>
-            <MenuItem onClick={handleProfileClick}>Profile</MenuItem>
-            <MenuItem onClick={handleSettingsClick}>Settings</MenuItem>
-            <MenuItem onClick={handleLogout}>Logout</MenuItem>
-          </Menu>
-        </Box>
+        {/* Mobile Menu Icon */}
+        {isMobile && (
+          <IconButton onClick={handleDrawerToggle}>
+            <MenuIcon />
+          </IconButton>
+        )}
       </Box>
+
+      {/* Profile Dropdown Menu */}
+      <Menu
+        id="profile-menu"
+        anchorEl={anchorEl}
+        open={open}
+        onClose={handleClose}
+        MenuListProps={{ 'aria-labelledby': 'profile-button' }}
+        PaperProps={{
+          elevation: 3,
+          sx: {
+            mt: 1.5,
+            minWidth: 180,
+            borderRadius: 2,
+            paddingRight: "40px",
+          },
+        }}
+      >
+        <MenuItem sx={{ fontFamily: "'Albert Sans', sans-serif", fontWeight: "bold", color: "rgb(25, 174, 220)" }}>
+          {username}
+        </MenuItem>
+        <MenuItem onClick={handleProfileClick}>Profile</MenuItem>
+        <MenuItem onClick={handleSettingsClick}>Settings</MenuItem>
+        <MenuItem onClick={handleLogout}>Logout</MenuItem>
+      </Menu>
+
+      {/* Mobile Drawer */}
+      <Drawer anchor="right" open={mobileDrawerOpen} onClose={handleDrawerToggle}>
+        <Box sx={{ width: 250 }} role="presentation" onClick={handleDrawerToggle}>
+          <List>
+            {isAuthenticated && (
+              <>
+                <ListItem>
+                  <ListItemText primary={`Hello, ${username}`} />
+                </ListItem>
+                <Divider />
+              </>
+            )}
+            <ListItem button onClick={() => navigate("/recent-orders")}>
+              <ListItemText primary="Recent Orders" />
+            </ListItem>
+            <ListItem button onClick={() => navigate("/vendor/register")}>
+              <ListItemText primary="Create Events" />
+            </ListItem>
+            {isAuthenticated ? (
+              <>
+                <ListItem button onClick={handleProfileClick}>
+                  <ListItemText primary="Profile" />
+                </ListItem>
+                <ListItem button onClick={handleSettingsClick}>
+                  <ListItemText primary="Settings" />
+                </ListItem>
+                <ListItem button onClick={handleLogout}>
+                  <ListItemText primary="Logout" />
+                </ListItem>
+              </>
+            ) : (
+              <>
+                <ListItem button onClick={() => setOpenLogin(true)}>
+                  <ListItemText primary="Log In" />
+                </ListItem>
+                <ListItem button onClick={() => setOpenSignin(true)}>
+                  <ListItemText primary="Sign Up" />
+                </ListItem>
+              </>
+            )}
+          </List>
+        </Box>
+      </Drawer>
 
       {/* Login and Signin Modals */}
       <Login

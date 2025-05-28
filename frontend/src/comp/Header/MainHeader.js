@@ -187,9 +187,10 @@ const MainHeader = () => {
     <Box>
       <Box
         sx={{
-          margin: "1% 2% 0.5% 2%",
+          margin: "0% 0% 0% 0%",
           backgroundColor: "white",
-          paddingBottom: "11px",
+          paddingBottom: "6px",
+          paddingTop: "11px",
         }}
       >
         <Box

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Box, Typography, Button, Divider ,useMediaQuery} from "@mui/material";
 import { useNavigate, useLocation } from "react-router-dom";
-import Header from "../Header/MainHeader";
+import Header from "../Header/MainHeaderWOS";
 import { Stepper, Step, StepLabel } from "@mui/material";
 import EventIcon from "@mui/icons-material/Event";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";

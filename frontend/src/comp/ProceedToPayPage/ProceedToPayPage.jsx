@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Box, Typography, Divider, Button, TextField, Alert, CircularProgress, Accordion, AccordionSummary, AccordionDetails,useMediaQuery } from "@mui/material";
-import Header from "../Header/MainHeader";
+import Header from "../Header/MainHeaderWOS";
 import { useNavigate, useLocation, useParams } from "react-router-dom";
 import { Stepper, Step, StepLabel } from "@mui/material";
 import LocationOnIcon from "@mui/icons-material/LocationOn";

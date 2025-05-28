@@ -27,7 +27,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
 import FastfoodIcon from "@mui/icons-material/Fastfood";
 import { useNavigate, useParams } from "react-router-dom";
-import Header from "../Header/MainHeader";
+import Header from "../Header/MainHeaderWOS";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { db } from "../../firebase_config";
 
