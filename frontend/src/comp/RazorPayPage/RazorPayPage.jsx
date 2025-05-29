@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, useParams } from "react-router-dom";
 import { Box, Typography, Button, CircularProgress, Alert, Divider } from "@mui/material";
 import Header from "../Header/MainHeaderWOS";
 import axios from "axios";
@@ -11,7 +11,7 @@ const RazorPayPage = () => {
   const [error, setError] = useState(null);
   const [paymentData, setPaymentData] = useState(null);
   const [fetchingData, setFetchingData] = useState(false);
-
+  const {eventId, userUID} = useParams();
   // Extract query parameters
   const queryParams = new URLSearchParams(location.search);
   const orderIdFromUrl = queryParams.get("orderId");
@@ -49,7 +49,7 @@ const RazorPayPage = () => {
       setError("Payment information is missing. Redirecting back to payment portal.");
 
       const timer = setTimeout(() => {
-        navigate("/paymentportalpage");
+        navigate(`/paymentportalpage/${eventId}/${userUID}`);
       }, 3000);
 
       return () => clearTimeout(timer);
@@ -158,7 +158,7 @@ const RazorPayPage = () => {
           savePaymentRecord(paymentRecord);
 
           // Navigate to success page with all payment details
-          navigate("/ticketbookedpage", {
+          navigate(`/ticketbookedpage/${eventId}/${userUID}`, {
             state: paymentRecord
           });
         },
@@ -405,7 +405,7 @@ const RazorPayPage = () => {
               fontSize: "16px",
               marginTop: "10px",
             }}
-            onClick={() => navigate("/paymentportalpage", { state: paymentData })}
+            onClick={() => navigate(`/paymentportalpage/${eventId}/${userUID}`, { state: paymentData })}
           >
             Cancel
           </Button>

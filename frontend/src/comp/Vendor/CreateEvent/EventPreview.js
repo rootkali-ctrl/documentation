@@ -146,7 +146,7 @@ const EventPage = () => {
     try {
       setSubmitting(true);
       const response = await axios.post(
-        "http://localhost:8080/api/event/",
+        `${process.env.REACT_APP_API_BASE_URL}/api/event/`,
         form,
         {
           headers: {

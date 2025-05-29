@@ -76,7 +76,7 @@ const VendorHome = () => {
         });
 
         try {
-          const res = await fetch("http://localhost:8080/api/user/post-email", {
+          const res = await fetch(`${process.env.REACT_APP_API_BASE_URL}/api/user/post-email`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ email: user.email }),
@@ -188,7 +188,7 @@ const VendorHome = () => {
     const fetchVendorDetails = async () => {
       try {
         const res = await axios.get(
-          `http://localhost:8080/api/vendor/${vendorId}`
+          `${process.env.REACT_APP_API_BASE_URL}/api/vendor/${vendorId}`
         );
         setVendorData(res.data);
       } catch (err) {
@@ -206,7 +206,7 @@ const VendorHome = () => {
     const fetchVendorEvents = async () => {
       try {
         const res = await axios.get(
-          `http://localhost:8080/api/event/vendor/${vendorId}`
+          `${process.env.REACT_APP_API_BASE_URL}/api/event/vendor/${vendorId}`
         );
 
         const events = res.data;
@@ -306,7 +306,7 @@ const VendorHome = () => {
           )
         ) {
           await axios.delete(
-            `http://localhost:8080/api/event/${selectedEvent.eventId}`
+            `${process.env.REACT_APP_API_BASE_URL}/api/event/${selectedEvent.eventId}`
           );
           setEventData((prevEvents) =>
             prevEvents.filter(

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Box, Typography, Button, Divider ,useMediaQuery} from "@mui/material";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, useParams } from "react-router-dom";
 import Header from "../Header/MainHeaderWOS";
 import { Stepper, Step, StepLabel } from "@mui/material";
 import EventIcon from "@mui/icons-material/Event";
@@ -14,6 +14,7 @@ const steps = ["Select Tickets", "Details", "Payment"];
 const PaymentPortalPage = () => {
   
   const navigate = useNavigate();
+  const {eventId, userUID} = useParams();
   const location = useLocation();
   const [taxPercentage, setTaxPercentage] = useState(18);
   const {
@@ -169,7 +170,7 @@ const PaymentPortalPage = () => {
 
   const handleProceedToPayment = () => {
     if (isFreeEvent && !hasFoodItems) {
-      navigate("/ticketbookedpage", {
+      navigate(`/ticketbookedpage/${eventId}/${userUID}`, {
         state: {
           event,
           ticketSummary: ticketDetails,
@@ -184,7 +185,7 @@ const PaymentPortalPage = () => {
         },
       });
     } else {
-      navigate("/razorpaypage", {
+      navigate(`/razorpaypage/${eventId}/${userUID}`, {
         state: {
           event,
           ticketSummary: ticketDetails,

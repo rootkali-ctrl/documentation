@@ -30,6 +30,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import Header from "../Header/MainHeaderWOS";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { db } from "../../firebase_config";
+import { getAuth } from "firebase/auth";
 
 const steps = ["Select Tickets", "Details", "Payment"];
 
@@ -68,6 +69,11 @@ const TicketPricePage = ({ activeStep = 0 }) => {
   const [foodItems, setFoodItems] = useState([]);
   const CONVENIENCE_FEE = 40; // Rs 40 convenience fee
   const isMobile = useMediaQuery("(max-width:600px)");
+
+  const auth = getAuth();
+const userUID = auth.currentUser?.uid;
+
+
   useEffect(() => {
     const fetchEventDetails = async () => {
       try {
@@ -167,7 +173,9 @@ const TicketPricePage = ({ activeStep = 0 }) => {
     fetchEventDetails();
   }, [eventId, navigate]);
 
-
+useEffect(() => {
+  console.log(userUID)
+})
   const handleIncrement = (ticketId) => {
     if (!ticketId || !event || !event.ticket) return;
 
@@ -292,94 +300,92 @@ const TicketPricePage = ({ activeStep = 0 }) => {
     });
   };
 
-  const handleProceed = async () => {
-    setIsProcessingBooking(true);
+const handleProceed = async () => {
+  // ✅ Check if user is signed in
+  if (!userUID) {
+    alert("Please sign in to continue");
+    navigate("/"); // redirect to home or sign-in page
+    return;
+  }
 
-    try {
-      // Check if the user has selected any tickets or is attending a free event
-      if (
-        getTotalTicketCount() === 0 &&
-        !isFreeTicket &&
-        getTotalFoodCount() === 0
-      ) {
-        throw new Error("Please select at least one ticket or food item");
-      }
+  setIsProcessingBooking(true);
 
-      // If you need to update the event in the database with selected food items
-      if (getTotalFoodCount() > 0) {
-        const selectedFoodPerks = prepareSelectedFoodPerks();
-
-        // You could update the event document here if needed
-        // await updateDoc(doc(db, "events", eventId), {
-        //   selectedPerks: selectedFoodPerks
-        // });
-      }
-
-      // Prepare ticket summary for the next page
-      const ticketSummary = Object.keys(selectedTickets).map((id) => {
-        const ticket = event?.ticket?.find((t) => t.id === id);
-        return {
-          type: ticket?.ticketType || "Standard Ticket",
-          quantity: selectedTickets[id],
-          price: ticket?.price || 0,
-          subtotal: selectedTickets[id] * (ticket?.price || 0),
-        };
-      });
-
-      // Add free ticket if selected
-      if (isFreeTicket) {
-        ticketSummary.push({
-          type: "Free Admission",
-          quantity: 1,
-          price: 0,
-          subtotal: 0,
-        });
-      }
-
-      // Prepare food summary
-      const foodSummary = Object.keys(selectedFoodItems).map((id) => {
-        const item = foodItems.find((item) => item.id === parseInt(id));
-        return {
-          name: item?.name || "Food Item",
-          quantity: selectedFoodItems[id],
-          price: item?.price || 0,
-          subtotal: selectedFoodItems[id] * (item?.price || 0),
-        };
-      });
-
-      // Calculate financial summary
-      const subtotal = calculateSubtotal();
-      const totalAmount = calculateTotal();
-
-      // Navigate to the payment page with all data
-      navigate("/proceedtopay", {
-        state: {
-          event: {
-            id: event.id,
-            vendorId: event.vendorId,
-            name: event.name,
-            date: event.eventDate,
-            location: event.venueDetails?.city || "Unknown Location",
-            description: event.description || "No description available",
-          },
-          ticketSummary,
-          foodSummary,
-          financial: {
-            subtotal,
-            convenienceFee: CONVENIENCE_FEE,
-            totalAmount,
-          },
-          // Send selected perks for database update
-          selectedPerks: prepareSelectedFoodPerks(),
-        },
-      });
-    } catch (error) {
-      console.error("Error proceeding to payment:", error);
-      setError(error.message);
-    } finally {
-      setIsProcessingBooking(false);
+  try {
+    if (
+      getTotalTicketCount() === 0 &&
+      !isFreeTicket &&
+      getTotalFoodCount() === 0
+    ) {
+      throw new Error("Please select at least one ticket or food item");
     }
-  };
+
+    if (getTotalFoodCount() > 0) {
+      const selectedFoodPerks = prepareSelectedFoodPerks();
+      // Optional DB update
+      // await updateDoc(doc(db, "events", eventId), {
+      //   selectedPerks: selectedFoodPerks
+      // });
+    }
+
+    const ticketSummary = Object.keys(selectedTickets).map((id) => {
+      const ticket = event?.ticket?.find((t) => t.id === id);
+      return {
+        type: ticket?.ticketType || "Standard Ticket",
+        quantity: selectedTickets[id],
+        price: ticket?.price || 0,
+        subtotal: selectedTickets[id] * (ticket?.price || 0),
+      };
+    });
+
+    if (isFreeTicket) {
+      ticketSummary.push({
+        type: "Free Admission",
+        quantity: 1,
+        price: 0,
+        subtotal: 0,
+      });
+    }
+
+    const foodSummary = Object.keys(selectedFoodItems).map((id) => {
+      const item = foodItems.find((item) => item.id === parseInt(id));
+      return {
+        name: item?.name || "Food Item",
+        quantity: selectedFoodItems[id],
+        price: item?.price || 0,
+        subtotal: selectedFoodItems[id] * (item?.price || 0),
+      };
+    });
+
+    const subtotal = calculateSubtotal();
+    const totalAmount = calculateTotal();
+
+    navigate(`/proceedtopay/${eventId}/${userUID}`, {
+      state: {
+        event: {
+          id: event.id,
+          vendorId: event.vendorId,
+          name: event.name,
+          date: event.eventDate,
+          location: event.venueDetails?.city || "Unknown Location",
+          description: event.description || "No description available",
+        },
+        ticketSummary,
+        foodSummary,
+        financial: {
+          subtotal,
+          convenienceFee: CONVENIENCE_FEE,
+          totalAmount,
+        },
+        selectedPerks: prepareSelectedFoodPerks(),
+      },
+    });
+  } catch (error) {
+    console.error("Error proceeding to payment:", error);
+    setError(error.message);
+  } finally {
+    setIsProcessingBooking(false);
+  }
+};
 
   if (loading) {
     return (

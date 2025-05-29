@@ -55,22 +55,24 @@ function App() {
           <Routes>
             {/* Main Routes */}
             <Route path="/" element={<DesktopMainPage />} />
+            <Route path="/:userId" element={<DesktopMainPage />} />
+
 
             {/* Event Routes */}
-            <Route path="/eventpage/:eventId" element={<EventPage />} />
+            <Route path="/eventpage/:eventId/:userUID" element={<EventPage />} />
             <Route path="/eventpage" element={<EventPage />} />
-            <Route path="/ticketpricepage/:eventId" element={<TicketPricePage />} />
+            <Route path="/ticketpricepage/:eventId/:userUID" element={<TicketPricePage />} />
             <Route path="/ticketpricepage" element={<TicketPricePage />} />
 
             {/* Payment flow routes */}
             <Route path="/event/:eventId/proceedtopay" element={<ProceedToPayPage />} />
             <Route path="/proceedtopay" element={<ProceedToPayPage />} />
-            <Route path="/proceedtopay/:eventId" element={<ProceedToPayPage />} />
-            <Route path="/proceedtopaypage" element={<ProceedToPayPage />} />
-            <Route path="/paymentportalpage" element={<PaymentPortalPage />} />
-            <Route path="/paymentportal" element={<Navigate to="/paymentportalpage" replace />} />
-            <Route path="/razorpaypage" element={<RazorPayPage />} />
-            <Route path="/ticketbookedpage" element={<TicketBookedPage />} />
+            <Route path="/proceedtopay/:eventId/:userUID" element={<ProceedToPayPage />} />
+            <Route path="/proceedtopaypage/:eventId/:userUID" element={<ProceedToPayPage />} />
+            <Route path="/paymentportalpage/:eventId/:userUID" element={<PaymentPortalPage />} />
+            <Route path="/paymentportal/:eventId/:userUID" element={<Navigate to="/paymentportalpage" replace />} />
+            <Route path="/razorpaypage/:eventId/:userUID" element={<RazorPayPage />} />
+            <Route path="/ticketbookedpage/:eventId/:userUID" element={<TicketBookedPage />} />
 
             {/* Auth Routes */}
             <Route path="/login" element={<Login />} />

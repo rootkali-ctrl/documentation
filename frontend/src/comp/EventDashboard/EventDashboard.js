@@ -74,7 +74,7 @@ const EventDashboard = () => {
     const fetchEventData = async () => {
       if (!state?.eventData && eventId) {
         try {
-          const response = await axios.get(`http://localhost:8080/api/event/${eventId}`);
+          const response = await axios.get(`${process.env.REACT_APP_API_BASE_URL}/api/event/${eventId}`);
           setEventData(response.data);
         } catch (err) {
           console.error("Error fetching event data:", err);

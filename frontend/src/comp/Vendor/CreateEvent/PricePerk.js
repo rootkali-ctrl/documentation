@@ -707,7 +707,7 @@ const handleNext = () => {
                     mt:isMobile?2:3,
                     ml:isMobile?1.5:null,
                   }}
-                  onClick={handleRemoveItem}
+                  onClick={() => {handleRemoveItem(index)}}
                 />
               </Box>
             ))}
@@ -849,9 +849,9 @@ const handleNext = () => {
                     sx={{
                       cursor: "pointer",
                       color: "gray",
-                      "&:hover": { color: "red",mt: "20%"  },
+                      "&:hover": { color: "red" },
                     }}
-                    onClick={handleRemoveCoupon}
+                    onClick={() => {handleRemoveCoupon(index)}}
                   />
                 </Box>
 

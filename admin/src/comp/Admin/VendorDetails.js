@@ -51,7 +51,6 @@ const events = [
   },
 ];
 
-
 const VendorDetails = () => {
   const { state } = useLocation();
   const request = state?.data;
@@ -61,9 +60,6 @@ const VendorDetails = () => {
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState(null);
   const [pendingRequest, setPendingRequest] = useState(null);
-
-
-
 
   const handleAction = async (action, request) => {
     try {
@@ -79,9 +75,9 @@ const VendorDetails = () => {
       console.log("Payload being sent:", payload);
 
       if (action === "removed") {
-        await axios.delete(
+        await axios.put(
           `${process.env.REACT_APP_API_BASE_URL}/api/admin/removevendor`,
-          { data: payload }
+          { email: payload.email }
         );
       } else {
         setDialogContent("Unsupported action");
@@ -174,39 +170,47 @@ const VendorDetails = () => {
             <Typography variant="h4" fontWeight="bold">
               Vendor Details
             </Typography>
-            <Button variant="contained" color="error" startIcon={<Delete />} onClick={() => askForConfirmation("removed", request)}
+            <Button
+              variant="contained"
+              color="error"
+              startIcon={<Delete />}
+              onClick={() => askForConfirmation("removed", request)}
             >
               Remove Vendor
             </Button>
           </Box>
         </Box>
 
-        <Dialog open={confirmDialogOpen} onClose={() => setConfirmDialogOpen(false)}>
-  <DialogTitle>Confirm Action</DialogTitle>
-  <DialogContent>
-    <DialogContentText>
-      Are you sure you want to <strong>{pendingAction}</strong> this vendor?
-    </DialogContentText>
-  </DialogContent>
-  <DialogActions>
-    <Button onClick={() => setConfirmDialogOpen(false)}>Cancel</Button>
-    <Button onClick={confirmAction} color="error" variant="contained">
-      Confirm
-    </Button>
-  </DialogActions>
-</Dialog>
+        <Dialog
+          open={confirmDialogOpen}
+          onClose={() => setConfirmDialogOpen(false)}
+        >
+          <DialogTitle>Confirm Action</DialogTitle>
+          <DialogContent>
+            <DialogContentText>
+              Are you sure you want to <strong>{pendingAction}</strong> this
+              vendor?
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setConfirmDialogOpen(false)}>Cancel</Button>
+            <Button onClick={confirmAction} color="error" variant="contained">
+              Confirm
+            </Button>
+          </DialogActions>
+        </Dialog>
 
         <Dialog open={dialogOpen} onClose={handleDialogClose}>
-            <DialogTitle>Vendor Action</DialogTitle>
-            <DialogContent>
-              <Typography>{dialogContent}</Typography>
-            </DialogContent>
-            <DialogActions>
-              <Button onClick={handleDialogClose} autoFocus>
-                OK
-              </Button>
-            </DialogActions>
-          </Dialog>
+          <DialogTitle>Vendor Action</DialogTitle>
+          <DialogContent>
+            <Typography>{dialogContent}</Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleDialogClose} autoFocus>
+              OK
+            </Button>
+          </DialogActions>
+        </Dialog>
 
         <Card sx={{ mb: 4, boxShadow: 0 }}>
           <CardContent>
@@ -419,12 +423,16 @@ const VendorDetails = () => {
           >
             <Box width={{ xs: "100%", md: "30%" }} mb={3}>
               <Typography color="text.secondary">Organization Name</Typography>
-              <Typography fontWeight={500}>{request.organisationName}</Typography>
+              <Typography fontWeight={500}>
+                {request.organisationName}
+              </Typography>
             </Box>
 
             <Box width={{ xs: "100%", md: "30%" }} mb={3}>
               <Typography color="text.secondary">Type</Typography>
-              <Typography fontWeight={500}>{request.organisationType}</Typography>
+              <Typography fontWeight={500}>
+                {request.organisationType}
+              </Typography>
             </Box>
 
             <Box width={{ xs: "100%", md: "30%" }} mb={3}>
@@ -434,7 +442,9 @@ const VendorDetails = () => {
 
             <Box width={{ xs: "100%", md: "30%" }} mb={3}>
               <Typography color="text.secondary">Organization Email</Typography>
-              <Typography fontWeight={500}>{request.organisationMail}</Typography>
+              <Typography fontWeight={500}>
+                {request.organisationMail}
+              </Typography>
             </Box>
 
             <Box width={{ xs: "100%", md: "30%" }} mb={3}>

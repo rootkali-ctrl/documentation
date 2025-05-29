@@ -155,38 +155,55 @@ const removeVendor = async (req, res) => {
   try {
     const { email } = req.body;
 
+    console.log("Removing vendor with email:", email);
+
     if (!email) {
       return res.status(400).json({ message: "email is required" });
     }
 
+    // Check vendors collection
     const vendorSnap = await db
       .collection("vendors")
       .where("email", "==", email)
       .limit(1)
       .get();
 
+    console.log("vendorSnap size:", vendorSnap.size);
+
     if (vendorSnap.empty) {
-      return res.status(404).json({ message: "Vendor not found" });
+      console.log("Vendor not found in 'vendors' collection");
+    } else {
+      const vendorRef = vendorSnap.docs[0].ref;
+      console.log("Vendor doc ID:", vendorRef.id);
+      await vendorRef.update({ status: false });
+      const updatedVendor = await vendorRef.get();
+      console.log("Updated vendor status:", updatedVendor.data().status);
     }
 
-    const doc = vendorSnap.docs[0];
-    await doc.ref.update({ status: "removed" });
-
-    // Optionally update status in 'registration_request' collection to 'removed'
+    // Check registration_request collection
     const requestSnap = await db
       .collection("registration_request")
       .where("email", "==", email)
       .limit(1)
       .get();
 
+    console.log("requestSnap size:", requestSnap.size);
+
     if (!requestSnap.empty) {
-      await requestSnap.docs[0].ref.update({ status: "removed" });
+      const requestRef = requestSnap.docs[0].ref;
+      console.log("Registration request doc ID:", requestRef.id);
+      await requestRef.update({ status: "removed" });
+      const updatedReq = await requestRef.get();
+      console.log("Updated registration_request status:", updatedReq.data().status);
+    } else {
+      console.log("No matching registration_request found");
     }
 
     return res.status(200).json({ message: "Vendor removed successfully" });
+
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
+    console.error("Error in removeVendor:", err);
+    return res.status(500).json({ error: err.message });
   }
 };
 

@@ -7,7 +7,7 @@ import Header from "../Header/MainHeader";
 import axios from "axios";
 
 // Set the base URL for Axios (adjust if your backend runs on a different port)
-axios.defaults.baseURL = 'http://localhost:8080';
+axios.defaults.baseURL = `${process.env.REACT_APP_API_BASE_URL}`;
 
 const VendorLogin = () => {
   const vendorId = useParams();
@@ -48,7 +48,7 @@ const handleLogin = async () => {
   }
 
   try {
-    const response = await axios.post(`http://localhost:8080/api/vendor/lastlogin`, {
+    const response = await axios.post(`${process.env.REACT_APP_API_BASE_URL}/api/vendor/lastlogin`, {
       username,
     });
 

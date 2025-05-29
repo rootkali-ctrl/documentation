@@ -46,7 +46,7 @@ const VendorRegister = () => {
       if (vendorId) {
         try {
           const res = await fetch(
-            `http://localhost:8080/api/user/current-user/${vendorId}`
+            `${process.env.REACT_APP_API_BASE_URL}/api/user/current-user/${vendorId}`
           );
 
           // Check if component is still mounted before updating state
@@ -83,7 +83,7 @@ const VendorRegister = () => {
           try {
             // Update the URL to match the backend route
             const emailRes = await fetch(
-              `http://localhost:8080/api/vendor/check-email?email=${data.email}`
+              `${process.env.REACT_APP_API_BASE_URL}/api/vendor/check-email?email=${data.email}`
             );
 
             if (!isMounted) return;

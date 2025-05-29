@@ -452,56 +452,44 @@ const TicketBookedPage = () => {
     const handleInitialSetup = async () => {
       try {
         setIsLoading(true);
+        const currentUser = auth.currentUser;
 
-        // Check for authenticated user
-        const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-          if (currentUser) {
-            try {
-              console.log("User authenticated:", currentUser.uid);
+        if (currentUser) {
+          try {
+            console.log("User:", currentUser.uid);
 
-              // Fetch user profile data
-              const profileData = await fetchUserProfileData(currentUser.uid);
+            // Fetch user profile data
+            const profileData = await fetchUserProfileData(currentUser.uid);
 
-              // Set user state with proper data
-              setUser({
-                id: currentUser.uid,
-                email: currentUser.email || "N/A",
-                phone:
-                  profileData?.phoneNumber ||
-                  profileData?.phone ||
-                  currentUser.phoneNumber ||
-                  "N/A",
-              });
-
-              // Fetch event image first (in parallel)
-              fetchEventImage();
-
-              // Then save ticket to database
-              await saveTicketToDatabase(currentUser);
-            } catch (error) {
-              console.error("Error in user setup:", error);
-              setBookingStatus({
-                status: "error",
-                message: `Error setting up user data: ${error.message}`,
-              });
-            } finally {
-              setIsLoading(false);
-            }
-          } else {
-            // If no user is authenticated, redirect to login
-            console.log("No authenticated user, redirecting to login");
-            alert("Please sign in to book tickets");
-            navigate("/login", {
-              state: {
-                returnPath: "/ticketbookedpage",
-                ticketData: location.state,
-              },
+            // Set user state
+            setUser({
+              id: currentUser.uid,
+              email: currentUser.email || "N/A",
+              phone:
+                profileData?.phoneNumber ||
+                profileData?.phone ||
+                currentUser.phoneNumber ||
+                "N/A",
             });
-            setIsLoading(false);
-          }
-        });
 
-        return () => unsubscribe();
+            // Fetch event image
+            fetchEventImage();
+
+            // Save ticket to database
+            await saveTicketToDatabase(currentUser);
+          } catch (error) {
+            console.error("Error in user setup:", error);
+            setBookingStatus({
+              status: "error",
+              message: `Error setting up user data: ${error.message}`,
+            });
+          }
+        } else {
+          console.warn("No user found, but skipping redirect as per request.");
+          // Optionally, you could show a UI message here
+        }
+
+        setIsLoading(false);
       } catch (error) {
         console.error("Fatal error in initial setup:", error);
         setBookingStatus({
@@ -1527,265 +1515,341 @@ const TicketBookedPage = () => {
             </Box>
           </Paper>
         )}
-          
-          {/* Mobile Ticket body */}
-          {isMobile && (
-            <Box
+
+        {/* Mobile Ticket body */}
+        {isMobile && (
+          <Box
+            sx={{
+              position: "absolute",
+              width: 40,
+              height: 50,
+              backgroundColor: "#f5f5f5",
+              borderRadius: "0 30px 30px 0px",
+              top: "30%",
+              left: "10%",
+              transform: "translateX(-60%)",
+              zIndex: 1,
+            }}
+          />
+        )}
+        {isMobile && (
+          <Box
+            sx={{
+              position: "absolute",
+              width: 40,
+              height: 50,
+              backgroundColor: "#f5f5f5",
+              borderRadius: "30px 0px 0px 30px",
+              top: "30%",
+              left: "10%",
+              transform: "translateX(750%)",
+              zIndex: 1,
+            }}
+          />
+        )}
+        {isMobile && (
+          <Box sx={{ width: "90%", mx: "auto", mt: 3 }}>
+            <Card
               sx={{
-                position: "absolute",
-                width: 40,
-                height: 50,
-                backgroundColor: "#f5f5f5",
-                borderRadius: "0 30px 30px 0px",
-                top: "30%",
-                left: "10%",
-                transform: "translateX(-60%)",
-                zIndex: 1,
+                width: "100%",
+                borderRadius: 6,
+                p: 0,
+                overflow: "hidden",
               }}
-            />
-          )}
-          {isMobile && (
-            <Box
-              sx={{
-                position: "absolute",
-                width: 40,
-                height: 50,
-                backgroundColor: "#f5f5f5",
-                borderRadius: "30px 0px 0px 30px",
-                top: "30%",
-                left: "10%",
-                transform: "translateX(750%)",
-                zIndex: 1,
-              }}
-            />
-          )}
-          {isMobile && (
-            <Box sx={{ width: "90%", mx: "auto", mt: 3 }}>
-              <Card
-                sx={{
-                  width: "100%",
-                  borderRadius: 6,
-                  p: 0,
-                  overflow: "hidden",
-                }}
-                ref={ticketRef}
-              >
-                <CardContent sx={{ p: 2 }}>
-                  <Box sx={{ display: "flex", gap: 3, mb: 3, p: 1 }}>
-                    <Box
-                      component="img"
-                      src={
-                        eventImage ||
-                        "https://via.placeholder.com/270x180?text=Event+Image"
-                      }
-                      alt={event.name || "Event"}
+              ref={ticketRef}
+            >
+              <CardContent sx={{ p: 2 }}>
+                <Box sx={{ display: "flex", gap: 3, mb: 3, p: 1 }}>
+                  <Box
+                    component="img"
+                    src={
+                      eventImage ||
+                      "https://via.placeholder.com/270x180?text=Event+Image"
+                    }
+                    alt={event.name || "Event"}
+                    sx={{
+                      width: "50%",
+                      height: 170,
+                      borderRadius: 1,
+                      objectFit: "cover",
+                      border: "1px solid",
+                      borderColor: "black",
+                    }}
+                    onError={(e) => {
+                      console.error("Image failed to load:", e);
+                      e.target.src =
+                        "https://via.placeholder.com/270x180?text=Event+Image";
+                    }}
+                  />
+                  <Box>
+                    <Typography
                       sx={{
-                        width: "50%",
-                        height: 170,
-                        borderRadius: 1,
-                        objectFit: "cover",
-                        border: "1px solid",
-                        borderColor: "black",
+                        fontFamily: "'Poppins', Helvetica",
+                        fontWeight: 600,
+                        fontSize: 14,
+                        mb: 1,
                       }}
-                      onError={(e) => {
-                        console.error("Image failed to load:", e);
-                        e.target.src =
-                          "https://via.placeholder.com/270x180?text=Event+Image";
-                      }}
-                    />
-                    <Box>
+                    >
+                      {event.name || "Event"}
+                    </Typography>
+
+                    <Box sx={{ display: "flex", alignItems: "center" }}>
+                      <CalendarTodayIcon
+                        sx={{ fontSize: 11, color: "text.secondary" }}
+                      />
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontFamily: "'Poppins', Helvetica",
+                          color: "text.secondary",
+                          fontSize: 11,
+                          pl: 0.2,
+                        }}
+                      >
+                        {formattedDate}
+                      </Typography>
+                      <Divider
+                        orientation="vertical"
+                        sx={{ mx: 1, height: 16 }}
+                      />
+                      <AccessTimeIcon
+                        sx={{ fontSize: 11, color: "text.secondary" }}
+                      />
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontFamily: "'Poppins', Helvetica",
+                          color: "text.secondary",
+                          fontSize: 11,
+                          pl: 0.2,
+                        }}
+                      >
+                        {eventTime}
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: "flex", alignItems: "center", mt: 1 }}>
+                      <LocationOnIcon
+                        sx={{ fontSize: 11, color: "text.secondary" }}
+                      />
                       <Typography
                         sx={{
                           fontFamily: "'Poppins', Helvetica",
-                          fontWeight: 600,
-                          fontSize: 14,
-                          mb: 1,
+                          color: "#adaebc",
+                          fontSize: 11,
+                          pl: 0.2,
                         }}
                       >
-                        {event.name || "Event"}
+                        {event.location || "N/A"}
                       </Typography>
-
-                      <Box sx={{ display: "flex", alignItems: "center" }}>
-                        <CalendarTodayIcon
-                          sx={{ fontSize: 11, color: "text.secondary" }}
-                        />
-                        <Typography
-                          variant="body2"
-                          sx={{
-                            fontFamily: "'Poppins', Helvetica",
-                            color: "text.secondary",
-                            fontSize: 11,
-                            pl: 0.2,
-                          }}
-                        >
-                          {formattedDate}
-                        </Typography>
-                        <Divider
-                          orientation="vertical"
-                          sx={{ mx: 1, height: 16 }}
-                        />
-                        <AccessTimeIcon
-                          sx={{ fontSize: 11, color: "text.secondary" }}
-                        />
-                        <Typography
-                          variant="body2"
-                          sx={{
-                            fontFamily: "'Poppins', Helvetica",
-                            color: "text.secondary",
-                            fontSize: 11,
-                            pl: 0.2,
-                          }}
-                        >
-                          {eventTime}
-                        </Typography>
-                      </Box>
-                      <Box sx={{ display: "flex", alignItems: "center", mt: 1 }}>
-                        <LocationOnIcon
-                          sx={{ fontSize: 11, color: "text.secondary" }}
-                        />
-                        <Typography
-                          sx={{
-                            fontFamily: "'Poppins', Helvetica",
-                            color: "#adaebc",
-                            fontSize: 11,
-                            pl: 0.2,
-                          }}
-                        >
-                          {event.location || "N/A"}
-                        </Typography>
-                      </Box>
                     </Box>
                   </Box>
+                </Box>
 
-                  <Divider sx={{ my: 2, mb: 4 }} />
+                <Divider sx={{ my: 2, mb: 4 }} />
 
-                  <Box
-                    sx={{ bgcolor: "#d1d5db4c", p: 1, borderRadius: 2, mt: 2 }}
-                  >
-                    <Box sx={{ display: "flex" }}>
-                      <Box
-                        sx={{
-                          bgcolor: "white",
-                          p: 1,
-                          width: 96,
-                          height: 100,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                        }}
-                      >
-                        <div ref={qrRef}>
-                          <QRCode
-                            value={qrCodeData}
-                            size={120}
-                            level="H"
-                            includeMargin={true}
-                            id="qrcode"
-                          />
-                        </div>
-                      </Box>
-
-                      <Box
-                        sx={{
-                          ml: 2,
-                          display: "flex",
-                          flexDirection: "column",
-                          justifyContent: "space-between",
-                          py: 1,
-                        }}
-                      >
-                        <Typography
-                          sx={{
-                            fontFamily: "'Albert Sans', Helvetica",
-                            color: "text.secondary",
-                            fontSize: 12,
-                          }}
-                        >
-                          {totalTickets} Tickets
-                        </Typography>
-                        <Typography
-                          sx={{
-                            fontFamily: "'Albert Sans', Helvetica",
-                            color: "text.secondary",
-                            fontSize: 13,
-                          }}
-                        >
-                          {ticketTypes}
-                        </Typography>
-                        <Box sx={{ display: "flex", mt: 1 }}>
-                          <Typography
-                            sx={{
-                              fontFamily: "'Albert Sans', Helvetica",
-                              fontWeight: 600,
-                              fontSize: 10,
-                            }}
-                          >
-                            Booking ID :
-                          </Typography>
-                          <Typography
-                            sx={{
-                              fontFamily: "'Albert Sans', Helvetica",
-                              fontWeight: 600,
-                              fontSize: 10,
-                              ml: 0.5,
-                            }}
-                          >
-                            {bookingId}
-                          </Typography>
-                        </Box>
-                        <Typography
-                          sx={{
-                            fontFamily: "'Albert Sans', Helvetica",
-                            color: "#6f7287",
-                            fontSize: 10,
-                          }}
-                        >
-                          {foodNote}
-                        </Typography>
-                      </Box>
+                <Box
+                  sx={{ bgcolor: "#d1d5db4c", p: 1, borderRadius: 2, mt: 2 }}
+                >
+                  <Box sx={{ display: "flex" }}>
+                    <Box
+                      sx={{
+                        bgcolor: "white",
+                        p: 1,
+                        width: 96,
+                        height: 100,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <div ref={qrRef}>
+                        <QRCode
+                          value={qrCodeData}
+                          size={120}
+                          level="H"
+                          includeMargin={true}
+                          id="qrcode"
+                        />
+                      </div>
                     </Box>
 
                     <Box
                       sx={{
+                        ml: 2,
                         display: "flex",
+                        flexDirection: "column",
                         justifyContent: "space-between",
-                        alignItems: "center",
-                        mt: 1,
+                        py: 1,
                       }}
                     >
                       <Typography
                         sx={{
-                          fontFamily: "'Poppins', Helvetica",
-                          fontSize: 9,
-                          textAlign: "center",
+                          fontFamily: "'Albert Sans', Helvetica",
+                          color: "text.secondary",
+                          fontSize: 12,
                         }}
                       >
-                        Present this QR code at
-                        <br />
-                        the venue for validation
+                        {totalTickets} Tickets
                       </Typography>
-                      <Button
-                        variant="contained"
-                        size="small"
-                        startIcon={<DownloadIcon sx={{ fontSize: 12 }} />}
+                      <Typography
                         sx={{
-                          height: 21,
-                          bgcolor: "#19aedc",
-                          borderRadius: 4,
-                          fontSize: 8,
-                          fontFamily: "'Poppins', Helvetica",
-                          fontWeight: 600,
-                          textTransform: "none",
-                          mr: 5,
+                          fontFamily: "'Albert Sans', Helvetica",
+                          color: "text.secondary",
+                          fontSize: 13,
                         }}
                       >
-                        Download Ticket
-                      </Button>
+                        {ticketTypes}
+                      </Typography>
+                      <Box sx={{ display: "flex", mt: 1 }}>
+                        <Typography
+                          sx={{
+                            fontFamily: "'Albert Sans', Helvetica",
+                            fontWeight: 600,
+                            fontSize: 10,
+                          }}
+                        >
+                          Booking ID :
+                        </Typography>
+                        <Typography
+                          sx={{
+                            fontFamily: "'Albert Sans', Helvetica",
+                            fontWeight: 600,
+                            fontSize: 10,
+                            ml: 0.5,
+                          }}
+                        >
+                          {bookingId}
+                        </Typography>
+                      </Box>
+                      <Typography
+                        sx={{
+                          fontFamily: "'Albert Sans', Helvetica",
+                          color: "#6f7287",
+                          fontSize: 10,
+                        }}
+                      >
+                        {foodNote}
+                      </Typography>
                     </Box>
                   </Box>
 
-                  <Box sx={{ mt: 2.5 }}>
-                    {/* Price per Ticket - list each ticket type */}
+                  <Box
+                    sx={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      mt: 1,
+                    }}
+                  >
+                    <Typography
+                      sx={{
+                        fontFamily: "'Poppins', Helvetica",
+                        fontSize: 9,
+                        textAlign: "center",
+                      }}
+                    >
+                      Present this QR code at
+                      <br />
+                      the venue for validation
+                    </Typography>
+                    <Button
+                      variant="contained"
+                      size="small"
+                      startIcon={<DownloadIcon sx={{ fontSize: 12 }} />}
+                      sx={{
+                        height: 21,
+                        bgcolor: "#19aedc",
+                        borderRadius: 4,
+                        fontSize: 8,
+                        fontFamily: "'Poppins', Helvetica",
+                        fontWeight: 600,
+                        textTransform: "none",
+                        mr: 5,
+                      }}
+                    >
+                      Download Ticket
+                    </Button>
+                  </Box>
+                </Box>
+
+                <Box sx={{ mt: 2.5 }}>
+                  {/* Price per Ticket - list each ticket type */}
+                  <Box
+                    sx={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      mb: 1,
+                    }}
+                  >
+                    <Box>
+                      <Typography
+                        sx={{
+                          fontFamily: "'Albert Sans', Helvetica",
+                          fontWeight: 300,
+                          fontSize: 12,
+                        }}
+                      >
+                        Price per Ticket
+                      </Typography>
+                      {ticketSummary?.map((ticket, idx) => (
+                        <Typography
+                          key={idx}
+                          sx={{
+                            fontFamily: "'Albert Sans', Helvetica",
+                            fontWeight: 200,
+                            fontSize: 10,
+                            ml: 1,
+                          }}
+                        >
+                          {ticket.type} x {ticket.quantity}
+                        </Typography>
+                      ))}
+                    </Box>
+                    <Typography
+                      sx={{
+                        fontFamily: "'Albert Sans', Helvetica",
+                        fontWeight: 300,
+                        fontSize: 12,
+                      }}
+                    >
+                      ₹
+                      {ticketSummary?.reduce(
+                        (total, item) => total + (item.subtotal || 0),
+                        0
+                      )}
+                    </Typography>
+                  </Box>
+
+                  {/* Discount */}
+                  <Box
+                    sx={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      mb: 1,
+                    }}
+                  >
+                    <Typography
+                      sx={{
+                        fontFamily: "'Albert Sans', Helvetica",
+                        fontWeight: 300,
+                        fontSize: 12,
+                      }}
+                    >
+                      Discount
+                    </Typography>
+                    <Typography
+                      sx={{
+                        fontFamily: "'Albert Sans', Helvetica",
+                        fontWeight: 300,
+                        fontSize: 12,
+                      }}
+                    >
+                      ₹{financial?.discount || 0}
+                    </Typography>
+                  </Box>
+
+                  {/* Grab a bite fees */}
+                  {foodSummary?.length > 0 && (
                     <Box
                       sx={{
                         display: "flex",
@@ -1801,9 +1865,9 @@ const TicketBookedPage = () => {
                             fontSize: 12,
                           }}
                         >
-                          Price per Ticket
+                          Grab a bite fees
                         </Typography>
-                        {ticketSummary?.map((ticket, idx) => (
+                        {foodSummary.map((food, idx) => (
                           <Typography
                             key={idx}
                             sx={{
@@ -1813,7 +1877,7 @@ const TicketBookedPage = () => {
                               ml: 1,
                             }}
                           >
-                            {ticket.type} x {ticket.quantity}
+                            {food.name} x {food.quantity}
                           </Typography>
                         ))}
                       </Box>
@@ -1825,164 +1889,88 @@ const TicketBookedPage = () => {
                         }}
                       >
                         ₹
-                        {ticketSummary?.reduce(
-                          (total, item) => total + (item.subtotal || 0),
+                        {foodSummary.reduce(
+                          (total, item) => total + item.price * item.quantity,
                           0
                         )}
                       </Typography>
                     </Box>
+                  )}
 
-                    {/* Discount */}
-                    <Box
-                      sx={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        mb: 1,
-                      }}
-                    >
-                      <Typography
-                        sx={{
-                          fontFamily: "'Albert Sans', Helvetica",
-                          fontWeight: 300,
-                          fontSize: 12,
-                        }}
-                      >
-                        Discount
-                      </Typography>
-                      <Typography
-                        sx={{
-                          fontFamily: "'Albert Sans', Helvetica",
-                          fontWeight: 300,
-                          fontSize: 12,
-                        }}
-                      >
-                        ₹{financial?.discount || 0}
-                      </Typography>
-                    </Box>
-
-                    {/* Grab a bite fees */}
-                    {foodSummary?.length > 0 && (
-                      <Box
-                        sx={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          mb: 1,
-                        }}
-                      >
-                        <Box>
-                          <Typography
-                            sx={{
-                              fontFamily: "'Albert Sans', Helvetica",
-                              fontWeight: 300,
-                              fontSize: 12,
-                            }}
-                          >
-                            Grab a bite fees
-                          </Typography>
-                          {foodSummary.map((food, idx) => (
-                            <Typography
-                              key={idx}
-                              sx={{
-                                fontFamily: "'Albert Sans', Helvetica",
-                                fontWeight: 200,
-                                fontSize: 10,
-                                ml: 1,
-                              }}
-                            >
-                              {food.name} x {food.quantity}
-                            </Typography>
-                          ))}
-                        </Box>
-                        <Typography
-                          sx={{
-                            fontFamily: "'Albert Sans', Helvetica",
-                            fontWeight: 300,
-                            fontSize: 12,
-                          }}
-                        >
-                          ₹
-                          {foodSummary.reduce(
-                            (total, item) => total + item.price * item.quantity,
-                            0
-                          )}
-                        </Typography>
-                      </Box>
-                    )}
-
-                    {/* Convenience Fees */}
-                    <Box
-                      sx={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        mb: 1,
-                      }}
-                    >
-                      <Box>
-                        <Typography
-                          sx={{
-                            fontFamily: "'Albert Sans', Helvetica",
-                            fontWeight: 300,
-                            fontSize: 12,
-                          }}
-                        >
-                          Convenience fees
-                        </Typography>
-                        <Typography
-                          sx={{
-                            fontFamily: "'Poppins', Helvetica",
-                            fontWeight: 300,
-                            fontSize: 9,
-                            color: "#4b5563e6",
-                          }}
-                        >
-                          Incl. of taxes
-                        </Typography>
-                      </Box>
-                      <Typography
-                        sx={{
-                          fontFamily: "'Albert Sans', Helvetica",
-                          fontWeight: 300,
-                          fontSize: 12,
-                        }}
-                      >
-                        ₹{financial?.convenienceFee || 0}
-                      </Typography>
-                    </Box>
-                  </Box>
-
+                  {/* Convenience Fees */}
                   <Box
                     sx={{
-                      bgcolor: "#d1d5db4c",
                       display: "flex",
                       justifyContent: "space-between",
-                      alignItems: "center",
-                      p: 2,
-                      mt: 2,
+                      mb: 1,
                     }}
                   >
+                    <Box>
+                      <Typography
+                        sx={{
+                          fontFamily: "'Albert Sans', Helvetica",
+                          fontWeight: 300,
+                          fontSize: 12,
+                        }}
+                      >
+                        Convenience fees
+                      </Typography>
+                      <Typography
+                        sx={{
+                          fontFamily: "'Poppins', Helvetica",
+                          fontWeight: 300,
+                          fontSize: 9,
+                          color: "#4b5563e6",
+                        }}
+                      >
+                        Incl. of taxes
+                      </Typography>
+                    </Box>
                     <Typography
                       sx={{
                         fontFamily: "'Albert Sans', Helvetica",
-                        fontWeight: 600,
-                        fontSize: 14,
+                        fontWeight: 300,
+                        fontSize: 12,
                       }}
                     >
-                      Total Amount
-                    </Typography>
-                    <Typography
-                      sx={{
-                        fontFamily: "'Albert Sans', Helvetica",
-                        fontWeight: 500,
-                        fontSize: 13,
-                      }}
-                    >
-                      ₹{financial.totalAmount}
+                      ₹{financial?.convenienceFee || 0}
                     </Typography>
                   </Box>
-                </CardContent>
-              </Card>
-            </Box>
-          )}
+                </Box>
+
+                <Box
+                  sx={{
+                    bgcolor: "#d1d5db4c",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    p: 2,
+                    mt: 2,
+                  }}
+                >
+                  <Typography
+                    sx={{
+                      fontFamily: "'Albert Sans', Helvetica",
+                      fontWeight: 600,
+                      fontSize: 14,
+                    }}
+                  >
+                    Total Amount
+                  </Typography>
+                  <Typography
+                    sx={{
+                      fontFamily: "'Albert Sans', Helvetica",
+                      fontWeight: 500,
+                      fontSize: 13,
+                    }}
+                  >
+                    ₹{financial.totalAmount}
+                  </Typography>
+                </Box>
+              </CardContent>
+            </Card>
+          </Box>
+        )}
       </Box>
 
       {/* Action buttons */}

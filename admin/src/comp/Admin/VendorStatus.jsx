@@ -100,7 +100,7 @@ const VendorDetails = () => {
 
         case "removed":
           console.log("Sending removal request to:", `${baseUrl}/api/admin/removevendor`);
-          response = await axios.delete(`${baseUrl}/api/admin/removevendor`, { data: payload });
+          response = await axios.put(`${baseUrl}/api/admin/removevendor`, { data: payload });
           console.log("Removal response:", response.data);
           await sendVendorEmail(request.email, request.username, "removed");
           break;

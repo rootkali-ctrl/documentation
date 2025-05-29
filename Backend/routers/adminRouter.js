@@ -20,7 +20,7 @@ const {
 
 Router.put('/requests',acceptRegistrationRequest);
 Router.delete('/requests',rejectRegistrationRequest);
-Router.delete("/removevendor", removeVendor);
+Router.put("/removevendor", removeVendor);
 Router.get('/allrequests',getAllRegistrationRequests);
 Router.get('/request/:requestid',getRequestDetails);
 Router.get('/getVendorStatus', getVendorStatus);

@@ -122,7 +122,7 @@ const VendorDocument = () => {
       try {
         console.log([...formData.entries()]);
         const response = await axios.post(
-          "http://localhost:8080/api/vendor/signin",
+          `${process.env.REACT_APP_API_BASE_URL}/api/vendor/signin`,
           formData,
           {
             headers: {

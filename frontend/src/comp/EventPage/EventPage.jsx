@@ -51,7 +51,7 @@ import Slider from "react-slick";
 
 const EventPage = () => {
   const navigate = useNavigate();
-  const { eventId } = useParams(); // Get the event ID from URL params
+  const { eventId, userUID } = useParams(); // Get the event ID from URL params
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [similarEvents, setSimilarEvents] = useState([]);
@@ -77,6 +77,7 @@ const EventPage = () => {
   // };
 
   // Fetch event details when component mounts
+
   useEffect(() => {
     const fetchEventDetails = async () => {
       try {
@@ -375,7 +376,7 @@ const EventPage = () => {
 
   return (
     // minHeight: "100vh"
-    <Box sx={{ margin:0 }}>
+    <Box sx={{ margin: 0 }}>
       <Header />
 
       <Box
@@ -384,23 +385,34 @@ const EventPage = () => {
           gap: 3,
           padding: "20px 2%",
           flexDirection: { xs: "column", md: "row" },
-          mt:0,
-          pt:isMobile ? 1 : 4 ,
-          backgroundColor: "#f9f9f9"
+          mt: 0,
+          pt: isMobile ? 1 : 4,
+          backgroundColor: "#f9f9f9",
         }}
       >
         {/* Left Section */}
         <Box sx={{ flex: 2 }}>
-        <Card sx={{ borderRadius: "20px", boxShadow: "none", position: "relative" }}>
-              <Box sx={{ position: "relative" }}>
-                <CardMedia
-                  component="img"
-                  image={event.bannerImages?.[0] || eventImg}
-                  alt={event.name}
-                  sx={{ width: "100%", height:isMobile?"200px":"400px", objectFit: "cover" }}
-                />
-                
-               {isMobile && <Box
+          <Card
+            sx={{
+              borderRadius: "20px",
+              boxShadow: "none",
+              position: "relative",
+            }}
+          >
+            <Box sx={{ position: "relative" }}>
+              <CardMedia
+                component="img"
+                image={event.bannerImages?.[0] || eventImg}
+                alt={event.name}
+                sx={{
+                  width: "100%",
+                  height: isMobile ? "200px" : "400px",
+                  objectFit: "cover",
+                }}
+              />
+
+              {isMobile && (
+                <Box
                   sx={{
                     position: "absolute",
                     bottom: 10,
@@ -419,29 +431,51 @@ const EventPage = () => {
                   }}
                   onClick={handleShareClick} // optional: add your handler
                 >
-                  <ShareIcon fontSize="small" sx={{ color: "rgb(25, 174, 220)" }} />
-                </Box>}
-                
-              </Box>
-            </Card>
+                  <ShareIcon
+                    fontSize="small"
+                    sx={{ color: "rgb(25, 174, 220)" }}
+                  />
+                </Box>
+              )}
+            </Box>
+          </Card>
 
-
-          <Card sx={{ mt: isMobile ? 1 : 3 , borderRadius: "20px", boxShadow: "none" }}>
+          <Card
+            sx={{
+              mt: isMobile ? 1 : 3,
+              borderRadius: "20px",
+              boxShadow: "none",
+            }}
+          >
             <CardContent>
               <Typography
                 variant="h5"
-                sx={{ fontWeight: "bold", fontSize: isMobile ? "20px" : "24px" }}
+                sx={{
+                  fontWeight: "bold",
+                  fontSize: isMobile ? "20px" : "24px",
+                }}
               >
                 {event.name || "Event Title"}
               </Typography>
 
-              <Box sx={{ display: "flex", gap: isMobile ? 0.5 : 1 , my: isMobile ? 1 : 2 , flexWrap: "wrap" }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  gap: isMobile ? 0.5 : 1,
+                  my: isMobile ? 1 : 2,
+                  flexWrap: "wrap",
+                }}
+              >
                 {event.category &&
                   event.category.map((cat, index) => (
                     <Chip
                       key={index}
                       label={cat}
-                      sx={{ backgroundColor: "#DBEAFE", color: "#19AEDC", fontSize: isMobile ? "12px" : "14px" }}
+                      sx={{
+                        backgroundColor: "#DBEAFE",
+                        color: "#19AEDC",
+                        fontSize: isMobile ? "12px" : "14px",
+                      }}
                     />
                   ))}
               </Box>
@@ -451,7 +485,7 @@ const EventPage = () => {
               </Typography>
               <Typography
                 color="text.secondary"
-                sx={{ mb:isMobile ? 0.5 : 1, whiteSpace: "pre-line" }}
+                sx={{ mb: isMobile ? 0.5 : 1, whiteSpace: "pre-line" }}
               >
                 {event.description ||
                   "No description available for this event."}
@@ -461,7 +495,7 @@ const EventPage = () => {
                 <>
                   <Typography
                     variant="subtitle1"
-                    sx={{ fontWeight: "bold", mt:isMobile ? 1 : 2 }}
+                    sx={{ fontWeight: "bold", mt: isMobile ? 1 : 2 }}
                   >
                     Event Perks
                   </Typography>
@@ -481,11 +515,20 @@ const EventPage = () => {
             </CardContent>
           </Card>
 
-          <Card sx={{ mt: isMobile ? 1 : 3, borderRadius: "20px", boxShadow: "none" }}>
+          <Card
+            sx={{
+              mt: isMobile ? 1 : 3,
+              borderRadius: "20px",
+              boxShadow: "none",
+            }}
+          >
             <CardContent>
               <Typography
                 variant="h5"
-                sx={{ fontWeight: "bold", fontSize:isMobile ? "20px" : "24px" }}
+                sx={{
+                  fontWeight: "bold",
+                  fontSize: isMobile ? "20px" : "24px",
+                }}
               >
                 Location
               </Typography>
@@ -514,7 +557,13 @@ const EventPage = () => {
                   <Typography>Map not available</Typography>
                 </Box>
               )}
-              <Typography color="text.secondary" sx={{ fontSize: isMobile ? "14px" : "18px",mt:isMobile ? 1 : 2 }}>
+              <Typography
+                color="text.secondary"
+                sx={{
+                  fontSize: isMobile ? "14px" : "18px",
+                  mt: isMobile ? 1 : 2,
+                }}
+              >
                 {event.venueDetails
                   ? `${event.venueDetails.streetName || ""}, ${
                       event.venueDetails.area || ""
@@ -527,18 +576,39 @@ const EventPage = () => {
           </Card>
 
           {/* FAQ Section */}
-          <Card sx={{ mt: isMobile ? 1 : 3, borderRadius: "20px", boxShadow: "none" }}>
+          <Card
+            sx={{
+              mt: isMobile ? 1 : 3,
+              borderRadius: "20px",
+              boxShadow: "none",
+            }}
+          >
             <CardContent>
-              <Typography variant="h6" sx={{ fontWeight: "bold",fontSize:isMobile ? "20px" : "24px" }}>
+              <Typography
+                variant="h6"
+                sx={{
+                  fontWeight: "bold",
+                  fontSize: isMobile ? "20px" : "24px",
+                }}
+              >
                 FAQs
               </Typography>
               {faqs.length > 0 ? (
                 faqs.map((faq, index) => (
                   <Box key={index} sx={{ mt: 2 }}>
-                    <Typography sx={{ fontWeight: "bold",fontSize:isMobile ? "16px" : "18px" }}>
+                    <Typography
+                      sx={{
+                        fontWeight: "bold",
+                        fontSize: isMobile ? "16px" : "18px",
+                      }}
+                    >
                       {faq.question}
                     </Typography>
-                    <Typography color="text.secondary" mt={1} sx={{fontSize:isMobile ? "14px" : "16px"}}>
+                    <Typography
+                      color="text.secondary"
+                      mt={1}
+                      sx={{ fontSize: isMobile ? "14px" : "16px" }}
+                    >
                       {faq.answer}
                     </Typography>
                     {index < faqs.length - 1 && <Divider sx={{ my: 2 }} />}
@@ -554,7 +624,7 @@ const EventPage = () => {
         </Box>
 
         {/* Right Section */}
-        <Box sx={{ flex: 1 ,mt: isMobile ? -2 : 0}}>
+        <Box sx={{ flex: 1, mt: isMobile ? -2 : 0 }}>
           <Card sx={{ borderRadius: "20px", boxShadow: "none" }}>
             <CardContent>
               <Box
@@ -596,50 +666,50 @@ const EventPage = () => {
               </Box>
             </CardContent>
           </Card>
-          {!isMobile && 
-          <Button
-            variant="contained"
-            fullWidth
-            onClick={() => navigate(`/ticketpricepage/${eventId}`)}
-            sx={{
-              mt: 3,
-              backgroundColor: "#19AEDC",
-              color: "#FFFFFF",
-              borderRadius: "8px",
-              padding: "12px",
-              textTransform: "none",
-              fontSize: "16px",
-              "&:hover": {
-                backgroundColor: "#1789AE",
-              },
-            }}
-          >
-            Get Tickets
-          </Button>
-        }
-        {!isMobile && 
-          <Button
-            variant="outlined"
-            fullWidth
-            startIcon={<ShareIcon />}
-            onClick={handleShareClick}
-            sx={{
-              mt: 2,
-              borderColor: "#19AEDC",
-              color: "#19AEDC",
-              borderRadius: "8px",
-              padding: "12px",
-              textTransform: "none",
-              fontSize: "16px",
-              "&:hover": {
-                borderColor: "#1789AE",
-                backgroundColor: "rgba(25, 174, 220, 0.04)",
-              },
-            }}
-          >
-            Share Event
-          </Button>
-}
+          {!isMobile && (
+            <Button
+              variant="contained"
+              fullWidth
+              onClick={() => navigate(`/ticketpricepage/${eventId}/${userUID}`)}
+              sx={{
+                mt: 3,
+                backgroundColor: "#19AEDC",
+                color: "#FFFFFF",
+                borderRadius: "8px",
+                padding: "12px",
+                textTransform: "none",
+                fontSize: "16px",
+                "&:hover": {
+                  backgroundColor: "#1789AE",
+                },
+              }}
+            >
+              Get Tickets
+            </Button>
+          )}
+          {!isMobile && (
+            <Button
+              variant="outlined"
+              fullWidth
+              startIcon={<ShareIcon />}
+              onClick={handleShareClick}
+              sx={{
+                mt: 2,
+                borderColor: "#19AEDC",
+                color: "#19AEDC",
+                borderRadius: "8px",
+                padding: "12px",
+                textTransform: "none",
+                fontSize: "16px",
+                "&:hover": {
+                  borderColor: "#1789AE",
+                  backgroundColor: "rgba(25, 174, 220, 0.04)",
+                },
+              }}
+            >
+              Share Event
+            </Button>
+          )}
           {/* Share Menu */}
           <Menu
             anchorEl={shareAnchorEl}
@@ -690,7 +760,13 @@ const EventPage = () => {
           </Menu>
 
           {/* Speakers Section */}
-          <Card sx={{ mt: isMobile ? 1 : 3, borderRadius: "20px", boxShadow: "none" }}>
+          <Card
+            sx={{
+              mt: isMobile ? 1 : 3,
+              borderRadius: "20px",
+              boxShadow: "none",
+            }}
+          >
             <CardContent>
               <Typography variant="h6" sx={{ fontWeight: "bold", mb: 2 }}>
                 Speakers
@@ -720,7 +796,13 @@ const EventPage = () => {
 
           {/* Tags Section */}
           {tagsList.length > 0 && (
-            <Card sx={{ mt: isMobile ? 1 : 3, borderRadius: "20px", boxShadow: "none" }}>
+            <Card
+              sx={{
+                mt: isMobile ? 1 : 3,
+                borderRadius: "20px",
+                boxShadow: "none",
+              }}
+            >
               <CardContent>
                 <Typography variant="h6" sx={{ fontWeight: "bold", mb: 2 }}>
                   Tags
@@ -738,54 +820,60 @@ const EventPage = () => {
             </Card>
           )}
 
-         {event?.bannerImages?.length >= 6 && (
-  <Card sx={{ mt: isMobile ? 1 : 3, borderRadius: "20px", boxShadow: "none" }}>
-    <CardContent>
-      <Typography variant="h6" sx={{ fontWeight: "bold", mb: 2 }}>
-        Previous event 
-      </Typography>
+          {event?.bannerImages?.length >= 6 && (
+            <Card
+              sx={{
+                mt: isMobile ? 1 : 3,
+                borderRadius: "20px",
+                boxShadow: "none",
+              }}
+            >
+              <CardContent>
+                <Typography variant="h6" sx={{ fontWeight: "bold", mb: 2 }}>
+                  Previous event
+                </Typography>
 
-      <Box
-        sx={{
-          position: "relative",
-          borderRadius: "10px",
-          overflow: "hidden",
-          width:isMobile ? "100%" : "500px",
-        }}
-      >
-        <Slider
-          dots
-          infinite
-          speed={500}
-          slidesToShow={1}
-          slidesToScroll={1}
-          arrows
-          adaptiveHeight={false}
-          className="event-carousel"
-          autoplay={true}
-          autoplaySpeed={5000}
-        >
-          {event.bannerImages.slice(3, 6).map((imgUrl, index) => (
-            <div key={index}>
-              <img
-                src={imgUrl}
-                alt={`Event Slide ${index + 4}`}
-                style={{
-                  width: "100%",
-                  height: "180px",
-                  objectFit: "cover",
-                  objectPosition: "center",
-                  display: "block",
-                  borderRadius: "10px"
-                }}
-              />
-            </div>
-          ))}
-        </Slider>
-      </Box>
-    </CardContent>
-  </Card>
-)}
+                <Box
+                  sx={{
+                    position: "relative",
+                    borderRadius: "10px",
+                    overflow: "hidden",
+                    width: isMobile ? "100%" : "500px",
+                  }}
+                >
+                  <Slider
+                    dots
+                    infinite
+                    speed={500}
+                    slidesToShow={1}
+                    slidesToScroll={1}
+                    arrows
+                    adaptiveHeight={false}
+                    className="event-carousel"
+                    autoplay={true}
+                    autoplaySpeed={5000}
+                  >
+                    {event.bannerImages.slice(3, 6).map((imgUrl, index) => (
+                      <div key={index}>
+                        <img
+                          src={imgUrl}
+                          alt={`Event Slide ${index + 4}`}
+                          style={{
+                            width: "100%",
+                            height: "180px",
+                            objectFit: "cover",
+                            objectPosition: "center",
+                            display: "block",
+                            borderRadius: "10px",
+                          }}
+                        />
+                      </div>
+                    ))}
+                  </Slider>
+                </Box>
+              </CardContent>
+            </Card>
+          )}
           {/* {youtubeVideoId && (
             <Card sx={{ mt: 3, borderRadius: "20px", boxShadow: "none" }}>
               <CardContent>
@@ -863,7 +951,14 @@ const EventPage = () => {
 
           {/* Similar Events Section */}
           {similarEvents.length > 0 && (
-            <Card sx={{ mt: isMobile ? 1 : 3, borderRadius: "20px", boxShadow: "none" ,mb: isMobile ? 9: 0}}>
+            <Card
+              sx={{
+                mt: isMobile ? 1 : 3,
+                borderRadius: "20px",
+                boxShadow: "none",
+                mb: isMobile ? 9 : 0,
+              }}
+            >
               <CardContent>
                 <Typography variant="h6" sx={{ fontWeight: "bold", mb: 2 }}>
                   Similar Events
@@ -877,7 +972,9 @@ const EventPage = () => {
                       mb: 2,
                       cursor: "pointer",
                     }}
-                    onClick={() => navigate(`/eventpage/${similarEvent.id}`)}
+                    onClick={() =>
+                      navigate(`/eventpage/${similarEvent.id}/${userUID}`)
+                    }
                   >
                     <CardMedia
                       component="img"
@@ -903,53 +1000,51 @@ const EventPage = () => {
                     </Box>
                   </Box>
                 ))}
-                
               </CardContent>
             </Card>
           )}
         </Box>
       </Box>
-      
+
       {!isMobile && <Footer />}
-   {isMobile && (
-  <Box
-        sx={{
-          position: "fixed",
-          bottom: 0,
-          left: 0,
-          right: 0,
-          width: "100%",
-          backgroundColor: "#fff",
-          boxShadow: "0 -2px 10px rgba(0,0,0,0.1)",
-          padding: `10px 0 ${paddingBottom}px 0`,
-          zIndex: 1300,
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          transition: "padding 0.3s ease-in-out",
-        }}
-      >
-        <Button
-          variant="contained"
-          onClick={() => navigate(`/ticketpricepage/${eventId}`)}
+      {isMobile && (
+        <Box
           sx={{
-            backgroundColor: "#19AEDC",
-            color: "#FFFFFF",
-            borderRadius: "25px",
-            width: "60%",
-            padding: "12px",
-            textTransform: "none",
-            fontSize: "16px",
-            "&:hover": {
-              backgroundColor: "#1789AE",
-            },
+            position: "fixed",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            width: "100%",
+            backgroundColor: "#fff",
+            boxShadow: "0 -2px 10px rgba(0,0,0,0.1)",
+            padding: `10px 0 ${paddingBottom}px 0`,
+            zIndex: 1300,
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            transition: "padding 0.3s ease-in-out",
           }}
         >
-          Get Tickets
-        </Button>
-      </Box>
-)}
-
+          <Button
+            variant="contained"
+            onClick={() => navigate(`/ticketpricepage/${eventId}/${userUID}`)}
+            sx={{
+              backgroundColor: "#19AEDC",
+              color: "#FFFFFF",
+              borderRadius: "25px",
+              width: "60%",
+              padding: "12px",
+              textTransform: "none",
+              fontSize: "16px",
+              "&:hover": {
+                backgroundColor: "#1789AE",
+              },
+            }}
+          >
+            Get Tickets
+          </Button>
+        </Box>
+      )}
 
       {/* Snackbar for notifications */}
       <Snackbar

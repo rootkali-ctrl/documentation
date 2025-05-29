@@ -44,9 +44,11 @@ import axios from "axios";
 import Slider from "react-slick";
 import { useVendor } from "../Vendor/VendorContext";
 import { is } from "date-fns/locale";
+    
 
-const EventCard = ({ event }) => {
+const EventCard = ({ event,userUID }) => {
   const isMobile = useMediaQuery("(max-width:600px)");
+
   const navigate = useNavigate();
   const renderPrice = () => {
     if (!event.pricing || event.pricing.length === 0) return "FREE";
@@ -142,7 +144,7 @@ const EventCard = ({ event }) => {
           boxShadow: "0 6px 12px rgba(0,0,0,0.1)",
         }:null,
       }}
-      onClick={() => navigate(`/eventpage/${event.id}`)}
+      onClick={() => navigate(`/eventpage/${event.id}/${userUID}`)}
     >
       <Box sx={{ position: "relative" }}>
         <CardMedia
@@ -292,35 +294,38 @@ const DesktopMainPage = () => {
   const isMobile = useMediaQuery("(max-width:600px)");
   const [banners, setBanners] = useState([]);
   const [inlineBanner, setInlineBanner] = useState({ imageUrl: "", link: "" });
+  const [userUID,setUserUID] = useState(null)
+ useEffect(() => {
+  const unsubscribe = auth.onAuthStateChanged(async (user) => {
+    if (user) {
+      try {
+        const userRef = doc(db, "users", user.uid);
+        const userSnap = await getDoc(userRef);
+        if (userSnap.exists()) {
+          const userData = userSnap.data();
+          setVendorData({
+            username: userData.username || "",
+            email: user.email || "",
+            password: userData.password || "",
+          });
 
-  useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(async (user) => {
-      if (user) {
-        try {
-          const userRef = doc(db, "users", user.uid);
-          const userSnap = await getDoc(userRef);
-          if (userSnap.exists()) {
-            const userData = userSnap.data();
-            setVendorData({
-              username: userData.username || "",
-              email: user.email || "",
-              password: userData.password || "",
-            });
-
-            if (userData.suspended === true) {
-              setShowSuspensionModal(true);
-            }
+          if (userData.suspended === true) {
+            setShowSuspensionModal(true);
           }
-        } catch (error) {
-          console.error("Error checking user data:", error);
+          if (window.location.pathname === "/") {
+            navigate(`/${user.uid}`, { replace: true });
+          }
         }
-      } else {
-        setVendorData(null);
+      } catch (error) {
+        console.error("Error checking user data:", error);
       }
-    });
+    } else {
+      setVendorData(null);
+    }
+  });
 
-    return () => unsubscribe();
-  }, [setVendorData]);
+  return () => unsubscribe();
+}, [navigate, setVendorData]);
 
   const handleLogout = async () => {
     try {
@@ -367,16 +372,26 @@ const DesktopMainPage = () => {
   //   }
   // };
 
- 
+ useEffect(() => {
+  const unsubscribe = auth.onAuthStateChanged((user) => {
+    if (user) {
+      setUserUID(user.uid); 
+    }
+  });
+
+  return () => unsubscribe();
+}, []);
+
+
 useEffect(() => {
   const fetchBanners = async () => {
     try {
       // Fetch hero banners
-      const res = await axios.get("http://localhost:8080/api/admin/banners/recent");
+      const res = await axios.get(`${process.env.REACT_APP_API_BASE_URL}/api/admin/banners/recent`);
       setBanners(res.data.banners);
 
       // Fetch inline banner
-      const inlineResponse = await axios.get("http://localhost:8080/api/admin/banners/recent-inline");
+      const inlineResponse = await axios.get(`${process.env.REACT_APP_API_BASE_URL}/api/admin/banners/recent-inline`);
       console.log("Inline response data:", inlineResponse.data);
 
       // Check if banners array exists and has items
@@ -1000,7 +1015,7 @@ const handleInlineBannerClick = () => {
             >
               {unfilteredEventData.map((event, index) => (
                 <Box key={index} sx={{ minWidth: { xs: 250, sm: "unset" } }}>
-                  <EventCard event={event} />
+                  <EventCard event={event} userUID={userUID} />
                 </Box>
               ))}
             </Box>
@@ -1202,7 +1217,7 @@ const handleInlineBannerClick = () => {
             >
               {eventData.map((event, index) => (
                 <Box key={`filtered-${index}`} sx={{ minWidth: { xs: 250, sm: "unset" } }}>
-                  <EventCard event={event} />
+                  <EventCard event={event} userUID={userUID} />
                 </Box>
               ))}
             </Box>

@@ -119,7 +119,7 @@ const EditEventPage = () => {
           } else {
             // Fallback to API if needed
             try {
-              const response = await axios.get(`http://localhost:8080/api/event/${eventId}`);
+              const response = await axios.get(`${process.env.REACT_APP_API_BASE_URL}/api/event/${eventId}`);
               console.log("API Response:", response.data);
               
               // Validate vendorId from API response too
