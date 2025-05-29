@@ -122,7 +122,8 @@ const VendorOrganization = () => {
 
   return (
     <Box sx={{ backgroundColor: "#F9FAFB", minHeight: "100vh" }}>
-      {!isMobile ? <Header /> : <Typography>Hello world</Typography>}
+      <Header />
+      {/* {!isMobile ? <Header /> : <Typography>Hello world</Typography>} */}
       <Typography
         sx={{
           fontSize: { lg: "40px", md: "36px", sm: "32px", xs: "26px" },
@@ -133,6 +134,7 @@ const VendorOrganization = () => {
           width: "95%",
           margin: '0 auto',
           fontFamily: "Albert Sans",
+          mt:isMobile?7:2,
         }}
       >
         Vendor Organisation Details

@@ -188,7 +188,7 @@ const VendorDocument = () => {
         overflow: "hidden",
       }}
     >
-      {!isTab ? <Header /> : <Typography>Hello world</Typography>}
+      {!isTab ? <Header /> : <Header />}
 
       <Typography
         sx={{

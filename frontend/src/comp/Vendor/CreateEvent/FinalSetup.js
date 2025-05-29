@@ -11,6 +11,7 @@ import {
   Select,
   TextField,
   Typography,
+  useMediaQuery
 } from "@mui/material";
 import React, { useEffect, useState } from "react";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -22,7 +23,7 @@ const FinalSetup = () => {
   const navigate = useNavigate();
   const { vendorId } = useParams();
   const { formData, updateFormSection, markStepCompleted, shouldRedirectToStep1, stepCompletion } = useEventContext();
-
+  const isMobile = useMediaQuery("(max-width:900px)");
   // Redirect logic for reload detection and step validation
   useEffect(() => {
     // Redirect to step 1 if page was reloaded
@@ -162,7 +163,7 @@ const FinalSetup = () => {
             display: "flex",
             padding: "2% 3%",
             flexDirection: "column",
-            width: "70%",
+            width:isMobile?"90%": "70%",
             boxSizing: "border-box",
             backgroundColor: "white",
             height: "auto",
@@ -176,7 +177,7 @@ const FinalSetup = () => {
               sx={{
                 fontFamily: "albert sans",
                 fontWeight: "900",
-                fontSize: "28px",
+                fontSize:isMobile?"20px": "28px",
                 mb: "2%",
               }}
             >
@@ -200,7 +201,7 @@ const FinalSetup = () => {
                 onChange={handleChange}
                 placeholder="xyz@gmail.com"
                 sx={{
-                  width: "40%",
+                  width: isMobile?"90%":"40%",
                   height: "40px",
                   fontFamily: "Albert Sans",
                   "&::placeholder": {
@@ -222,17 +223,17 @@ const FinalSetup = () => {
               sx={{
                 fontFamily: "albert sans",
                 fontWeight: "900",
-                fontSize: "28px",
+                fontSize:isMobile?"20px": "28px",
                 mb: "1%",
               }}
             >
               Ticket Limit
             </Typography>
-            <Box sx={{display:'flex', alignItems:'center',width:'80%', justifyContent:'space-between' }}>
-              <Typography sx={{fontFamily:'albert sans'}}>
+            <Box sx={{display:isMobile?"block":'flex', alignItems:'center',width:'80%', justifyContent:'space-between' }}>
+              <Typography sx={{fontFamily:'albert sans',fontSize:isMobile?"14px":"16px"}}>
                 How many tickets should be booked in a single booking
               </Typography>
-              <Box display="flex" alignItems="center" gap={1}>
+              <Box display="flex" alignItems="center" gap={1} sx={{mt:isMobile?2:null,mb:isMobile?2:null}}>
                 <IconButton
                   onClick={handleDecrement}
                   disabled={ticketCount <= minLimit}
@@ -273,7 +274,7 @@ const FinalSetup = () => {
                 sx={{
                   fontFamily: "albert sans",
                   fontWeight: "900",
-                  fontSize: "28px",
+                  fontSize:isMobile?"20px": "28px",
                 }}
               >
                 FAQs
@@ -303,11 +304,11 @@ const FinalSetup = () => {
                   boxSizing: "border-box",
                   border: "1px solid #ccc",
                   padding: "2%",
-                  mt: "1%",
+                  mt: isMobile?1:"1%",
                   borderRadius: "10px",
                 }}
               >
-                <Box sx={{ width: "95%" }}>
+                <Box sx={{ width: isMobile?"90%":"95%" }}>
                   <FormControl fullWidth variant="outlined">
                     <OutlinedInput
                       value={t.ques}
@@ -358,7 +359,7 @@ const FinalSetup = () => {
                 </Box>
                 <Box
                   sx={{
-                    display: "flex",
+                    display:isMobile?"block": "flex",
                     justifyContent: "flex-end",
                     width: "5%",
                   }}
@@ -381,7 +382,7 @@ const FinalSetup = () => {
               sx={{
                 fontFamily: "albert sans",
                 fontWeight: "900",
-                fontSize: "28px",
+                fontSize: isMobile?"20px": "28px",
               }}
             >
               Tags
@@ -393,7 +394,7 @@ const FinalSetup = () => {
                 onChange={handleChange}
                 placeholder="add tags"
                 sx={{
-                  width: "40%",
+                  width:isMobile?"90%": "40%",
                   height: "40px",
                   fontFamily: "Albert Sans",
                   "&::placeholder": {
@@ -438,7 +439,7 @@ const FinalSetup = () => {
                 sx={{
                   display: "flex",
                   flexDirection: "column",
-                  width: "40%",
+                  width: isMobile?"90%":"40%",
                   gap: "1em",
                 }}
               >
@@ -547,6 +548,7 @@ const FinalSetup = () => {
               backgroundColor: "#19AEDC",
               fontFamily: "albert sans",
               fontSize: "17px",
+              mt:isMobile?1:null
             }}
           >
             Proceed to preview

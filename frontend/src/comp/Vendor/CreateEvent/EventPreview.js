@@ -13,6 +13,7 @@ import {
   DialogContent,
   DialogContentText,
   DialogActions,
+  useMediaQuery
 } from "@mui/material";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 import EventIcon from "@mui/icons-material/Event";
@@ -25,7 +26,7 @@ import Carousel from "react-material-ui-carousel";
 
 const EventPage = () => {
   const navigate = useNavigate();
-
+  const isMobile = useMediaQuery("(max-width:900px)");
   //Event date
   const [submitting, setSubmitting] = useState(false);
   const [openDialog, setOpenDialog] = useState(false);
@@ -222,8 +223,8 @@ const EventPage = () => {
         <Typography
           sx={{
             fontFamily: "albert sans",
-            fontSize: "30px",
-            fontWeight: "900",
+            fontSize:isMobile?"20px": "30px",
+            fontWeight: "700",
           }}
         >
           Preview of your event
@@ -278,9 +279,9 @@ const EventPage = () => {
           {/* Event Image */}
           <Box
             sx={{
-              width: "80%",
+              width: isMobile?"100%":"80%",
               maxWidth: 1200,
-              height: 300,
+              height: isMobile?200:300,
               maxHeight: "400px",
               border: "2px dashed #ccc",
               borderRadius: 4,
@@ -349,7 +350,7 @@ const EventPage = () => {
                 variant="h6"
                 sx={{
                   fontWeight: "bold",
-                  fontSize: "30px",
+                  fontSize: isMobile?"24px":"30px",
                   fontFamily: "albert sans",
                 }}
               >
@@ -357,7 +358,7 @@ const EventPage = () => {
                 {formData.eventDetails.name || "Event Title"}
               </Typography>
               {formData?.eventDetails?.category?.length > 0 && (
-                <Box sx={{ display: "flex", gap: 1, mb: 2, flexWrap: "wrap" }}>
+                <Box sx={{ display: "flex", gap: 1, mb: 2, flexWrap: "wrap",mt:isMobile?1:0 }}>
                   {formData.eventDetails.category.map((cat, index) => (
                     <Chip
                       key={index}
@@ -382,7 +383,7 @@ const EventPage = () => {
                 variant="body1"
                 paragraph
                 color="#4B5563"
-                sx={{ fontFamily: "albert sans" }}
+                sx={{ fontFamily: "albert sans",width: isMobile?"100%":"100%",overflowX: "hidden", textOverflow: "ellipsis" }}
               >
                 {formData.eventDetails.description}
               </Typography>
@@ -402,8 +403,8 @@ const EventPage = () => {
                 sx={{
                   width: "100%",
                   height: "70px",
-                  border: 1,
-                  borderColor: "black",
+                  border: 0.5,
+                  borderColor: "#4B5563",
                   display: "flex",
                   gap: 2,
                   flexDirection: "column",

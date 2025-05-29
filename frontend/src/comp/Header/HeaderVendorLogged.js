@@ -1,5 +1,5 @@
 
-import { Box, Typography, IconButton, Button, Menu, MenuItem, Avatar } from "@mui/material";
+import { Box, Typography, IconButton, Button, Menu, MenuItem, Avatar , useMediaQuery} from "@mui/material";
 import AccountCircleOutlinedIcon from "@mui/icons-material/AccountCircleOutlined";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -8,7 +8,7 @@ const HeaderVendorLogged = ({ vendorId, userProfile, onLogout }) => {
   const [anchorEl, setAnchorEl] = useState(null);
   const [openMenu, setOpenMenu] = useState(false);
   const navigate = useNavigate();
-
+  const isMobile = useMediaQuery("(max-width:900px)"); // Adjust based on your design breakpoints
   const handleMenuClick = (event) => {
     setAnchorEl(event.currentTarget);
     setOpenMenu(true);

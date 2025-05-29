@@ -12,7 +12,8 @@ import {
   Card,
   CardContent,
   Grid,
-  LinearProgress
+  LinearProgress,
+  useMediaQuery
 } from "@mui/material";
 import DownloadIcon from "@mui/icons-material/Download";
 import InsertChartIcon from "@mui/icons-material/InsertChart";
@@ -55,7 +56,7 @@ const EventDashboard = () => {
   const [salesData, setSalesData] = useState([]);
   const [timeFilter, setTimeFilter] = useState("90");
   const [allOrders, setAllOrders] = useState([]);
-
+  const isMobile = useMediaQuery("(max-width:900px)");
   // Color palette for the chart
   const COLORS = ['#19AEDC', '#4FC3F7', '#2196F3', '#1565C0', '#0D47A1'];
 
@@ -428,14 +429,14 @@ const EventDashboard = () => {
   };
 
   return (
-    <div>
+    <div sx={{overflowX: "hidden"}}>
       <HeaderVendorLogged />
       <Box
         sx={{
           display: "flex",
-          width: "80%",
+          width: isMobile?"92%":"80%",
           margin: "0 auto",
-          flexDirection: "row",
+          flexDirection: isMobile?"column":"row",
           gap: "24px",
         }}
       >
@@ -443,22 +444,24 @@ const EventDashboard = () => {
           <Box
             sx={{
               width: "100%",
-              display: "flex",
+              display: isMobile?"block":"flex",
               padding: "24px 0",
               justifyContent: "space-between",
               alignItems: "center",
+              width:isMobile?"90%":null,
             }}
           >
+            
             <Typography
               sx={{
                 fontFamily: "Albert Sans",
-                fontSize: "32px",
+                fontSize: isMobile?"24px":"32px",
                 fontWeight: "700",
               }}
             >
               {eventData.name}
             </Typography>
-            <Box sx={{ display: "flex", gap: "12px", marginLeft: "auto" }}>
+            <Box sx={{ display: "flex", gap: "12px", marginLeft: "auto",mt:isMobile?"16px":"0" }}>
               <Button
                 variant="contained"
                 sx={{
@@ -471,6 +474,7 @@ const EventDashboard = () => {
                   '&:hover': {
                     backgroundColor: "#f8f8f8",
                     boxShadow: "0px 2px 5px rgba(0,0,0,0.15)",
+                  p:isMobile?"1% 2%":null,
                   }
                 }}
                 onClick={downloadSalesReport}
@@ -486,7 +490,8 @@ const EventDashboard = () => {
                   backgroundColor: "#19AEDC",
                   '&:hover': {
                     backgroundColor: "#1793B8"
-                  }
+                  },
+                  p:isMobile?"1% 2%":null,
                 }}
                 onClick={toggleAnalytics}
               >
@@ -517,7 +522,7 @@ const EventDashboard = () => {
                     <Box
                       sx={{
                         width: "40px",
-                        height: "40px",
+                        height: isMobile?"40px":"40px",
                         borderRadius: "8px",
                         backgroundColor: "rgba(25, 174, 220, 0.1)",
                         display: "flex",
@@ -1111,30 +1116,30 @@ const EventDashboard = () => {
 
       {showAnalytics && (
         <Box
-          sx={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            width: "100%",
-            height: "100%",
-            backgroundColor: "rgba(0, 0, 0, 0.5)",
-            zIndex: 1000,
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-          }}
-        >
-          <Box
-            sx={{
-              width: "80%",
-              maxWidth: "1000px",
-              backgroundColor: "white",
-              borderRadius: "10px",
-              padding: "24px",
-              maxHeight: "90vh",
-              overflowY: "auto",
-            }}
-          >
+  sx={{
+    position: "fixed",
+    top: 0,
+    left: 0,
+    width: "100%",
+    height: "100%",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    zIndex: 1000,
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+  }}
+>
+  <Box
+    sx={{
+      width: isMobile ? "80%" : "80%",
+      maxWidth: "1000px",
+      backgroundColor: "white",
+      borderRadius: "10px",
+      padding: isMobile?"20px":"24px",
+      maxHeight: "90vh",
+      overflowY: "auto",
+    }}
+  >
             <Box
               sx={{
                 display: "flex",
@@ -1146,7 +1151,7 @@ const EventDashboard = () => {
               <Typography
                 sx={{
                   fontFamily: "Albert Sans",
-                  fontSize: "24px",
+                  fontSize: isMobile?"20px":"24px",
                   fontWeight: "700",
                 }}
               >
@@ -1191,7 +1196,7 @@ const EventDashboard = () => {
                   backgroundColor: "#19AEDC",
                   textTransform: "none",
                   fontFamily: "Albert Sans",
-                  padding: "6px 16px",
+                  padding: isMobile?"4px 8px":"6px 16px",
                   borderRadius: "4px",
                   '&:hover': {
                     backgroundColor: "#1793B8"
@@ -1207,29 +1212,30 @@ const EventDashboard = () => {
               border: "1px solid #e0e0e0",
               borderRadius: "8px",
               overflow: "hidden",
-              marginBottom: "24px"
+              marginBottom: "24px",
+              width:isMobile?"100%":null,
             }}>
-              <CardContent sx={{ padding: "24px" }}>
+              <CardContent sx={{ padding: isMobile?"1px":"24px" }}>
                 <ResponsiveContainer width="100%" height={400}>
                   <BarChart
                     data={salesData}
                     margin={{
-                      top: 20,
-                      right: 30,
-                      left: 20,
-                      bottom: 5,
+                      top: isMobile?5:20,
+                      right: isMobile?5:30,
+                      left: isMobile?10: 20,
+                      bottom: isMobile?0:5,
                     }}
                   >
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                     <XAxis
                       dataKey="name"
-                      tick={{ fill: '#666', fontFamily: 'Albert Sans', fontSize: 12 }}
+                      tick={{ fill: '#666', fontFamily: 'Albert Sans', fontSize: isMobile?10:12 }}
                       axisLine={{ stroke: '#e0e0e0' }}
                     />
                     <YAxis
-                      tick={{ fill: '#666', fontFamily: 'Albert Sans', fontSize: 12 }}
+                      tick={{ fill: '#666', fontFamily: 'Albert Sans', fontSize: isMobile?10:12 }}
                       axisLine={{ stroke: '#e0e0e0' }}
-                      label={{ value: 'Tickets Sold', angle: -90, position: 'insideLeft', fontFamily: 'Albert Sans', fill: '#666' }}
+                      label={{ value: 'Tickets Sold', angle: -90, position: 'insideLeft', fontFamily: 'Albert Sans', fill: '#666',fontSize: isMobile?10:12 }}
                     />
                     <Tooltip content={<CustomTooltip />} />
                     <Legend />
@@ -1299,7 +1305,7 @@ const EventDashboard = () => {
                       </Typography>
                     </Box>
                   </Box>
-
+                  {!isMobile &&(
                   <Box
                     sx={{
                       width: "240px",
@@ -1318,108 +1324,138 @@ const EventDashboard = () => {
                       }}
                     />
                   </Box>
+                  )}
                 </Box>
 
-                <Grid container spacing={3}>
-                  <Grid item xs={12} md={4}>
-                    <Card elevation={1} sx={{ height: '100%' }}>
-                      <CardContent>
-                        <Typography
-                          sx={{
-                            fontFamily: "Albert Sans",
-                            fontSize: "14px",
-                            color: "#666",
-                            marginBottom: "8px",
-                          }}
-                        >
-                          Total Tickets Sold
-                        </Typography>
-                        <Typography
-                          sx={{
-                            fontFamily: "Albert Sans",
-                            fontSize: "28px",
-                            fontWeight: "700",
-                          }}
-                        >
-                          {eventStats.ticketsSold.toLocaleString()}
-                        </Typography>
-                      </CardContent>
-                    </Card>
-                  </Grid>
+               <Box
+  sx={{
+    display: 'flex',
+    flexDirection: { xs: 'column', md: 'row' },
+    gap: 3,
+    width: '100%',
+  }}
+>
+  <Box sx={{ flex: 1 }}>
+    <Card elevation={1} sx={{ height: '100%' }}>
+      <CardContent>
+        <Typography
+          sx={{
+            fontFamily: 'Albert Sans',
+            fontSize: '14px',
+            color: '#666',
+            marginBottom: '8px',
+          }}
+        >
+          Total Tickets Sold
+        </Typography>
+        <Typography
+          sx={{
+            fontFamily: 'Albert Sans',
+            fontSize: '28px',
+            fontWeight: '700',
+          }}
+        >
+          {eventStats.ticketsSold.toLocaleString()}
+        </Typography>
+      </CardContent>
+    </Card>
+  </Box>
 
-                  <Grid item xs={12} md={4}>
-                    <Card elevation={1} sx={{ height: '100%' }}>
-                      <CardContent>
-                        <Typography
-                          sx={{
-                            fontFamily: "Albert Sans",
-                            fontSize: "14px",
-                            color: "#666",
-                            marginBottom: "8px",
-                          }}
-                        >
-                          Revenue Generated
-                        </Typography>
-                        <Typography
-                          sx={{
-                            fontFamily: "Albert Sans",
-                            fontSize: "28px",
-                            fontWeight: "700",
-                          }}
-                        >
-                          ₹{eventStats.grossSales.toLocaleString()}
-                        </Typography>
-                      </CardContent>
-                    </Card>
-                  </Grid>
+  <Box sx={{ flex: 1 }}>
+    <Card elevation={1} sx={{ height: '100%' }}>
+      <CardContent>
+        <Typography
+          sx={{
+            fontFamily: 'Albert Sans',
+            fontSize: '14px',
+            color: '#666',
+            marginBottom: '8px',
+          }}
+        >
+          Revenue Generated
+        </Typography>
+        <Typography
+          sx={{
+            fontFamily: 'Albert Sans',
+            fontSize: '28px',
+            fontWeight: '700',
+          }}
+        >
+          ₹{eventStats.grossSales.toLocaleString()}
+        </Typography>
+      </CardContent>
+    </Card>
+  </Box>
 
-                  <Grid item xs={12} md={4}>
-                    <Card elevation={1} sx={{ height: '100%' }}>
-                      <CardContent>
-                        <Typography
-                          sx={{
-                            fontFamily: "Albert Sans",
-                            fontSize: "14px",
-                            color: "#666",
-                            marginBottom: "8px",
-                          }}
-                        >
-                          Ticket Types
-                        </Typography>
-                        <Typography
-                          sx={{
-                            fontFamily: "Albert Sans",
-                            fontSize: "28px",
-                            fontWeight: "700",
-                            marginBottom: "8px",
-                          }}
-                        >
-                          {ticketTypes.length}
-                        </Typography>
-                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                          {ticketTypes
-                            .filter(ticket => ticket.sold > 0)
-                            .slice(0, 3)
-                            .map((ticket, idx) => (
-                              <Box key={idx} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                <Typography sx={{ fontFamily: "Albert Sans", fontSize: "12px" }}>
-                                  {ticket.type}
-                                </Typography>
-                                <Typography sx={{ fontFamily: "Albert Sans", fontSize: "12px", fontWeight: "600" }}>
-                                  {ticket.sold} sold
-                                </Typography>
-                              </Box>
-                            ))}
-                          {ticketTypes.filter(t => t.sold > 0).length > 3 && (
-                            <Typography sx={{ fontFamily: "Albert Sans", fontSize: "12px", color: "#19AEDC", textAlign: "center", cursor: "pointer" }}>
-                              + {ticketTypes.filter(t => t.sold > 0).length - 3} more types
-                            </Typography>
-                          )}
-                        </Box>
-                      </CardContent>
-                    </Card>
-                  </Grid>
-                </Grid>
+  <Box sx={{ flex: 1 }}>
+    <Card elevation={1} sx={{ height: '100%' }}>
+      <CardContent>
+        <Typography
+          sx={{
+            fontFamily: 'Albert Sans',
+            fontSize: '14px',
+            color: '#666',
+            marginBottom: '8px',
+          }}
+        >
+          Ticket Types
+        </Typography>
+        <Typography
+          sx={{
+            fontFamily: 'Albert Sans',
+            fontSize: '28px',
+            fontWeight: '700',
+            marginBottom: '8px',
+          }}
+        >
+          {ticketTypes.length}
+        </Typography>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          {ticketTypes
+            .filter(ticket => ticket.sold > 0)
+            .slice(0, 3)
+            .map((ticket, idx) => (
+              <Box
+                key={idx}
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <Typography sx={{ fontFamily: 'Albert Sans', fontSize: '12px' }}>
+                  {ticket.type}
+                </Typography>
+                <Typography
+                  sx={{
+                    fontFamily: 'Albert Sans',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                  }}
+                >
+                  {ticket.sold} sold
+                </Typography>
+              </Box>
+            ))}
+          {ticketTypes.filter(t => t.sold > 0).length > 3 && (
+            <Typography
+              sx={{
+                fontFamily: 'Albert Sans',
+                fontSize: '12px',
+                color: '#19AEDC',
+                textAlign: 'center',
+                cursor: 'pointer',
+              }}
+            >
+              + {ticketTypes.filter(t => t.sold > 0).length - 3} more types
+            </Typography>
+          )}
+        </Box>
+      </CardContent>
+    </Card>
+  </Box>
+</Box>
+
               </CardContent>
             </Card>
           </Box>

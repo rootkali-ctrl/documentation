@@ -5,6 +5,7 @@ import {
   FormControl,
   OutlinedInput,
   Typography,
+  useMediaQuery
 } from "@mui/material";
 import React, { useEffect, useState } from "react";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
@@ -26,7 +27,7 @@ const {
   shouldRedirectToStep1,
   stepCompletion,
 } = useEventContext();
-
+const isMobile = useMediaQuery("(max-width:900px)");
 const navigate = useNavigate();
 
 // Redirect logic for reload detection and step validation
@@ -249,13 +250,14 @@ const handleNext = () => {
           minHeight: "100vh",
           display: "flex",
           flexDirection: "column",
+          width: "100%",
         }}
       >
         <Box
           sx={{
             display: "flex",
             flexDirection: "column",
-            width: "70%",
+            width: isMobile?"90%":"70%",
             margin: "0 auto",
           }}
         >
@@ -278,7 +280,7 @@ const handleNext = () => {
               sx={{
                 fontFamily: "albert sans",
                 fontWeight: "900",
-                fontSize: "28px",
+                fontSize:isMobile?"20px": "28px",
               }}
             >
               Ticket Setup
@@ -309,7 +311,7 @@ const handleNext = () => {
                     </Typography>
                     <Box
                       sx={{
-                        display: "flex",
+                        display: isMobile?"block": "flex",
                         alignItems: "center",
                         gap: "2%",
                       }}
@@ -325,7 +327,7 @@ const handleNext = () => {
                         }
                         placeholder="Eg. VIP, Regular, Child"
                         sx={{
-                          width: "35%",
+                          width: isMobile?"90%":"35%",
                           height: "40px",
                           fontFamily: "Albert Sans",
                           "&::placeholder": {
@@ -343,7 +345,7 @@ const handleNext = () => {
                         sx={{
                           alignItems: "center",
                           display: "flex",
-                          width: "30%",
+                          width: isMobile?"90%":"30%",
                         }}
                       >
                         <Checkbox
@@ -356,9 +358,10 @@ const handleNext = () => {
                             "&.Mui-checked": {
                               color: "#19AEDC", // Always blue when checked
                             },
+                            
                           }}
                         />
-                        <Typography sx={{ fontFamily: "albert sans" }}>
+                        <Typography sx={{ fontFamily: "albert sans",fontSize:isMobile?"14px":"16px" }}>
                           Free for this type
                         </Typography>
                       </Box>
@@ -412,7 +415,7 @@ const handleNext = () => {
 
                 <Box
                   sx={{
-                    display: "flex",
+                    display:isMobile?"block": "flex",
                     mt: "2%",
                     width: "100%",
                     alignItems: "center",
@@ -421,7 +424,7 @@ const handleNext = () => {
                   <FormControl
                     fullWidth
                     variant="outlined"
-                    sx={{ width: "40%", mr: "2%" }}
+                    sx={{ width: isMobile?"90%":"40%", mr: "2%" }}
                   >
                     <Typography
                       variant="subtitle2"
@@ -461,7 +464,8 @@ const handleNext = () => {
                     sx={{
                       alignItems: "center",
                       display: "flex",
-                      width: "30%",
+                      width: isMobile?"90%":"40%",
+                      mt:isMobile?1:2,
                     }}
                   >
                     <Checkbox
@@ -477,7 +481,7 @@ const handleNext = () => {
                         },
                       }}
                     />
-                    <Typography sx={{ fontFamily: "Albert Sans" }}>
+                    <Typography sx={{ fontFamily: "Albert Sans",fontSize:isMobile?"14px":"16px" }}>
                       Tax amount included in the ticket price
                     </Typography>
                   </Box>
@@ -486,7 +490,7 @@ const handleNext = () => {
                 <FormControl
                   fullWidth
                   variant="outlined"
-                  sx={{ width: "40%", mt: "2%" }}
+                  sx={{ width: isMobile?"90%": "40%", mt: "2%" }}
                 >
                   <Typography
                     variant="subtitle2"
@@ -506,7 +510,7 @@ const handleNext = () => {
                     }
                     placeholder="0"
                     sx={{
-                      width: "90%",
+                      width: isMobile?"90%":"90%",
                       height: "40px",
                       fontFamily: "Albert Sans",
                       "&::placeholder": {
@@ -576,7 +580,7 @@ const handleNext = () => {
               sx={{
                 fontFamily: "albert sans",
                 fontWeight: "900",
-                fontSize: "28px",
+                fontSize:isMobile?"20px": "28px",
               }}
             >
               Add-ons & Purchasables
@@ -585,14 +589,14 @@ const handleNext = () => {
               <Box
                 key={index}
                 sx={{
-                  display: "flex",
+                  display: isMobile?"block":"flex",
                   mt: "2%",
                   width: "100%",
                   alignItems: "center",
                   gap: "2%",
                 }}
               >
-                <FormControl fullWidth variant="outlined" sx={{ width: "30%" }}>
+                <FormControl fullWidth variant="outlined" sx={{ width: isMobile?"90%":"30%" }}>
                   <Typography
                     variant="subtitle2"
                     sx={{
@@ -626,7 +630,7 @@ const handleNext = () => {
                     }}
                   />
                 </FormControl>
-                <FormControl fullWidth variant="outlined" sx={{ width: "30%" }}>
+                <FormControl fullWidth variant="outlined" sx={{ width: isMobile?"90%":"30%" }}>
                   <Typography
                     variant="subtitle2"
                     sx={{
@@ -660,7 +664,7 @@ const handleNext = () => {
                     }}
                   />
                 </FormControl>
-                <FormControl fullWidth variant="outlined" sx={{ width: "30%" }}>
+                <FormControl fullWidth variant="outlined" sx={{ width: isMobile?"90%":"30%" }}>
                   <Typography
                     variant="subtitle2"
                     sx={{
@@ -700,6 +704,8 @@ const handleNext = () => {
                     cursor: "pointer",
                     color: "gray",
                     "&:hover": { color: "red" },
+                    mt:isMobile?2:3,
+                    ml:isMobile?1.5:null,
                   }}
                   onClick={handleRemoveItem}
                 />
@@ -748,7 +754,7 @@ const handleNext = () => {
               sx={{
                 fontFamily: "albert sans",
                 fontWeight: "900",
-                fontSize: "28px",
+                fontSize: isMobile?"20px":"28px",
               }}
             >
               Coupons & Discounts
@@ -766,7 +772,7 @@ const handleNext = () => {
               >
                 <Box
                   sx={{
-                    display: "flex",
+                    display: isMobile?"block":"flex",
                     justifyContent: "space-between",
                     width: "100%",
                   }}
@@ -843,7 +849,7 @@ const handleNext = () => {
                     sx={{
                       cursor: "pointer",
                       color: "gray",
-                      "&:hover": { color: "red" },
+                      "&:hover": { color: "red",mt: "20%"  },
                     }}
                     onClick={handleRemoveCoupon}
                   />
@@ -851,7 +857,7 @@ const handleNext = () => {
 
                 <Box
                   sx={{
-                    display: "flex",
+                    display:  isMobile?"block":"flex",
                     mt: "3%",
                     width: "100%",
                     alignItems: "center",
@@ -862,7 +868,7 @@ const handleNext = () => {
                     <FormControl
                       fullWidth
                       variant="outlined"
-                      sx={{ width: "30%" }}
+                      sx={{ width:  isMobile?"90%":"30%" }}
                     >
                       <Typography
                         variant="subtitle2"
@@ -912,7 +918,7 @@ const handleNext = () => {
                   </LocalizationProvider>
 
                   <LocalizationProvider dateAdapter={AdapterDayjs}>
-                    <FormControl variant="outlined" sx={{ width: "30%" }}>
+                    <FormControl variant="outlined" sx={{ width:  isMobile?"90%":"30%" }}>
                       <Typography
                         variant="subtitle2"
                         sx={{

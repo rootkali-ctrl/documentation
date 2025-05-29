@@ -9,6 +9,7 @@ import {
   Grid,
   TextField,
   Select,
+  useMediaQuery
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { useTheme } from "@mui/material/styles";
@@ -26,7 +27,7 @@ const CreateEvent = () => {
   const navigate = useNavigate();
   const { vendorId } = useParams();
   const { updateFormSection, formData, markStepCompleted  } = useEventContext();
-
+  const isMobile = useMediaQuery("(max-width:900px)");
   const [mediaLink, setMediaLink] = useState("");
   const [selectedCategories, setSelectedCategories] = useState([]);
 
@@ -327,9 +328,11 @@ const CreateEvent = () => {
       <Box
         sx={{
           backgroundColor: "#F9FAFB",
-          minHeight: "100vh",
+          minHeight: !isMobile? "100vh" :null,
           display: "flex",
           flexDirection: "column",
+          width: "100%",
+          
         }}
       >
         {/* Header */}
@@ -337,14 +340,15 @@ const CreateEvent = () => {
           sx={{
             display: "flex",
             flexDirection: "column",
-            width: "70%",
+            width:isMobile?"90%": "70%",
             margin: "0 auto",
+            overflowX: "hidden",
           }}
         >
           {/*Event overview*/}
           <Box
             sx={{
-              padding: "2% 3%",
+              padding: isMobile?"2% 4%": "2% 3%",
               display: "flex",
               flexDirection: "column",
               width: "100%",
@@ -360,7 +364,7 @@ const CreateEvent = () => {
               sx={{
                 fontFamily: "albert sans",
                 fontWeight: "900",
-                fontSize: "28px",
+                fontSize: isMobile?"20px":"28px",
               }}
             >
               Event Overview
@@ -373,9 +377,9 @@ const CreateEvent = () => {
 
                 <Box
                   sx={{
-                    width: "80%",
+                    width: isMobile?"90%":"80%",
                     maxWidth: 1200,
-                    height: 300,
+                    height: isMobile?200:300,
                     maxHeight: "400px",
                     border: "2px dashed #ccc",
                     borderRadius: 4,
@@ -445,7 +449,7 @@ const CreateEvent = () => {
                     mb: "2%",
                   }}
                 >
-                  <Box sx={{ display: "flex", gap: "2%", width: "60%" }}>
+                  <Box sx={{ display: "flex", gap: "2%", width: isMobile?"70%":"60%" }}>
                     <Typography
                       sx={{ margin: "0 auto", fontFamily: "albert sans" }}
                     >
@@ -454,7 +458,7 @@ const CreateEvent = () => {
                   </Box>
                   <Box
                     sx={{
-                      width: "40%",
+                      width: isMobile?"40%":"40%",
                       display: "flex",
                       justifyContent: "flex-end",
                     }}
@@ -465,6 +469,8 @@ const CreateEvent = () => {
                         textTransform: "none",
                         bgcolor: "#19AEDC",
                         fontFamily: "albert sans",
+                        fontSize: isMobile?"12px":"14px",
+                        p:isMobile?"1px 10px":"6px 12px",
                       }}
                       onClick={() => fileInputRef.current.click()}
                     >
@@ -677,13 +683,14 @@ const CreateEvent = () => {
                 display: "flex",
                 justifyContent: "space-between",
                 mb: "2%",
+                alignItems: "center",
               }}
             >
               <Typography
                 sx={{
                   fontFamily: "albert sans",
                   fontWeight: "900",
-                  fontSize: "28px",
+                  fontSize: isMobile?"16px":"28px",
                 }}
               >
                 Speakers and Hosts (Optional)
@@ -705,6 +712,8 @@ const CreateEvent = () => {
                 border: "1px solid #E5E7EB",
                 borderRadius: "10px",
                 padding: "2% 3%",
+                minHeight: isMobile?30:null,
+                height: isMobile?"auto":null,
                 display: "flex",
                 flexDirection: "column",
                 gap: "2%",
@@ -714,7 +723,7 @@ const CreateEvent = () => {
                 <Box
                   key={index}
                   sx={{
-                    display: "flex",
+                    display:isMobile?"block": "flex",
                     gap: "3%",
                     alignItems: "flex-end",
                   }}
@@ -762,6 +771,7 @@ const CreateEvent = () => {
                         color: "#666",
                         fontWeight: 500,
                         fontFamily: "Albert Sans",
+                        mt: isMobile?"10px":"0px",
                       }}
                     >
                       Role/Designation of speaker
@@ -795,6 +805,7 @@ const CreateEvent = () => {
                       cursor: "pointer",
                       "&:hover": { color: "red" },
                       mb: "8px",
+                      mt: isMobile?"10px":"0px",
                     }}
                     onClick={() => handleRemoveSpeaker(index)}
                   />
@@ -829,8 +840,8 @@ const CreateEvent = () => {
             </Typography>
             <Box
               sx={{
-                display: "flex",
-                width: "95%",
+                display: isMobile?"block":"flex",
+                width:isMobile?"100%": "95%",
                 margin: "0 auto",
                 gap: "5%",
                 mt: "2%",
@@ -839,7 +850,7 @@ const CreateEvent = () => {
               <LocalizationProvider dateAdapter={AdapterDayjs}>
                 <FormControl
                   variant="outlined"
-                  sx={{ marginBottom: 2, width: "45%" }}
+                  sx={{ marginBottom: 2, width:isMobile?"90%":"45%" }}
                 >
                   <Typography
                     variant="subtitle2"
@@ -858,6 +869,7 @@ const CreateEvent = () => {
                     onChange={(newValue) =>
                       handleDateChange("eventDate", newValue)
                     }
+                    
                     slotProps={{
                       textField: {
                         variant: "outlined",
@@ -880,6 +892,7 @@ const CreateEvent = () => {
                             {
                               borderColor: "#19AEDC",
                             },
+                          
                         },
                       },
                     }}
@@ -890,7 +903,7 @@ const CreateEvent = () => {
               <LocalizationProvider dateAdapter={AdapterDayjs}>
                 <FormControl
                   variant="outlined"
-                  sx={{ marginBottom: 2, width: "45%" }}
+                  sx={{ marginBottom: 2, width: "45%", width:isMobile?"90%":"45%"  }}
                 >
                   <Typography
                     variant="subtitle2"
