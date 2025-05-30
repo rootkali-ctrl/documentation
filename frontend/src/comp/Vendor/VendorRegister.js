@@ -13,6 +13,9 @@ import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import { useNavigate } from "react-router-dom";
 import { useVendor } from "./VendorContext";
 import { useParams } from "react-router-dom";
+import { collection, query, where, getDocs } from "firebase/firestore";
+import { db } from "../../firebase/firebase_config"
+
 
 const VendorRegister = () => {
   const navigate = useNavigate();
@@ -37,93 +40,188 @@ const VendorRegister = () => {
   // Update in VendorRegister.js component
   // Update the fetch URL to match the backend route
 
+  // useEffect(() => {
+  //   let isMounted = true;
+
+  //   const fetchVendor = async () => {
+  //     setIsLoading(true);
+
+  //     if (vendorId) {
+  //       try {
+  //         const res = await fetch(
+  //           `${process.env.REACT_APP_API_BASE_URL}/api/user/current-user/${vendorId}`
+  //         );
+
+  //         // Check if component is still mounted before updating state
+  //         if (!isMounted) return;
+
+  //         if (!res.ok) {
+  //           console.log("Vendor not found or error occurred");
+  //           setLoginCase("new");
+  //           return;
+  //         }
+
+  //         const data = await res.json();
+  //         console.log("Fetched vendor:", data);
+
+  //         // Only update if component is still mounted
+  //         if (!isMounted) return;
+
+  //         setFormData({
+  //           email: data.email || "",
+  //           username: data.username || "",
+  //           password: data.password || "",
+  //           confirmPassword: data.password || "",
+  //         });
+
+  //         // Set login case based on the data type
+  //         if (data?.type === "google-signin") {
+  //           setLoginCase("google");
+  //         } else if (data.email) {
+  //           setLoginCase("manual");
+  //         } else {
+  //           setLoginCase("new");
+  //         }
+
+  //         try {
+  //           // Update the URL to match the backend route
+  //           const emailRes = await fetch(
+  //             `${process.env.REACT_APP_API_BASE_URL}/api/vendor/check-email?email=${data.email}`
+  //           );
+
+  //           if (!isMounted) return;
+
+  //           const emailData = await emailRes.json();
+  //           if (emailData.exists) {
+  //             setEmailExists(true);
+  //             setErrors((prev) => ({
+  //               ...prev,
+  //               email: "Email already registered as vendor",
+  //             }));
+  //           }
+  //         } catch (err) {
+  //           console.error("Error checking email:", err);
+  //         }
+  //       } catch (err) {
+  //         console.error("Error fetching vendor:", err);
+  //         if (isMounted) {
+  //           setLoginCase("new");
+  //         }
+  //       } finally {
+  //         if (isMounted) {
+  //           setIsLoading(false);
+  //         }
+  //       }
+  //     } else {
+  //       if (isMounted) {
+  //         setLoginCase("new");
+  //         setIsLoading(false);
+  //       }
+  //     }
+  //   };
+
+  //   fetchVendor();
+
+  //   // Cleanup function to prevent state updates after unmount
+  //   return () => {
+  //     isMounted = false;
+  //   };
+  // }, [vendorId]);
+
+
   useEffect(() => {
-    let isMounted = true;
+  let isMounted = true;
 
-    const fetchVendor = async () => {
-      setIsLoading(true);
+  const fetchVendor = async () => {
+    setIsLoading(true);
 
-      if (vendorId) {
-        try {
-          const res = await fetch(
-            `${process.env.REACT_APP_API_BASE_URL}/api/user/current-user/${vendorId}`
-          );
+    if (vendorId) {
+      try {
+        // Step 1: Fetch from users collection via backend
+        const res = await fetch(
+          `${process.env.REACT_APP_API_BASE_URL}/api/user/current-user/${vendorId}`
+        );
 
-          // Check if component is still mounted before updating state
-          if (!isMounted) return;
+        if (!isMounted) return;
 
-          if (!res.ok) {
-            console.log("Vendor not found or error occurred");
-            setLoginCase("new");
-            return;
-          }
+        if (!res.ok) {
+          console.log("User not found or error occurred");
+          setLoginCase("new");
+          return;
+        }
 
-          const data = await res.json();
-          console.log("Fetched vendor:", data);
+        const userData = await res.json();
+        const userEmail = userData.email;
 
-          // Only update if component is still mounted
-          if (!isMounted) return;
+        if (!isMounted) return;
+
+        // Step 2: Firestore - Check if vendor exists by email
+        const vendorsRef = collection(db, "vendors");
+        const q = query(vendorsRef, where("email", "==", userEmail));
+        const querySnapshot = await getDocs(q);
+
+        if (!isMounted) return;
+
+        if (!querySnapshot.empty) {
+          // Vendor exists - use vendor data instead of user data
+          const vendorDoc = querySnapshot.docs[0].data();
+          console.log("Vendor data from Firestore:", vendorDoc);
 
           setFormData({
-            email: data.email || "",
-            username: data.username || "",
-            password: data.password || "",
-            confirmPassword: data.password || "",
+            email: vendorDoc.email || "",
+            username: vendorDoc.username || "",
+            password: "",
+            confirmPassword: "",
           });
 
-          // Set login case based on the data type
-          if (data?.type === "google-signin") {
+          setLoginCase(vendorDoc?.type === "google-signin" ? "google" : "manual");
+
+          setEmailExists(true);
+          setErrors((prev) => ({
+            ...prev,
+            email: "Email already registered as vendor",
+          }));
+        } else {
+          // Vendor doesn't exist - fallback to user data
+          setFormData({
+            email: userData.email || "",
+            username: userData.username || "",
+            password: userData.password || "",
+            confirmPassword: userData.password || "",
+          });
+
+          if (userData?.type === "google-signin") {
             setLoginCase("google");
-          } else if (data.email) {
+          } else if (userData.email) {
             setLoginCase("manual");
           } else {
             setLoginCase("new");
           }
-
-          try {
-            // Update the URL to match the backend route
-            const emailRes = await fetch(
-              `${process.env.REACT_APP_API_BASE_URL}/api/vendor/check-email?email=${data.email}`
-            );
-
-            if (!isMounted) return;
-
-            const emailData = await emailRes.json();
-            if (emailData.exists) {
-              setEmailExists(true);
-              setErrors((prev) => ({
-                ...prev,
-                email: "Email already registered as vendor",
-              }));
-            }
-          } catch (err) {
-            console.error("Error checking email:", err);
-          }
-        } catch (err) {
-          console.error("Error fetching vendor:", err);
-          if (isMounted) {
-            setLoginCase("new");
-          }
-        } finally {
-          if (isMounted) {
-            setIsLoading(false);
-          }
         }
-      } else {
+      } catch (err) {
+        console.error("Error fetching data:", err);
         if (isMounted) {
           setLoginCase("new");
+        }
+      } finally {
+        if (isMounted) {
           setIsLoading(false);
         }
       }
-    };
+    } else {
+      if (isMounted) {
+        setLoginCase("new");
+        setIsLoading(false);
+      }
+    }
+  };
 
-    fetchVendor();
+  fetchVendor();
 
-    // Cleanup function to prevent state updates after unmount
-    return () => {
-      isMounted = false;
-    };
-  }, [vendorId]);
+  return () => {
+    isMounted = false;
+  };
+}, [vendorId]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;

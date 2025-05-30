@@ -8,7 +8,7 @@ const eventrouter = require('./routers/eventRouter');
 const ticketrouter = require('./routers/ticketRouter');
 const adminrouter = require('./routers/adminRouter');
 require('dotenv').config(); // For environment variables
-
+const {db} =  require("./config/firebase_config");
 // Enable CORS and JSON parsing
 app.use(cors());
 app.use(express.urlencoded({ extended: true }));
@@ -218,37 +218,56 @@ app.post('/api/admin/send-email', async (req, res) => {
   }
 });
 
-// Vendor removal endpoint
 app.delete('/api/admin/removevendor', async (req, res) => {
-  const { email, vendorName } = req.body;
-
-  if (!email) {
-    return res.status(400).json({
-      success: false,
-      error: 'Missing required field: vendor email'
-    });
-  }
-
   try {
-    // Here you would typically call your database logic to remove the vendor
-    // For example: await VendorModel.deleteOne({ email });
+    const { email } = req.body; 
 
-    // Since we don't have access to your actual database logic, we'll just log the action
-    console.log(`Removing vendor with email: ${email}`);
+    if (!email) {
+      return res.status(400).json({ message: "email is required" });
+    }
 
-    // You can add the actual database operations here based on your schema and structure
+    const requestSnap = await db
+      .collection("registration_request")
+      .where("email", "==", email)
+      .limit(1)
+      .get();
 
-    res.status(200).json({
-      success: true,
-      message: 'Vendor removed successfully'
-    });
-  } catch (error) {
-    console.error('Error removing vendor:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to remove vendor',
-      details: error.message
-    });
+    if (requestSnap.empty) {
+      return res
+        .status(404)
+        .json({ message: "No matching registration request found" });
+    }
+
+    const doc = requestSnap.docs[0];
+    const requestData = doc.data();
+
+    const currentStatus = requestData.status?.toLowerCase();
+    
+    if (currentStatus !== "accepted") {
+      return res
+        .status(400)
+        .json({ 
+          message: `Cannot remove vendor. Current status is '${requestData.status || 'undefined'}'. Status must be 'accepted' to remove.`,
+          currentStatus: requestData.status
+        });
+    }
+
+    await doc.ref.update({ status: "removed" });
+
+    const vendorSnap = await db
+      .collection("vendors")
+      .where("email", "==", email)
+      .limit(1)
+      .get();
+
+    if (!vendorSnap.empty) {
+      await vendorSnap.docs[0].ref.update({ status: false });
+    }
+
+    res.status(200).json({ message: "Successfully removed vendor" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
   }
 });
 

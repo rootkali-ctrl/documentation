@@ -10,7 +10,7 @@ import axios from "axios";
 axios.defaults.baseURL = `${process.env.REACT_APP_API_BASE_URL}`;
 
 const VendorLogin = () => {
-  const vendorId = useParams();
+  const {vendorId} = useParams();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
@@ -25,7 +25,6 @@ const VendorLogin = () => {
   const [showResetSuccessModal, setShowResetSuccessModal] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-
   const isFormValid = username.trim() !== "" && password.trim() !== "";
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const isResetEmailValid = resetEmail.trim() !== "" && emailRegex.test(resetEmail);
@@ -48,8 +47,8 @@ const handleLogin = async () => {
   }
 
   try {
-    const response = await axios.post(`${process.env.REACT_APP_API_BASE_URL}/api/vendor/lastlogin`, {
-      username,
+    const response = await axios.post(`${process.env.REACT_APP_API_BASE_URL}/api/vendor/login`, {
+      username, password
     });
 
     if (response.data.Message === "Login successful") {
@@ -289,7 +288,7 @@ const handleLogin = async () => {
                 fontWeight: "600",
                 "&:hover": { textDecoration: "underline" },
               }}
-              onClick={() => navigate("/vendor/register")}
+              onClick={() => navigate(`/vendor/register/${vendorId}`)}
             >
               Sign Up
             </Typography>

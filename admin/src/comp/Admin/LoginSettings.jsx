@@ -201,11 +201,18 @@ const Loginsettings = () => {
 
   const handleViewMore = (requestId, data) => {
     console.log("Viewing details for:", requestId, data);
-    if (data.status === "pending" || data.status === "rejected") {
+    if (data.status === "pending") {
       navigate(`/admin/vendorstatus/${requestId}`, {
         state: { requestId, data },
       });
-    } else {
+      
+    } 
+     else if (data.status === "rejected") {
+      navigate(`/admin/vendorstatus/${requestId}`, {
+        state: { requestId, data },
+      });
+      
+    } else if(data.status === "accepted") {
       navigate(`/admin/vendordetails/${requestId}`, {
         state: { requestId, data },
       });

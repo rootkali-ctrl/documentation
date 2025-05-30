@@ -82,8 +82,8 @@ const FinalSetup = () => {
   };
 
   const [ticketCount, setTicketCount] = useState(10);
-  const maxLimit = totalAttendees; 
-  const minLimit = 10;
+  const maxLimit = 10; 
+  const minLimit = 1;
 
   const handleIncrement = () => {
     if (ticketCount < maxLimit) {
@@ -98,28 +98,20 @@ const FinalSetup = () => {
   };
 
   const handleInputChange = (e) => {
-    const value = e.target.value;
+  const value = parseInt(e.target.value);
+  if (!isNaN(value)) {
+    setTicketCount(value);
+  }
+};
 
-    // Allow only digits
-    if (/^\d*$/.test(value)) {
-      const numericValue = Number(value);
-      if (numericValue >= minLimit && numericValue <= maxLimit) {
-        setTicketCount(numericValue);
-      } else if (value === "") {
-        setTicketCount("");
-      }
-    }
-  };
+const handleBlur = () => {
+  if (ticketCount < minLimit) {
+    setTicketCount(minLimit);
+  } else if (ticketCount > maxLimit) {
+    setTicketCount(maxLimit);
+  }
+};
 
-  const handleBlur = () => {
-    if (ticketCount === "" || isNaN(ticketCount)) {
-      setTicketCount(minLimit);
-    } else if (ticketCount < minLimit) {
-      setTicketCount(minLimit);
-    } else if (ticketCount > maxLimit) {
-      setTicketCount(maxLimit);
-    }
-  };
 
   const handleRemoveFAQ = (indexToRemove) => {
     const removeItem = [...FAQ];

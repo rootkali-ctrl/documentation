@@ -93,16 +93,11 @@ const VendorDetails = () => {
 
         case "rejected":
           console.log("Sending rejection request to:", `${baseUrl}/api/admin/rejectvendor`);
-          response = await axios.delete(`${baseUrl}/api/admin/rejectvendor`, { data: payload });
+          response = await axios.delete(`${baseUrl}/api/admin/rejectvendor`, {
+            data: payload 
+          });
           console.log("Rejection response:", response.data);
           await sendVendorEmail(request.email, request.username, "rejected");
-          break;
-
-        case "removed":
-          console.log("Sending removal request to:", `${baseUrl}/api/admin/removevendor`);
-          response = await axios.put(`${baseUrl}/api/admin/removevendor`, { data: payload });
-          console.log("Removal response:", response.data);
-          await sendVendorEmail(request.email, request.username, "removed");
           break;
 
         default:
@@ -177,6 +172,7 @@ const VendorDetails = () => {
             <Typography variant="h4" fontWeight="bold">
               Vendor Details
             </Typography>
+            {request.status==="pending" ?
             <Box display="flex" gap={2}>
               <Button
                 variant="contained"
@@ -198,15 +194,9 @@ const VendorDetails = () => {
               >
                 Reject Vendor
               </Button>
-              <Button
-                variant="contained"
-                color="error"
-                startIcon={<Delete />}
-                onClick={() => askForConfirmation("removed", request)}
-              >
-                Remove Vendor
-              </Button>
-            </Box>
+            </Box>: <></>
+            }
+            
           </Box>
           <Dialog
             open={confirmDialogOpen}

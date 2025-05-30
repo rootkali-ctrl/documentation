@@ -75,9 +75,9 @@ const VendorDetails = () => {
       console.log("Payload being sent:", payload);
 
       if (action === "removed") {
-        await axios.put(
+        await axios.delete(
           `${process.env.REACT_APP_API_BASE_URL}/api/admin/removevendor`,
-          { email: payload.email }
+          {data: payload}
         );
       } else {
         setDialogContent("Unsupported action");

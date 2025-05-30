@@ -184,7 +184,7 @@ const DashboardUpcoming = () => {
   // Handler for view event details
   const handleViewEventDetails = (eventId) => {
     console.log("View event details:", eventId);
-    window.location.href = `/admin/event-details/${eventId}`;
+    window.location.href = `/admin/event/${eventId}`;
   };
 
   return (
@@ -386,13 +386,6 @@ const DashboardUpcoming = () => {
                               </>
                             )}
                             <TableCell>
-                              <IconButton
-                                size="small"
-                                title="Edit"
-                                onClick={() => handleEditEvent(event.id)}
-                              >
-                                <EditIcon fontSize="small" />
-                              </IconButton>
                               <IconButton
                                 size="small"
                                 title="Delete"

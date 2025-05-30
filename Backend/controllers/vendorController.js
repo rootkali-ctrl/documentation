@@ -118,6 +118,13 @@ const addvendor = async (req, res) => {
 const loginvendor = async (req, res) => {
   try {
     const { username, password } = req.body;
+    
+    // Validate input
+    if (!username || !password) {
+      return res.status(400).json({ Message: "Username and password are required" });
+    }
+    
+    // Get vendor data from vendors collection
     const userRef = db.collection("vendors").where("username", "==", username);
     const document = await userRef.get();
 
@@ -137,13 +144,32 @@ const loginvendor = async (req, res) => {
       return res.status(401).json({ Message: "User does not exist" });
     }
 
+    // Validate password inputs before bcrypt comparison
+    if (!password || !userData.password) {
+      return res.status(401).json({ Message: "Invalid credentials" });
+    }
+
+    // Verify password
     const pwdCheck = await bcrypt.compare(password, userData.password);
 
     if (!pwdCheck) {
       return res.status(401).json({ Message: "Wrong password" });
     }
 
-    if (!userData.status) {
+    // Get status from registration_request collection
+    const vendorStatus = db.collection("registration_request").where("username", "==", username);
+    const vendorDocument = await vendorStatus.get();
+    
+    let registrationData = null;
+    
+    if (!vendorDocument.empty) {
+      vendorDocument.forEach((doc) => {
+        registrationData = doc.data();
+      });
+    }
+
+    // Check status from registration_request collection
+    if (registrationData.status=="pending") {
       return res
         .status(200)
         .json({
@@ -153,7 +179,17 @@ const loginvendor = async (req, res) => {
         });
     }
 
-    if (userData.status === "removed") {
+    if (registrationData.status=="rejected") {
+      return res
+        .status(200)
+        .json({
+          Message: "Your request is rejected by the vendor. Contact vendor for further details",
+          vendorId: docId,
+          status: "rejected",
+        });
+    }
+
+    if (registrationData.status === "removed") {
       return res
         .status(200)
         .json({

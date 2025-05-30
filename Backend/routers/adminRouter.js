@@ -19,8 +19,8 @@ const {
 }=require("../controllers/adminController");
 
 Router.put('/requests',acceptRegistrationRequest);
-Router.delete('/requests',rejectRegistrationRequest);
-Router.put("/removevendor", removeVendor);
+Router.delete('/rejectvendor',rejectRegistrationRequest);
+Router.delete("/removevendor", removeVendor);
 Router.get('/allrequests',getAllRegistrationRequests);
 Router.get('/request/:requestid',getRequestDetails);
 Router.get('/getVendorStatus', getVendorStatus);
@@ -30,7 +30,7 @@ Router.get("/banners/recent", getRecentBanners);
 Router.post("/banners/delete", deleteBanner)
 Router.post("/add-banner-inline",upload.array("bannerImages",1),addBannerInline)
 Router.get("/banners/recent-inline", getRecentBannersInline);
-Router.post("banners-delete-inline", deleteBannerInline);
+Router.post("/banners-delete-inline", deleteBannerInline);
 Router.post("/save-banner-urls-inline", saveBannerUrlsInline);
 
 module.exports=Router;

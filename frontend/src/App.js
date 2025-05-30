@@ -87,7 +87,7 @@ function App() {
               element={
                 <VendorProvider>
                   <Routes>
-                    <Route path="register" element={<VendorRegister />} />
+                    <Route path="register/:vendorId" element={<VendorRegister />} />
                     <Route path="organization" element={<VendorOrganization />} />
                     <Route path="document" element={<VendorDocument />} />
                     <Route path="confirmation" element={<VendorConfirmation />} />
