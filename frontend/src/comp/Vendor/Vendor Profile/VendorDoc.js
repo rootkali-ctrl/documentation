@@ -4,7 +4,10 @@ import EditDocumentIcon from "@mui/icons-material/EditDocument";
 import CorporateFareIcon from "@mui/icons-material/CorporateFare";
 import QrCodeScannerOutlinedIcon from "@mui/icons-material/QrCodeScannerOutlined";
 import VisibilityIcon from "@mui/icons-material/Visibility";
-
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import Drawer from "@mui/material/Drawer";
+import AppBar from "@mui/material/AppBar";
+import Toolbar from "@mui/material/Toolbar";
 import {
   Button,
   Typography,
@@ -22,7 +25,7 @@ const VendorDoc = () => {
   const { vendorId } = useParams();
   const [loading, setLoading] = useState(false);
   const [vendorData, setVendorData] = useState(null);
-
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const sidebarItems = [
     {
       name: "Profile",
@@ -146,7 +149,81 @@ const VendorDoc = () => {
             ))}
           </Box>
         ) : (
-          <></>
+          <>
+         <AppBar
+  position="fixed"
+  elevation={0}
+  sx={{
+    width: "fit-content",
+    bgcolor: "transparent",
+    boxShadow: "none",
+    zIndex: 20,
+    top: 60,
+    left: 16,
+  }}
+>
+  <Toolbar sx={{ minHeight: "auto", padding: 0 }}>
+    <IconButton
+      onClick={() => setDrawerOpen(true)}
+      sx={{
+        backgroundColor: "#fff",
+        width: 90,
+        height: 30,
+        borderRadius: 5,
+        boxShadow: 2,
+        zIndex: 0,
+        "&:hover": {
+          backgroundColor: "#f0f0f0",
+        },
+      }}
+    >
+      <Typography variant="body1" sx={{ fontFamily: "albert sans", fontWeight: "bold", color: "rgb(25, 174, 220)" }}>
+        Menu
+      </Typography>
+      <ArrowForwardIcon sx={{ color: "rgb(25, 174, 220)" ,fontSize:18,ml:1}} />
+    </IconButton>
+  </Toolbar>
+</AppBar>
+
+
+    <Drawer anchor="left" open={drawerOpen} onClose={() => setDrawerOpen(false)}>
+      <Box
+        sx={{ width: 250, p: 2 ,mt: 8}}
+        role="presentation"
+        onClick={() => setDrawerOpen(false)}
+        onKeyDown={() => setDrawerOpen(false)}
+      >
+        <Typography variant="h6" sx={{ fontFamily: "albert sans", fontWeight: "bold", mb: 2,color: "rgb(25, 174, 220)" }}>
+          Vendor Menu
+        </Typography>
+        {sidebarItems.map((item) => (
+          <Button
+            key={item.name}
+            onClick={() => (window.location.href = item.path)}
+            variant={item.active ? "contained" : "outlined"}
+            fullWidth
+            sx={{
+              justifyContent: "flex-start",
+              my: 1,
+              paddingY: 1.5,
+              borderRadius: "10px",
+              borderColor: item.active ? "#19aedc" : "#ddd",
+              bgcolor: item.active ? "#e3f2fd" : "white",
+              color: item.active ? "#19aedc" : "black",
+              textTransform: "none",
+              fontWeight: item.active ? "bold" : "normal",
+              gap: 2,
+              fontSize: "16px",
+              fontFamily: "albert sans",
+            }}
+            startIcon={item.icon}
+          >
+            {item.name}
+          </Button>
+        ))}
+      </Box>
+    </Drawer>
+          </>
         )}
 
         <Box
@@ -166,7 +243,8 @@ const VendorDoc = () => {
             sx={{
               fontFamily: "albert sans",
               fontWeight: "600",
-              fontSize: "26px",
+              fontSize:isMobileScreen?"20px":"26px",
+              mt:isMobileScreen?4:null
             }}
           >
            Document Details
@@ -174,7 +252,7 @@ const VendorDoc = () => {
 
           <Box
             sx={{
-              width: "80%",
+              width: isMobileScreen?"90%":"80%",
               bgcolor: "white",
               mt: "4%",
               padding: "2% 5%",
@@ -190,7 +268,7 @@ const VendorDoc = () => {
             </Typography>
             <Box
               sx={{
-                display: "flex",
+                display: isMobileScreen?"block":"flex",
                 alignItems: "center",
                 width: "90%",
                 gap: 1,
@@ -202,7 +280,7 @@ const VendorDoc = () => {
                 disabled={true}
                 size="small"
                 sx={{
-                  width: "500px", // Fixed width for consistent alignment
+                  width: isMobileScreen?"90%":"500px", // Fixed width for consistent alignment
                   "& .MuiInputBase-input": {
                     fontFamily: "Albert Sans",
                   },
@@ -227,6 +305,8 @@ const VendorDoc = () => {
                   fontFamily: "albert sans",
                   borderColor: "#19aedc",
                   color: "#19aedc",
+                  mt:isMobileScreen?1:null,
+                  width:isMobileScreen?"40%":null,
                   "&:hover": {
                     borderColor: "#19aedc",
                     bgcolor: "#e3f2fd",
@@ -249,7 +329,7 @@ const VendorDoc = () => {
             </Typography>
             <Box
               sx={{
-                display: "flex",
+                display: isMobileScreen?"block":"flex",
                 alignItems: "center",
                 width: "90%",
                 gap: 1,
@@ -261,7 +341,7 @@ const VendorDoc = () => {
                 disabled={true}
                 size="small"
                 sx={{
-                  width: "500px", // Fixed width for consistent alignment
+                  width:isMobileScreen?"90%": "500px", // Fixed width for consistent alignment
                   "& .MuiInputBase-input": {
                     fontFamily: "Albert Sans",
                   },
@@ -286,6 +366,8 @@ const VendorDoc = () => {
                   fontFamily: "albert sans",
                   borderColor: "#19aedc",
                   color: "#19aedc",
+                  mt:isMobileScreen?1:null,
+                  width:isMobileScreen?"40%":null,
                   "&:hover": {
                     borderColor: "#19aedc",
                     bgcolor: "#e3f2fd",
@@ -308,7 +390,7 @@ const VendorDoc = () => {
             </Typography>
             <Box
               sx={{
-                display: "flex",
+                display:isMobileScreen?"block": "flex",
                 alignItems: "center",
                 width: "90%",
                 gap: 1,
@@ -320,7 +402,7 @@ const VendorDoc = () => {
                 disabled={true}
                 size="small"
                 sx={{
-                  width: "500px", // Fixed width for consistent alignment
+                  width: isMobileScreen?"90%":"500px", // Fixed width for consistent alignment
                   "& .MuiInputBase-input": {
                     fontFamily: "Albert Sans",
                   },
@@ -344,7 +426,7 @@ const VendorDoc = () => {
             </Typography>
             <Box
               sx={{
-                display: "flex",
+                display: isMobileScreen?"block": "flex",
                 alignItems: "center",
                 width: "90%",
                 gap: 1,
@@ -356,7 +438,7 @@ const VendorDoc = () => {
                 disabled={true}
                 size="small"
                 sx={{
-                  width: "500px", // Fixed width for consistent alignment
+                  width:isMobileScreen?"90%": "500px", // Fixed width for consistent alignment
                   "& .MuiInputBase-input": {
                     fontFamily: "Albert Sans",
                   },
@@ -381,6 +463,8 @@ const VendorDoc = () => {
                   fontFamily: "albert sans",
                   borderColor: "#19aedc",
                   color: "#19aedc",
+                  mt:isMobileScreen?1:null,
+                  width:isMobileScreen?"40%":null,
                   "&:hover": {
                     borderColor: "#19aedc",
                     bgcolor: "#e3f2fd",
@@ -415,7 +499,7 @@ const VendorDoc = () => {
                 disabled={true}
                 size="small"
                 sx={{
-                  width: "500px", // Fixed width for consistent alignment
+                  width: isMobileScreen?"90%": "500px", // Fixed width for consistent alignment
                   "& .MuiInputBase-input": {
                     fontFamily: "Albert Sans",
                   },

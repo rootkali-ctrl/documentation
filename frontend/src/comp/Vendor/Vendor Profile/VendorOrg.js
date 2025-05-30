@@ -3,6 +3,10 @@ import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import EditDocumentIcon from "@mui/icons-material/EditDocument";
 import CorporateFareIcon from "@mui/icons-material/CorporateFare";
 import QrCodeScannerOutlinedIcon from "@mui/icons-material/QrCodeScannerOutlined";
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import Drawer from "@mui/material/Drawer";
+import AppBar from "@mui/material/AppBar";
+import Toolbar from "@mui/material/Toolbar";
 
 import {
   Button,
@@ -11,6 +15,7 @@ import {
   Box,
   TextField,
   CircularProgress,
+  IconButton
 } from "@mui/material";
 import { useParams } from "react-router-dom";
 import axios from "axios";
@@ -20,7 +25,7 @@ const VendorOrg = () => {
   const { vendorId } = useParams();
   const [loading, setLoading] = useState(false);
   const [vendorData, setVendorData] = useState(null);
-
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const sidebarItems = [
     {
       name: "Profile",
@@ -137,7 +142,81 @@ const VendorOrg = () => {
             ))}
           </Box>
         ) : (
-          <></>
+          <>
+         <AppBar
+  position="fixed"
+  elevation={0}
+  sx={{
+    width: "fit-content",
+    bgcolor: "transparent",
+    boxShadow: "none",
+    zIndex: 20,
+    top: 60,
+    left: 16,
+  }}
+>
+  <Toolbar sx={{ minHeight: "auto", padding: 0 }}>
+    <IconButton
+      onClick={() => setDrawerOpen(true)}
+      sx={{
+        backgroundColor: "#fff",
+        width: 90,
+        height: 30,
+        borderRadius: 5,
+        boxShadow: 2,
+        zIndex: 0,
+        "&:hover": {
+          backgroundColor: "#f0f0f0",
+        },
+      }}
+    >
+      <Typography variant="body1" sx={{ fontFamily: "albert sans", fontWeight: "bold", color: "rgb(25, 174, 220)" }}>
+        Menu
+      </Typography>
+      <ArrowForwardIcon sx={{ color: "rgb(25, 174, 220)" ,fontSize:18,ml:1}} />
+    </IconButton>
+  </Toolbar>
+</AppBar>
+
+
+    <Drawer anchor="left" open={drawerOpen} onClose={() => setDrawerOpen(false)}>
+      <Box
+        sx={{ width: 250, p: 2 ,mt: 8}}
+        role="presentation"
+        onClick={() => setDrawerOpen(false)}
+        onKeyDown={() => setDrawerOpen(false)}
+      >
+        <Typography variant="h6" sx={{ fontFamily: "albert sans", fontWeight: "bold", mb: 2,color: "rgb(25, 174, 220)" }}>
+          Vendor Menu
+        </Typography>
+        {sidebarItems.map((item) => (
+          <Button
+            key={item.name}
+            onClick={() => (window.location.href = item.path)}
+            variant={item.active ? "contained" : "outlined"}
+            fullWidth
+            sx={{
+              justifyContent: "flex-start",
+              my: 1,
+              paddingY: 1.5,
+              borderRadius: "10px",
+              borderColor: item.active ? "#19aedc" : "#ddd",
+              bgcolor: item.active ? "#e3f2fd" : "white",
+              color: item.active ? "#19aedc" : "black",
+              textTransform: "none",
+              fontWeight: item.active ? "bold" : "normal",
+              gap: 2,
+              fontSize: "16px",
+              fontFamily: "albert sans",
+            }}
+            startIcon={item.icon}
+          >
+            {item.name}
+          </Button>
+        ))}
+      </Box>
+    </Drawer>
+          </>
         )}
         <Box
           sx={{
@@ -156,7 +235,8 @@ const VendorOrg = () => {
             sx={{
               fontFamily: "albert sans",
               fontWeight: "600",
-              fontSize: "26px",
+              fontSize: isMobileScreen?"20px":"26px",
+              mt:isMobileScreen ? 4: 0
             }}
           >
             Organization Details
@@ -164,7 +244,7 @@ const VendorOrg = () => {
 
           <Box
             sx={{
-              width: "80%",
+              width: isMobileScreen?"90%":"80%",
               bgcolor: "white",
               mt: "4%",
               padding: "2% 5%",
@@ -174,7 +254,7 @@ const VendorOrg = () => {
           >
             {/*Organization name field */}
             <Typography
-              sx={{ fontFamily: "albert sans", fontWeight: "500", mb: 1 }}
+              sx={{ fontFamily: "albert sans", fontWeight: "500", mb: 1} }
             >
               Organization name
             </Typography>

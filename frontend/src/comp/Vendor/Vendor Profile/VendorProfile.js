@@ -7,6 +7,11 @@ import QrCodeScannerOutlinedIcon from "@mui/icons-material/QrCodeScannerOutlined
 import EditIcon from "@mui/icons-material/Edit";
 import CheckIcon from "@mui/icons-material/Check";
 import CloseIcon from "@mui/icons-material/Close";
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import Drawer from "@mui/material/Drawer";
+import AppBar from "@mui/material/AppBar";
+import Toolbar from "@mui/material/Toolbar";
+
 
 import {
   Button,
@@ -30,6 +35,7 @@ const VendorProfile = () => {
   const [saveLoading, setSaveLoading] = useState(false);
   const [message, setMessage] = useState({ type: "", text: "" });
 const [isVendorIdReady, setIsVendorIdReady] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   // Edit states
   const [editStates, setEditStates] = useState({
@@ -318,7 +324,81 @@ const [isVendorIdReady, setIsVendorIdReady] = useState(false);
             ))}
           </Box>
         ) : (
-          <></>
+          <>
+         <AppBar
+  position="fixed"
+  elevation={0}
+  sx={{
+    width: "fit-content",
+    bgcolor: "transparent",
+    boxShadow: "none",
+    zIndex: 20,
+    top: 60,
+    left: 16,
+  }}
+>
+  <Toolbar sx={{ minHeight: "auto", padding: 0 }}>
+    <IconButton
+      onClick={() => setDrawerOpen(true)}
+      sx={{
+        backgroundColor: "#fff",
+        width: 90,
+        height: 30,
+        borderRadius: 5,
+        boxShadow: 2,
+        zIndex: 0,
+        "&:hover": {
+          backgroundColor: "#f0f0f0",
+        },
+      }}
+    >
+      <Typography variant="body1" sx={{ fontFamily: "albert sans", fontWeight: "bold", color: "rgb(25, 174, 220)" }}>
+        Menu
+      </Typography>
+      <ArrowForwardIcon sx={{ color: "rgb(25, 174, 220)" ,fontSize:18,ml:1}} />
+    </IconButton>
+  </Toolbar>
+</AppBar>
+
+
+    <Drawer anchor="left" open={drawerOpen} onClose={() => setDrawerOpen(false)}>
+      <Box
+        sx={{ width: 250, p: 2 ,mt: 8}}
+        role="presentation"
+        onClick={() => setDrawerOpen(false)}
+        onKeyDown={() => setDrawerOpen(false)}
+      >
+        <Typography variant="h6" sx={{ fontFamily: "albert sans", fontWeight: "bold", mb: 2,color: "rgb(25, 174, 220)" }}>
+          Vendor Menu
+        </Typography>
+        {sidebarItems.map((item) => (
+          <Button
+            key={item.name}
+            onClick={() => (window.location.href = item.path)}
+            variant={item.active ? "contained" : "outlined"}
+            fullWidth
+            sx={{
+              justifyContent: "flex-start",
+              my: 1,
+              paddingY: 1.5,
+              borderRadius: "10px",
+              borderColor: item.active ? "#19aedc" : "#ddd",
+              bgcolor: item.active ? "#e3f2fd" : "white",
+              color: item.active ? "#19aedc" : "black",
+              textTransform: "none",
+              fontWeight: item.active ? "bold" : "normal",
+              gap: 2,
+              fontSize: "16px",
+              fontFamily: "albert sans",
+            }}
+            startIcon={item.icon}
+          >
+            {item.name}
+          </Button>
+        ))}
+      </Box>
+    </Drawer>
+          </>
         )}
 
         <Box
@@ -338,12 +418,13 @@ const [isVendorIdReady, setIsVendorIdReady] = useState(false);
             sx={{
               fontFamily: "albert sans",
               fontWeight: "600",
-              fontSize: "26px",
+              fontSize: isMobileScreen?"20px":"26px",
+              mt:isMobileScreen ? 5 : "0%",
             }}
           >
             Profile Management
           </Typography>
-          <Typography sx={{ fontFamily: "albert sans", fontSize: "18px" }}>
+          <Typography sx={{ fontFamily: "albert sans", fontSize:isMobileScreen?"14px" :"18px" }}>
             Manage your profile details
           </Typography>
 
@@ -355,7 +436,7 @@ const [isVendorIdReady, setIsVendorIdReady] = useState(false);
 
           <Box
             sx={{
-              width: "80%",
+              width:isMobileScreen?"90%":"80%",
               bgcolor: "white",
               mt: "4%",
               padding: "2% 5%",
@@ -384,6 +465,7 @@ const [isVendorIdReady, setIsVendorIdReady] = useState(false);
                 size="small"
                 sx={{
                   flex: 1,
+                  width: isMobileScreen?300:null,
                   "& .MuiInputBase-input": {
                     fontFamily: "Albert Sans",
                     cursor: editStates.username ? "text" : "default",

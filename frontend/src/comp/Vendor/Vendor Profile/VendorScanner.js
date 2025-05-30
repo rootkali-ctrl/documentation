@@ -18,6 +18,7 @@ import {
   CircularProgress,
   Backdrop,
   Divider,
+  
 } from "@mui/material";
 import React, { useState, useEffect, useRef } from "react";
 import { Camera, AlertCircle, Smartphone, CheckCircle, X } from "lucide-react";
@@ -34,6 +35,10 @@ import CorporateFareIcon from "@mui/icons-material/CorporateFare";
 import QrCodeScannerOutlinedIcon from "@mui/icons-material/QrCodeScannerOutlined";
 import CameraAltOutlinedIcon from "@mui/icons-material/CameraAltOutlined";
 import VendorProfileHeader from "./VendorProfileHeader";
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import Drawer from "@mui/material/Drawer";
+
+
 
 const VendorScanner = () => {
   const { vendorId } = useParams();
@@ -47,7 +52,7 @@ const VendorScanner = () => {
   const [cameraStarted, setCameraStarted] = useState(false);
   const scannerRef = useRef(null);
   const navigate = useNavigate();
-
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const sidebarItems = [
     {
       name: "Profile",
@@ -289,7 +294,81 @@ const VendorScanner = () => {
             ))}
           </Box>
         ) : (
-          <></>
+           <>
+         <AppBar
+  position="fixed"
+  elevation={0}
+  sx={{
+    width: "fit-content",
+    bgcolor: "transparent",
+    boxShadow: "none",
+    zIndex: 20,
+    top: 60,
+    left: 16,
+  }}
+>
+  <Toolbar sx={{ minHeight: "auto", padding: 0 }}>
+    <IconButton
+      onClick={() => setDrawerOpen(true)}
+      sx={{
+        backgroundColor: "#fff",
+        width: 90,
+        height: 30,
+        borderRadius: 5,
+        boxShadow: 2,
+        zIndex: 0,
+        "&:hover": {
+          backgroundColor: "#f0f0f0",
+        },
+      }}
+    >
+      <Typography variant="body1" sx={{ fontFamily: "albert sans", fontWeight: "bold", color: "rgb(25, 174, 220)" }}>
+        Menu
+      </Typography>
+      <ArrowForwardIcon sx={{ color: "rgb(25, 174, 220)" ,fontSize:18,ml:1}} />
+    </IconButton>
+  </Toolbar>
+</AppBar>
+
+
+    <Drawer anchor="left" open={drawerOpen} onClose={() => setDrawerOpen(false)}>
+      <Box
+        sx={{ width: 250, p: 2 ,mt: 8}}
+        role="presentation"
+        onClick={() => setDrawerOpen(false)}
+        onKeyDown={() => setDrawerOpen(false)}
+      >
+        <Typography variant="h6" sx={{ fontFamily: "albert sans", fontWeight: "bold", mb: 2,color: "rgb(25, 174, 220)" }}>
+          Vendor Menu
+        </Typography>
+        {sidebarItems.map((item) => (
+          <Button
+            key={item.name}
+            onClick={() => (window.location.href = item.path)}
+            variant={item.active ? "contained" : "outlined"}
+            fullWidth
+            sx={{
+              justifyContent: "flex-start",
+              my: 1,
+              paddingY: 1.5,
+              borderRadius: "10px",
+              borderColor: item.active ? "#19aedc" : "#ddd",
+              bgcolor: item.active ? "#e3f2fd" : "white",
+              color: item.active ? "#19aedc" : "black",
+              textTransform: "none",
+              fontWeight: item.active ? "bold" : "normal",
+              gap: 2,
+              fontSize: "16px",
+              fontFamily: "albert sans",
+            }}
+            startIcon={item.icon}
+          >
+            {item.name}
+          </Button>
+        ))}
+      </Box>
+    </Drawer>
+          </>
         )}
         <Box flex={1}>
           <Box sx={{ minHeight: "100vh", bgcolor: "#f9fafb" }}>
