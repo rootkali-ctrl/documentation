@@ -1,11 +1,10 @@
-const Router=require('express').Router()
+const Router = require('express').Router();
 const {
-    getAllTickets,
-    ticketForEventBooking
-}=require('../controllers/ticketController')
+  getAllTickets,
+  ticketForEventBooking
+} = require('../controllers/ticketController');
 
-Router.get('/:userId',getAllTickets);
-Router.post('/bookEvent',ticketForEventBooking);
+Router.get('/:userId', getAllTickets);
+Router.post('/bookEvent', ticketForEventBooking);
 
-
-module.exports=Router;
+module.exports = Router;

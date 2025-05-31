@@ -20,52 +20,33 @@ import DownloadIcon from "@mui/icons-material/Download";
 import { useNavigate, useLocation } from "react-router-dom";
 import Header from "../Header/MainHeaderWOS";
 import Footer from "../Footer/Footer.js";
-import {
-  doc,
-  setDoc,
-  getDoc,
-  collection,
-  getDocs,
-  query,
-  where,
-  limit,
-} from "firebase/firestore";
-import { onAuthStateChanged } from "firebase/auth";
-import { ref, getDownloadURL } from "firebase/storage";
+import { doc, getDoc, updateDoc, increment } from "firebase/firestore";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 import ErrorIcon from "@mui/icons-material/Error";
 import { QRCodeCanvas as QRCode } from "qrcode.react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
-
-// Import Firebase from your existing configuration file
-import { auth, db, storage } from "../../firebase_config";
+import { auth, db } from "../../firebase_config";
 
 // Format date and time from ISO string to IST
 const formatEventDateTime = (isoDateString) => {
   if (!isoDateString) return { formattedDate: "N/A", eventTime: "N/A" };
 
   try {
-    // Create Date object from ISO string
     const eventDateTime = new Date(isoDateString);
-
-    // Format date in IST (UTC+5:30)
     const formattedDate = eventDateTime.toLocaleDateString("en-US", {
       month: "long",
       day: "numeric",
       year: "numeric",
-      timeZone: "Asia/Kolkata", // IST timezone
+      timeZone: "Asia/Kolkata",
     });
-
-    // Format time in IST (UTC+5:30)
     const eventTime = eventDateTime.toLocaleTimeString("en-US", {
       hour: "2-digit",
       minute: "2-digit",
       hour12: true,
-      timeZone: "Asia/Kolkata", // IST timezone
+      timeZone: "Asia/Kolkata",
     });
-
     return { formattedDate, eventTime };
   } catch (error) {
     console.error("Error formatting date/time:", error);
@@ -79,16 +60,18 @@ const TicketBookedPage = () => {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [bookingStatus, setBookingStatus] = useState({
-    status: "pending", // pending, success, error
+    status: "pending",
     message: "",
   });
   const [eventImage, setEventImage] = useState(null);
-  const [ticketIsSaved, setTicketIsSaved] = useState(false);
+  const [userProfileData, setUserProfileData] = useState(null);
+  const [eventData, setEventData] = useState(null);
+  const [ticketAvailability, setTicketAvailability] = useState(null);
+  const [availabilityUpdated, setAvailabilityUpdated] = useState(false);
+  const isMobile = useMediaQuery("(max-width:600px)");
   const qrRef = useRef(null);
   const ticketRef = useRef(null);
-  const [userProfileData, setUserProfileData] = useState(null);
-  const isMobile = useMediaQuery("(max-width:600px)");
-  // Extract data from location state (passed from PaymentPortalPage or RazorPayPage)
+
   const {
     event = {},
     ticketSummary = [],
@@ -101,23 +84,19 @@ const TicketBookedPage = () => {
       totalAmount: 0,
       isFreeEvent: true,
     },
+    bookingId: passedBookingId,
   } = location.state || {};
 
-  // Generate a unique booking ID based on timestamp and random characters
-  const [bookingId] = useState(() => {
+  const [bookingId] = useState(passedBookingId || (() => {
     const timestamp = new Date().getTime().toString(36).slice(-4);
-    const randomChars = Math.random()
-      .toString(36)
-      .substring(2, 6)
-      .toUpperCase();
+    const randomChars = Math.random().toString(36).substring(2, 6).toUpperCase();
     return `#${randomChars}${timestamp}`;
-  });
+  })());
 
-  // Get formatted date and time using the new function
   const { formattedDate, eventTime } = event.eventDate
     ? formatEventDateTime(event.eventDate)
     : event.date
-    ? formatEventDateTime(event.date) // Fallback to event.date if available
+    ? formatEventDateTime(event.date)
     : {
         formattedDate: event.date
           ? new Date(event.date).toLocaleDateString("en-US", {
@@ -129,322 +108,215 @@ const TicketBookedPage = () => {
         eventTime: event.time || "N/A",
       };
 
-  // Calculate total number of tickets (all ticket types)
   const totalTickets = ticketSummary.reduce(
     (sum, ticket) => sum + ticket.quantity,
     0
   );
 
-  // Format currency values
-  // const formatCurrency = (value) => {
-  //   return `₹${value.toFixed(2)}`;
-  // };
-
   const formatCurrency = (value) => {
-    // Handle undefined, null, or NaN values
     if (value === undefined || value === null || isNaN(value)) {
       return "₹0.00";
     }
-
-    // Convert to number if it's a string
     const numValue = typeof value === "string" ? parseFloat(value) : value;
-
-    // Check again after conversion
     if (isNaN(numValue)) {
       return "₹0.00";
     }
-
     return `₹${numValue.toFixed(2)}`;
   };
 
-  // Generate current date and time for booking timestamp
   const currentDate = new Date().toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",
+    timeZone: "Asia/Kolkata",
   });
 
   const currentTime = new Date().toLocaleTimeString("en-US", {
     hour: "2-digit",
     minute: "2-digit",
     hour12: true,
+    timeZone: "Asia/Kolkata",
   });
 
-  // MODIFIED: QR code now simply contains the booking ID for easy scanning
   const qrCodeData = bookingId;
 
-  // Fetch user profile data including phone number
+  // Function to update ticket availability in the database
+  const updateTicketAvailability = async (eventId, bookedTickets) => {
+    try {
+      if (!eventId || !bookedTickets || bookedTickets.length === 0) {
+        console.log("No event ID or booked tickets to update");
+        return;
+      }
+
+      console.log("Updating ticket availability for event:", eventId);
+      console.log("Booked tickets:", bookedTickets);
+
+      const eventDocRef = doc(db, "events", eventId);
+
+      // Calculate total tickets booked
+      const totalTicketsBooked = bookedTickets.reduce((sum, ticket) => sum + ticket.quantity, 0);
+
+      // Update individual ticket types in pricing array first
+      await updatePricingArray(eventId, bookedTickets);
+
+      // Then update overall counts
+      const updateData = {
+        // Update total booked count
+        ticketBookedCount: increment(totalTicketsBooked),
+        // Update total available tickets (decrease by booked amount)
+        totalAvailableTickets: increment(-totalTicketsBooked)
+      };
+
+      await updateDoc(eventDocRef, updateData);
+
+      console.log("Ticket availability updated successfully");
+      setAvailabilityUpdated(true);
+    } catch (error) {
+      console.error("Error updating ticket availability:", error);
+      throw error;
+    }
+  };
+
+  // Helper function to update the pricing array
+  const updatePricingArray = async (eventId, bookedTickets) => {
+    try {
+      const eventDocRef = doc(db, "events", eventId);
+      const eventDoc = await getDoc(eventDocRef);
+
+      if (eventDoc.exists()) {
+        const eventData = eventDoc.data();
+        const pricing = [...(eventData.pricing || [])];
+
+        // Update each booked ticket type
+        bookedTickets.forEach(bookedTicket => {
+          const ticketIndex = pricing.findIndex(p => p.ticketType === bookedTicket.type);
+          if (ticketIndex !== -1) {
+            // Update booked count
+            pricing[ticketIndex].booked = (pricing[ticketIndex].booked || 0) + bookedTicket.quantity;
+            // Update available count
+            const totalSeats = pricing[ticketIndex].seats || 0;
+            const totalBooked = pricing[ticketIndex].booked;
+            pricing[ticketIndex].available = Math.max(0, totalSeats - totalBooked);
+
+            console.log(`Updated ${bookedTicket.type}: booked=${pricing[ticketIndex].booked}, available=${pricing[ticketIndex].available}`);
+          }
+        });
+
+        // Write back the updated pricing array
+        await updateDoc(eventDocRef, {
+          pricing: pricing
+        });
+
+        console.log("Pricing array updated successfully");
+      }
+    } catch (error) {
+      console.error("Error updating pricing array:", error);
+      throw error;
+    }
+  };
+
   const fetchUserProfileData = async (userId) => {
     try {
-      console.log("Fetching user profile data for:", userId);
-      if (!userId) return;
-
+      if (!userId) return null;
       const userDocRef = doc(db, "users", userId);
       const userDocSnap = await getDoc(userDocRef);
-
       if (userDocSnap.exists()) {
         const userData = userDocSnap.data();
-        console.log("User data retrieved:", userData);
         setUserProfileData(userData);
         return userData;
-      } else {
-        console.log("No user document found!");
-        return null;
       }
+      return null;
     } catch (error) {
       console.error("Error fetching user profile:", error);
       return null;
     }
   };
 
-  // Improved function to fetch event image from Firebase Storage
-  const fetchEventImage = async () => {
+  const fetchEventData = async () => {
     try {
-      console.log(
-        "Fetching event image for:",
-        event.name,
-        "with ID:",
-        event.id
-      );
-
-      // Clear any previous errors
-      setEventImage(null);
-
-      // DIRECT APPROACH: Try to get bannerImages from the event document first
       if (event.id) {
         const eventDocRef = doc(db, "events", event.id);
         const eventDoc = await getDoc(eventDocRef);
-
         if (eventDoc.exists()) {
-          const eventData = eventDoc.data();
-          console.log("Event data retrieved:", eventData);
-
-          // Check for bannerImages array in the retrieved document (based on your Firebase screenshot)
-          if (
-            Array.isArray(eventData.bannerImages) &&
-            eventData.bannerImages.length > 0
-          ) {
-            console.log("Found bannerImages array:", eventData.bannerImages);
-            const imageUrl = eventData.bannerImages[0]; // Get the first banner image
-            console.log("Setting event image to:", imageUrl);
-            setEventImage(imageUrl);
-            return;
-          }
-
-          // Fallbacks - check other possible image fields
-          const possibleImageFields = [
-            "imageUrl",
-            "bannerImage",
-            "thumbnail",
-            "image",
-          ];
-          for (const field of possibleImageFields) {
-            if (eventData[field]) {
-              console.log(`Found image in field ${field}:`, eventData[field]);
-              setEventImage(eventData[field]);
-              return;
-            }
-          }
-
-          // Check for images array
-          if (Array.isArray(eventData.images) && eventData.images.length > 0) {
-            console.log("Found images array:", eventData.images[0]);
-            setEventImage(eventData.images[0]);
-            return;
-          }
-
-          // Check for eventImages array
-          if (
-            Array.isArray(eventData.eventImages) &&
-            eventData.eventImages.length > 0
-          ) {
-            console.log("Found eventImages array:", eventData.eventImages[0]);
-            setEventImage(eventData.eventImages[0]);
-            return;
-          }
+          const data = eventDoc.data();
+          setEventData(data);
+          return data;
         }
       }
+      setEventData(event);
+      return event;
+    } catch (error) {
+      console.error("Error fetching event data:", error);
+      setEventData(event);
+      return event;
+    }
+  };
 
-      // If we've come this far, try using provided imageUrl
-      if (
-        event.imageUrl &&
-        typeof event.imageUrl === "string" &&
-        event.imageUrl.trim() !== ""
-      ) {
-        console.log("Using provided image URL:", event.imageUrl);
-        setEventImage(event.imageUrl);
+  const fetchTicketAvailability = async (eventId) => {
+    try {
+      if (!eventId) return;
+
+      const eventDocRef = doc(db, "events", eventId);
+      const eventDoc = await getDoc(eventDocRef);
+
+      if (eventDoc.exists()) {
+        const eventData = eventDoc.data();
+        const pricing = eventData.pricing || [];
+
+        const availability = pricing.map(ticket => ({
+          ticketType: ticket.ticketType,
+          totalSeats: ticket.seats,
+          bookedSeats: ticket.booked || 0,
+          availableSeats: ticket.available !== undefined ? ticket.available : (ticket.seats - (ticket.booked || 0)),
+          price: ticket.price,
+          features: ticket.features,
+          isSoldOut: (ticket.available !== undefined ? ticket.available : (ticket.seats - (ticket.booked || 0))) <= 0
+        }));
+
+        const totalSeats = pricing.reduce((sum, p) => sum + p.seats, 0);
+        const totalBooked = eventData.ticketBookedCount || 0;
+        const totalAvailable = eventData.totalAvailableTickets !== undefined
+          ? eventData.totalAvailableTickets
+          : totalSeats - totalBooked;
+
+        setTicketAvailability({
+          totalSeats,
+          totalBookedTickets: totalBooked,
+          totalAvailableTickets: totalAvailable,
+          ticketTypes: availability,
+          isEventSoldOut: totalAvailable <= 0
+        });
+
+        console.log("Current ticket availability:", {
+          totalSeats,
+          totalBooked,
+          totalAvailable,
+          ticketTypes: availability
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching ticket availability:", error);
+    }
+  };
+
+  const fetchEventImage = async (eventData) => {
+    try {
+      setEventImage(null);
+      if (eventData?.bannerImages?.length > 0) {
+        setEventImage(eventData.bannerImages[0]);
         return;
       }
-
-      // STORAGE PATH APPROACH: Try using storage path if available
-      if (event.id) {
-        try {
-          // Construct path based on your Firebase screenshot structure
-          const storagePath = `events/${event.id}/banner_174532844693`;
-          console.log("Trying storage path:", storagePath);
-          const storageRef = ref(storage, storagePath);
-          const url = await getDownloadURL(storageRef);
-          console.log("Successfully fetched from storage path:", url);
-          setEventImage(url);
+      const possibleImageFields = ["imageUrl", "bannerImage", "thumbnail", "image"];
+      for (const field of possibleImageFields) {
+        if (eventData[field]) {
+          setEventImage(eventData[field]);
           return;
-        } catch (storageError) {
-          console.log("Storage path error:", storageError.message);
         }
       }
-
-      // If all approaches failed, use placeholder
-      console.log("All approaches failed, using placeholder image");
       setEventImage("https://via.placeholder.com/270x180?text=Event+Image");
     } catch (error) {
       console.error("Error in image fetching process:", error);
       setEventImage("https://via.placeholder.com/270x180?text=Event+Image");
-    }
-  };
-
-  // Check if ticket already exists in Firestore - more robust approach
-  const checkExistingTicket = async (ticketID) => {
-    try {
-      const cleanTicketId = ticketID.replace("#", "");
-      console.log("Checking if ticket exists with ID:", cleanTicketId);
-
-      // Check in main tickets collection
-      const docRef = doc(db, "tickets", cleanTicketId);
-      const docSnap = await getDoc(docRef);
-
-      if (docSnap.exists()) {
-        console.log("Ticket found in main tickets collection");
-        return true;
-      }
-
-      return false;
-    } catch (error) {
-      console.error("Error checking existing ticket:", error);
-      return false;
-    }
-  };
-
-  // Function to save ticket to Firestore - fixed for permissions
-  const saveTicketToDatabase = async (currentUser) => {
-    if (!currentUser) {
-      console.error("No authenticated user found");
-      setBookingStatus({
-        status: "error",
-        message: "Authentication error. Please log in again.",
-      });
-      return;
-    }
-
-    try {
-      setBookingStatus({ status: "pending", message: "Saving your ticket..." });
-
-      // Check if ticket already exists to avoid duplicate writes
-      const ticketExists = await checkExistingTicket(bookingId);
-      if (ticketExists) {
-        console.log("Ticket already exists in Firestore!");
-        setTicketIsSaved(true);
-        setBookingStatus({
-          status: "success",
-          message: "Ticket already saved!",
-        });
-        return;
-      }
-
-      // Fetch user profile data to get the phone number
-      const profileData = await fetchUserProfileData(currentUser.uid);
-
-      // Get user's phone number from profile data or auth
-      const userPhone =
-        profileData?.phoneNumber ||
-        profileData?.phone ||
-        currentUser.phoneNumber ||
-        "N/A";
-
-      console.log("Using phone number:", userPhone);
-
-      // Email from the user object or profile or provide a fallback
-      const userEmail = currentUser.email || profileData?.email || "N/A";
-
-      // Create ticket data object with eventId
-      const ticketData = {
-        eventName: event.name || "Event",
-        eventDate: formattedDate,
-        eventTime: eventTime,
-        location: event.location || "N/A",
-        phone: userPhone,
-        email: userEmail,
-        vendorId: event.vendorId || null,
-        ticketSummary: ticketSummary,
-        foodSummary: foodSummary || [],
-        financial: financial,
-        bookingId: bookingId,
-        bookingDate: `${currentDate} ${currentTime}`,
-        userId: currentUser.uid,
-        createdAt: new Date().toISOString(),
-        // Store eventId for future reference
-        eventId: event.id || null,
-        // Add public field to allow reading by the ticket owner
-        isPublic: true,
-        // Store owner ID to use in security rules
-        ownerId: currentUser.uid,
-        // Additional ticket details
-        status: "active",
-        checkedIn: false,
-        checkedInTime: null,
-      };
-
-      // Save to main tickets collection with clean ID (without # prefix)
-      const cleanTicketId = bookingId.replace("#", "");
-      console.log("Saving ticket with clean ID:", cleanTicketId);
-
-      try {
-        await setDoc(doc(db, "tickets", cleanTicketId), ticketData);
-        console.log("Ticket saved to main collection successfully!");
-      } catch (error) {
-        console.error("Error saving to main tickets collection:", error);
-        throw new Error(
-          `Failed to save to tickets collection: ${error.message}`
-        );
-      }
-
-      // Also save in user's tickets subcollection for easy retrieval
-      try {
-        if (currentUser.uid) {
-          const userTicketRef = doc(
-            db,
-            "users",
-            currentUser.uid,
-            "tickets",
-            cleanTicketId
-          );
-          await setDoc(userTicketRef, {
-            ticketId: cleanTicketId,
-            eventId: event.id || null,
-            eventName: event.name || "Event",
-            bookingDate: new Date().toISOString(),
-            status: "active",
-          });
-          console.log("Ticket saved to user's tickets subcollection!");
-        }
-      } catch (userTicketError) {
-        console.error(
-          "Error saving to user's tickets subcollection:",
-          userTicketError
-        );
-        // Don't throw here, as the main ticket was saved
-      }
-
-      console.log("Ticket booked successfully and saved to Firestore!");
-      setTicketIsSaved(true);
-      setBookingStatus({
-        status: "success",
-        message: "Ticket booked successfully!",
-      });
-    } catch (error) {
-      console.error("Error booking ticket:", error);
-      setBookingStatus({
-        status: "error",
-        message: `Failed to save your ticket: ${error.message}. Please try again or contact support.`,
-      });
     }
   };
 
@@ -455,47 +327,38 @@ const TicketBookedPage = () => {
         const currentUser = auth.currentUser;
 
         if (currentUser) {
-          try {
-            console.log("User:", currentUser.uid);
+          const profileData = await fetchUserProfileData(currentUser.uid);
+          setUser({
+            id: currentUser.uid,
+            email: currentUser.email || "N/A",
+            phone: profileData?.phoneNumber || profileData?.phone || currentUser.phoneNumber || "N/A",
+          });
 
-            // Fetch user profile data
-            const profileData = await fetchUserProfileData(currentUser.uid);
+          const updatedEventData = await fetchEventData();
+          await fetchEventImage(updatedEventData);
 
-            // Set user state
-            setUser({
-              id: currentUser.uid,
-              email: currentUser.email || "N/A",
-              phone:
-                profileData?.phoneNumber ||
-                profileData?.phone ||
-                currentUser.phoneNumber ||
-                "N/A",
-            });
-
-            // Fetch event image
-            fetchEventImage();
-
-            // Save ticket to database
-            await saveTicketToDatabase(currentUser);
-          } catch (error) {
-            console.error("Error in user setup:", error);
-            setBookingStatus({
-              status: "error",
-              message: `Error setting up user data: ${error.message}`,
-            });
+          // Fetch current ticket availability
+          if (updatedEventData?.eventId || updatedEventData?.id || event.id) {
+            await fetchTicketAvailability(updatedEventData?.eventId || updatedEventData?.id || event.id);
           }
-        } else {
-          console.warn("No user found, but skipping redirect as per request.");
-          // Optionally, you could show a UI message here
-        }
 
-        setIsLoading(false);
+          setBookingStatus({
+            status: "success",
+            message: "Ticket booked successfully!",
+          });
+        } else {
+          setBookingStatus({
+            status: "error",
+            message: "No user authenticated. Please log in again.",
+          });
+        }
       } catch (error) {
-        console.error("Fatal error in initial setup:", error);
+        console.error("Error in initial setup:", error);
         setBookingStatus({
           status: "error",
           message: "An unexpected error occurred. Please try again.",
         });
+      } finally {
         setIsLoading(false);
       }
     };
@@ -503,64 +366,29 @@ const TicketBookedPage = () => {
     handleInitialSetup();
   }, []);
 
-  console.log(location.state);
-  const totalTicketsBooked = ticketSummary.reduce(
-    (acc, ticket) => acc + ticket.quantity,
-    0
-  );
-  const ticketTypes = ticketSummary.map((ticket) => ticket.type).join(", ");
-  const foodNote = foodSummary.length > 0 ? "Grab a bite applied" : "";
+  // Update ticket availability after successful booking
+  useEffect(() => {
+    const handleBookingSuccess = async () => {
+      if (bookingStatus.status === "success" && ticketSummary.length > 0 && !availabilityUpdated) {
+        try {
+          const eventId = eventData?.eventId || eventData?.id || event.id;
+          if (eventId) {
+            console.log("Booking successful, updating ticket availability...");
+            await updateTicketAvailability(eventId, ticketSummary);
+            // Refresh the availability data to show updated counts
+            setTimeout(async () => {
+              await fetchTicketAvailability(eventId);
+            }, 1000);
+          }
+        } catch (error) {
+          console.error("Error updating ticket availability after booking:", error);
+          // Don't show error to user as booking was successful
+        }
+      }
+    };
 
-  // Implementation for downloading the ticket as PDF
-  // const handleDownloadTicket = () => {
-  //   if (!ticketRef.current) {
-  //     alert("Cannot find the ticket element to download.");
-  //     return;
-  //   }
-
-  //   try {
-  //     // Show loading or progress message
-  //     setBookingStatus({
-  //       status: bookingStatus.status,
-  //       message: "Preparing your ticket for download...",
-  //     });
-
-  //     // Use html2canvas to capture the ticket as an image
-  //     html2canvas(ticketRef.current, {
-  //       scale: 2,
-  //       logging: false,
-  //       useCORS: true,
-  //     }).then((canvas) => {
-  //       const imgData = canvas.toDataURL("image/png");
-  //       const pdf = new jsPDF({
-  //         orientation: "landscape",
-  //         unit: "mm",
-  //         format: "a4",
-  //       });
-
-  //       // Calculate dimensions for PDF
-  //       const imgWidth = 280;
-  //       const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-  //       // Add image to PDF, centered
-  //       pdf.addImage(imgData, "PNG", 10, 10, imgWidth, imgHeight);
-
-  //       // Save PDF
-  //       pdf.save(`ticket-${bookingId.replace("#", "")}.pdf`);
-
-  //       // Show success message
-  //       setBookingStatus({
-  //         status: bookingStatus.status,
-  //         message: "Ticket downloaded successfully!",
-  //       });
-  //     });
-  //   } catch (error) {
-  //     console.error("Error with download function:", error);
-  //     alert(
-  //       "There was an error with the download feature. Please try taking a screenshot of your ticket instead."
-  //     );
-  //   }
-  // };
+    handleBookingSuccess();
+  }, [bookingStatus.status, eventData, availabilityUpdated]);
 
   const handleDownloadTicket = async () => {
     if (!ticketRef.current) {
@@ -569,35 +397,27 @@ const TicketBookedPage = () => {
     }
 
     try {
-      // Show loading message
       setBookingStatus({
         status: bookingStatus.status,
         message: "Preparing your ticket for download...",
       });
 
-      // Wait a bit to ensure button state returns to normal
-      await new Promise((resolve) => setTimeout(resolve, 200));
-
-      // Preload the event image to avoid CORS issues
       const preloadImage = (src) => {
         return new Promise((resolve, reject) => {
           if (!src || src.includes("placeholder")) {
             resolve(null);
             return;
           }
-
           const img = new Image();
-          img.crossOrigin = "anonymous"; // Enable CORS
+          img.crossOrigin = "anonymous";
           img.onload = () => resolve(img);
-          img.onerror = () => resolve(null); // Resolve with null if image fails
+          img.onerror = () => resolve(null);
           img.src = src;
         });
       };
 
-      // Preload the event image
       const preloadedImage = await preloadImage(eventImage);
 
-      // Configure html2canvas with better options
       const canvas = await html2canvas(ticketRef.current, {
         scale: 2,
         logging: false,
@@ -608,37 +428,19 @@ const TicketBookedPage = () => {
         removeContainer: true,
         backgroundColor: "#ffffff",
         onclone: (clonedDoc, element) => {
-          // Find and fix any images in the cloned document
           const images = clonedDoc.querySelectorAll("img");
           images.forEach((img) => {
-            // If we have a preloaded image and this is the event image
             if (preloadedImage && img.src === eventImage) {
-              // Create a canvas element to replace the img
               const imgCanvas = clonedDoc.createElement("canvas");
               const ctx = imgCanvas.getContext("2d");
-
-              // Set canvas size to match the image display size
               const computedStyle = window.getComputedStyle(img);
-              imgCanvas.width =
-                parseInt(computedStyle.width) || img.offsetWidth;
-              imgCanvas.height =
-                parseInt(computedStyle.height) || img.offsetHeight;
-
-              // Draw the preloaded image onto the canvas
-              ctx.drawImage(
-                preloadedImage,
-                0,
-                0,
-                imgCanvas.width,
-                imgCanvas.height
-              );
-
-              // Replace the img with canvas
+              imgCanvas.width = parseInt(computedStyle.width) || img.offsetWidth;
+              imgCanvas.height = parseInt(computedStyle.height) || img.offsetHeight;
+              ctx.drawImage(preloadedImage, 0, 0, imgCanvas.width, imgCanvas.height);
               img.parentNode.replaceChild(imgCanvas, img);
             }
           });
 
-          // Remove any button focus/active states
           const buttons = clonedDoc.querySelectorAll("button");
           buttons.forEach((btn) => {
             btn.blur();
@@ -648,7 +450,6 @@ const TicketBookedPage = () => {
         },
       });
 
-      // Create PDF
       const imgData = canvas.toDataURL("image/png", 1.0);
       const pdf = new jsPDF({
         orientation: "landscape",
@@ -656,40 +457,33 @@ const TicketBookedPage = () => {
         format: "a4",
       });
 
-      // Calculate dimensions for PDF (maintain aspect ratio)
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
       const imgWidth = canvas.width;
       const imgHeight = canvas.height;
 
-      // Calculate scaling to fit the page while maintaining aspect ratio
       const scale = Math.min(
-        (pdfWidth - 20) / (imgWidth * 0.264583), // 0.264583 converts pixels to mm
+        (pdfWidth - 20) / (imgWidth * 0.264583),
         (pdfHeight - 20) / (imgHeight * 0.264583)
       );
 
       const scaledWidth = imgWidth * 0.264583 * scale;
       const scaledHeight = imgHeight * 0.264583 * scale;
 
-      // Center the image on the page
       const x = (pdfWidth - scaledWidth) / 2;
       const y = (pdfHeight - scaledHeight) / 2;
 
-      // Add image to PDF
       pdf.addImage(imgData, "PNG", x, y, scaledWidth, scaledHeight);
 
-      // Save PDF with a clean filename
       const cleanBookingId = bookingId.replace("#", "");
       const eventName = (event.name || "Event").replace(/[^a-zA-Z0-9]/g, "_");
       pdf.save(`${eventName}_Ticket_${cleanBookingId}.pdf`);
 
-      // Show success message
       setBookingStatus({
         status: bookingStatus.status,
         message: "Ticket downloaded successfully!",
       });
 
-      // Clear success message after 3 seconds
       setTimeout(() => {
         if (bookingStatus.status === "success") {
           setBookingStatus({
@@ -700,252 +494,17 @@ const TicketBookedPage = () => {
       }, 3000);
     } catch (error) {
       console.error("Error with download function:", error);
-      alert(
-        "There was an error downloading your ticket. Please try taking a screenshot instead, or contact support if the issue persists."
-      );
-
-      // Reset status message
+      alert("There was an error downloading your ticket. Please try taking a screenshot instead, or contact support if the issue persists.");
       setBookingStatus({
         status: bookingStatus.status,
-        message:
-          bookingStatus.status === "success"
-            ? "Ticket booked successfully!"
-            : bookingStatus.message,
+        message: bookingStatus.status === "success" ? "Ticket booked successfully!" : bookingStatus.message,
       });
     }
   };
 
-  const EventImageComponent = () => {
-    const [imageLoaded, setImageLoaded] = useState(false);
-    const [imageError, setImageError] = useState(false);
+  const ticketTypes = ticketSummary.map((ticket) => ticket.type).join(", ");
+  const foodNote = foodSummary.length > 0 ? "Grab a bite applied" : "";
 
-    const handleImageLoad = () => {
-      setImageLoaded(true);
-      setImageError(false);
-    };
-
-    const handleImageError = (e) => {
-      console.error("Image failed to load:", e);
-      setImageError(true);
-      // Set a placeholder image
-      e.target.src =
-        "https://via.placeholder.com/270x180/e0e0e0/757575?text=Event+Image";
-    };
-
-    return (
-      <Box
-        component="img"
-        src={
-          eventImage ||
-          "https://via.placeholder.com/270x180/e0e0e0/757575?text=Event+Image"
-        }
-        alt={event.name || "Event"}
-        crossOrigin="anonymous" // Add CORS support
-        sx={{
-          width: "100%",
-          height: "auto",
-          maxWidth: 270,
-          borderRadius: 1,
-          objectFit: "cover",
-          pr: 5,
-          opacity: imageLoaded ? 1 : 0.8,
-          transition: "opacity 0.3s ease",
-          // Ensure image is fully loaded before capture
-          imageRendering: "crisp-edges",
-        }}
-        onLoad={handleImageLoad}
-        onError={handleImageError}
-      />
-    );
-  };
-
-  // 2. Update your download button to prevent focus states during capture
-  const DownloadButton = () => {
-    const [isDownloading, setIsDownloading] = useState(false);
-
-    const handleDownloadClick = async () => {
-      setIsDownloading(true);
-
-      // Wait a moment for the button to return to normal state
-      await new Promise((resolve) => setTimeout(resolve, 100));
-
-      try {
-        await handleDownloadTicket();
-      } finally {
-        setIsDownloading(false);
-      }
-    };
-
-    return (
-      <Button
-        variant="contained"
-        startIcon={<DownloadIcon />}
-        size="small"
-        sx={{
-          backgroundColor: "#19AEDC",
-          color: "#fff",
-          borderRadius: 4,
-          textTransform: "none",
-          px: 2,
-          py: 0.5,
-          fontSize: 14,
-          // Prevent visual feedback during download
-          "&:focus": {
-            boxShadow: "none",
-          },
-          "&:active": {
-            transform: "none",
-            boxShadow: "none",
-          },
-          // Disable during download process
-          opacity: isDownloading ? 0.7 : 1,
-          pointerEvents: isDownloading ? "none" : "auto",
-        }}
-        onClick={handleDownloadClick}
-        disabled={bookingStatus.status === "pending" || isDownloading}
-        onMouseDown={(e) => {
-          // Prevent the button from staying in pressed state
-          setTimeout(() => e.target.blur(), 100);
-        }}
-      >
-        {isDownloading ? "Downloading..." : "Download Ticket"}
-      </Button>
-    );
-  };
-
-  // 3. Alternative approach: Use a proxy image or convert to base64
-  const convertImageToBase64 = async (imageUrl) => {
-    try {
-      const response = await fetch(imageUrl, {
-        mode: "cors",
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch image");
-      }
-
-      const blob = await response.blob();
-
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-      });
-    } catch (error) {
-      console.error("Error converting image to base64:", error);
-      return null;
-    }
-  };
-
-  // 4. Updated fetch event image function with CORS handling
-  const fetchEventImageWithCORS = async () => {
-    try {
-      console.log(
-        "Fetching event image for:",
-        event.name,
-        "with ID:",
-        event.id
-      );
-
-      if (event.id) {
-        const eventDocRef = doc(db, "events", event.id);
-        const eventDoc = await getDoc(eventDocRef);
-
-        if (eventDoc.exists()) {
-          const eventData = eventDoc.data();
-          console.log("Event data retrieved:", eventData);
-
-          if (
-            Array.isArray(eventData.bannerImages) &&
-            eventData.bannerImages.length > 0
-          ) {
-            let imageUrl = eventData.bannerImages[0];
-
-            // Convert to base64 if it's an external URL to avoid CORS issues
-            if (
-              imageUrl.startsWith("http") &&
-              !imageUrl.includes("firebasestorage")
-            ) {
-              const base64Image = await convertImageToBase64(imageUrl);
-              if (base64Image) {
-                setEventImage(base64Image);
-                return;
-              }
-            }
-
-            setEventImage(imageUrl);
-            return;
-          }
-
-          // Check other image fields...
-          const possibleImageFields = [
-            "imageUrl",
-            "bannerImage",
-            "thumbnail",
-            "image",
-          ];
-          for (const field of possibleImageFields) {
-            if (eventData[field]) {
-              let imageUrl = eventData[field];
-
-              // Convert external URLs to base64
-              if (
-                imageUrl.startsWith("http") &&
-                !imageUrl.includes("firebasestorage")
-              ) {
-                const base64Image = await convertImageToBase64(imageUrl);
-                if (base64Image) {
-                  setEventImage(base64Image);
-                  return;
-                }
-              }
-
-              setEventImage(imageUrl);
-              return;
-            }
-          }
-        }
-      }
-
-      // Fallback to placeholder
-      setEventImage(
-        "https://via.placeholder.com/270x180/e0e0e0/757575?text=Event+Image"
-      );
-    } catch (error) {
-      console.error("Error in image fetching process:", error);
-      setEventImage(
-        "https://via.placeholder.com/270x180/e0e0e0/757575?text=Event+Image"
-      );
-    }
-  };
-  // Fallback download function if html2canvas/jsPDF are not available
-  const fallbackDownload = () => {
-    try {
-      alert(
-        "Ticket download initiated. In a production environment, this would save your ticket as a PDF file. For now, please take a screenshot of your ticket."
-      );
-      console.log("Download ticket feature triggered");
-    } catch (error) {
-      console.error("Error with download function:", error);
-      alert(
-        "There was an error with the download feature. Please try taking a screenshot of your ticket instead."
-      );
-    }
-  };
-
-  const handleRetry = () => {
-    if (auth.currentUser) {
-      saveTicketToDatabase(auth.currentUser);
-    } else {
-      setBookingStatus({
-        status: "error",
-        message: "No user authenticated. Please log in again.",
-      });
-    }
-  };
-
-  // Show loading state
   if (isLoading) {
     return (
       <Box
@@ -975,28 +534,15 @@ const TicketBookedPage = () => {
     >
       <Header />
 
-      {/* Status alerts */}
-      {bookingStatus.status === "pending" && (
-        <Alert severity="info" sx={{ maxWidth: 1000, mx: "auto", mt: 3 }}>
-          <Typography>Saving your ticket. Please wait...</Typography>
-        </Alert>
-      )}
-
       {bookingStatus.status === "error" && (
         <Alert
           severity="error"
           sx={{ maxWidth: 1000, mx: "auto", mt: 3 }}
-          action={
-            <Button color="inherit" size="small" onClick={handleRetry}>
-              Retry
-            </Button>
-          }
         >
           <Typography>{bookingStatus.message}</Typography>
         </Alert>
       )}
 
-      {/* Success Header - Only show if booking was successful */}
       {bookingStatus.status === "success" && (
         <Box sx={{ textAlign: "center", mt: isMobile ? 2 : 5, mb: 3 }}>
           <Box
@@ -1030,10 +576,19 @@ const TicketBookedPage = () => {
           >
             Get ready for an amazing experience! 🎉
           </Typography>
+
+          {/* Display current availability status */}
+          {ticketAvailability && (
+            <Typography
+              variant="body2"
+              sx={{ mt: 1, fontSize: isMobile ? 12 : 14, color: "#666" }}
+            >
+              Tickets remaining: {ticketAvailability.totalAvailableTickets} / {ticketAvailability.totalSeats}
+            </Typography>
+          )}
         </Box>
       )}
 
-      {/* Error Header - Show if booking failed */}
       {bookingStatus.status === "error" && (
         <Box sx={{ textAlign: "center", mt: 5, mb: 3 }}>
           <Box
@@ -1063,7 +618,6 @@ const TicketBookedPage = () => {
         </Box>
       )}
 
-      {/* Ticket Card */}
       <Box
         sx={{
           maxWidth: isMobile ? "100%" : 1000,
@@ -1071,7 +625,6 @@ const TicketBookedPage = () => {
           position: "relative",
         }}
       >
-        {/* Ticket top notch */}
         {!isMobile && (
           <Box
             sx={{
@@ -1088,7 +641,6 @@ const TicketBookedPage = () => {
           />
         )}
 
-        {/* Desktop Ticket body */}
         {!isMobile && (
           <Paper
             elevation={3}
@@ -1103,7 +655,6 @@ const TicketBookedPage = () => {
             id="ticket-card"
           >
             <Box sx={{ display: "flex" }}>
-              {/* Left section - Event image */}
               <Box
                 sx={{
                   width: "35%",
@@ -1132,14 +683,12 @@ const TicketBookedPage = () => {
                     objectFit: "cover",
                   }}
                   onError={(e) => {
-                    console.error("Image failed to load:", e);
                     e.target.src =
                       "https://via.placeholder.com/270x180?text=Event+Image";
                   }}
                 />
               </Box>
 
-              {/* Middle - Event Details */}
               <Box
                 sx={{
                   width: "35%",
@@ -1178,7 +727,7 @@ const TicketBookedPage = () => {
                 >
                   <LocationOnIcon sx={{ fontSize: 18 }} />
                   <Typography variant="body2">
-                    {event.location || "N/A"}
+                    {eventData?.venueDetails?.venueName || event.location || "N/A"}
                   </Typography>
                 </Box>
 
@@ -1209,845 +758,482 @@ const TicketBookedPage = () => {
                   </Typography>
                 </Box>
                 <Box sx={{ display: "flex", alignItems: "center", mt: 0.5 }}>
-                  <EmailIcon sx={{ fontSize: 16, mr: 0.5 }} />
-                  <Typography variant="body2">{user?.email}</Typography>
-                </Box>
-              </Box>
-
-              {/* Right - Price info and QR code */}
-              <Box sx={{ width: "34%", p: 2 }}>
-                <Box
-                  sx={{
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    mb: 3,
-                  }}
-                >
-                  {/* MODIFIED: QR Code implementation with just the booking ID */}
-                  <div ref={qrRef}>
-                    <QRCode
-                      value={qrCodeData}
-                      size={120}
-                      level="H"
-                      includeMargin={true}
-                      id="qrcode"
-                    />
-                  </div>
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      textAlign: "center",
-                      display: "block",
-                      color: "#666",
-                      mb: 1,
-                      mt: 1,
-                    }}
-                  >
-                    Present this QR code at the venue
-                    <br />
-                    entrance for validation
+                <EmailIcon sx={{ fontSize: 16, mr: 0.5 }} />
+                  <Typography variant="body2">
+                    {user?.email || "N/A"}
                   </Typography>
-                  <Button
-                    variant="contained"
-                    startIcon={<DownloadIcon />}
-                    size="small"
-                    sx={{
-                      backgroundColor: "#19AEDC",
-                      color: "#fff",
-                      borderRadius: 4,
-                      textTransform: "none",
-                      px: 2,
-                      py: 0.5,
-                      fontSize: 14,
-                    }}
-                    onClick={
-                      typeof html2canvas !== "undefined"
-                        ? handleDownloadTicket
-                        : fallbackDownload
-                    }
-                    disabled={bookingStatus.status === "pending"}
-                  >
-                    Download Ticket
-                  </Button>
                 </Box>
 
-                <Box>
-                  {/* Display ticket prices */}
-                  {/* {ticketSummary.map((ticket, index) => (
-                  <Box key={index} sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
-                    <Typography variant="body2">
-                      {ticket.type} ({ticket.quantity}x)
-                    </Typography>
-                    <Typography fontWeight="bold">
-                      {ticket.price === 0 ? "FREE" : formatCurrency(ticket.price * ticket.quantity)}
-                    </Typography>
-                  </Box>
-                ))} */}
-                  {ticketSummary.map((ticket, index) => (
-                    <Box
-                      key={index}
-                      sx={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        mb: 1,
-                      }}
-                    >
-                      <Typography variant="body2">
-                        {ticket.type || "Ticket"} ({ticket.quantity || 0}x)
-                      </Typography>
-                      <Typography fontWeight="bold">
-                        {(ticket.price || 0) === 0
-                          ? "FREE"
-                          : formatCurrency(
-                              (ticket.price || 0) * (ticket.quantity || 0)
-                            )}
-                      </Typography>
-                    </Box>
-                  ))}
-                  {/* Food items */}
-                  {/* {foodSummary && foodSummary.length > 0 && (
-                  <>
-                    {foodSummary.map((food, index) => (
-                      <Box key={index} sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
-                        <Typography variant="body2">
-                          {food.name} ({food.quantity}x)
-                        </Typography>
-                        <Typography fontWeight="bold">
-                          {formatCurrency(food.price * food.quantity)}
-                        </Typography>
-                      </Box>
-                    ))}
-                  </>
-                )} */}
-
-                  {foodSummary && foodSummary.length > 0 && (
-                    <>
-                      {foodSummary.map((food, index) => (
-                        <Box
-                          key={index}
-                          sx={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            mb: 1,
-                          }}
-                        >
-                          <Typography variant="body2">
-                            {food.name || "Food Item"} ({food.quantity || 0}x)
-                          </Typography>
-                          <Typography fontWeight="bold">
-                            {formatCurrency(
-                              (food.price || 0) * (food.quantity || 0)
-                            )}
-                          </Typography>
-                        </Box>
-                      ))}
-                    </>
-                  )}
-
-                  {/* Only show these for paid events */}
-                  {/* {!financial.isFreeEvent && (
-                  <>
-                    <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.5 }}>
-                      <Typography variant="body2">Convenience fee</Typography>
-                      <Typography fontWeight="bold">{formatCurrency(financial.convenienceFee)}</Typography>
-                    </Box>
-
-                    {financial.discount > 0 && (
-                      <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.5 }}>
-                        <Typography variant="body2" sx={{ color: "#19AEDC" }}>Discount</Typography>
-                        <Typography fontWeight="bold" sx={{ color: "#19AEDC" }}>
-                          -{formatCurrency(financial.discount)}
-                        </Typography>
-                      </Box>
-                    )}
-
-                    <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.5 }}>
-                      <Typography variant="body2">GST (18%)</Typography>
-                      <Typography fontWeight="bold">{formatCurrency(financial.gst)}</Typography>
-                    </Box>
-
-                    <Typography variant="caption" sx={{ color: "#666", display: "block", mb: 1 }}>
-                      Incl. of taxes
-                    </Typography>
-                  </>
-                )} */}
-
-                  {!financial.isFreeEvent && (
-                    <>
-                      <Box
-                        sx={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          mb: 0.5,
-                        }}
-                      >
-                        <Typography variant="body2">Convenience fee</Typography>
-                        <Typography fontWeight="bold">
-                          {formatCurrency(financial.convenienceFee || 0)}
-                        </Typography>
-                      </Box>
-
-                      {(financial.discount || 0) > 0 && (
-                        <Box
-                          sx={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            mb: 0.5,
-                          }}
-                        >
-                          <Typography variant="body2" sx={{ color: "#19AEDC" }}>
-                            Discount
-                          </Typography>
-                          <Typography
-                            fontWeight="bold"
-                            sx={{ color: "#19AEDC" }}
-                          >
-                            -{formatCurrency(financial.discount || 0)}
-                          </Typography>
-                        </Box>
-                      )}
-
-                      <Box
-                        sx={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          mb: 0.5,
-                        }}
-                      >
-                        <Typography variant="body2">GST (18%)</Typography>
-                        <Typography fontWeight="bold">
-                          {formatCurrency(financial.gst || 0)}
-                        </Typography>
-                      </Box>
-
-                      <Typography
-                        variant="caption"
-                        sx={{ color: "#666", display: "block", mb: 1 }}
-                      >
-                        Incl. of taxes
-                      </Typography>
-                    </>
-                  )}
-
-                  <Divider sx={{ my: 1 }} />
-
-                  <Box
-                    sx={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      mt: 1,
-                    }}
+                {foodNote && (
+                  <Typography
+                    variant="body2"
+                    sx={{ mt: 1, fontStyle: "italic", color: "#666" }}
                   >
-                    <Typography variant="body1" fontWeight="bold">
-                      Total Amount
-                    </Typography>
-                    <Typography
-                      variant="body1"
-                      fontWeight="bold"
-                      sx={{
-                        color: financial.isFreeEvent ? "#19AEDC" : "inherit",
-                      }}
-                    >
-                      {financial.isFreeEvent
-                        ? "FREE"
-                        : formatCurrency(financial.totalAmount || 0)}
-                    </Typography>
-                  </Box>
-                </Box>
+                    {foodNote}
+                  </Typography>
+                )}
               </Box>
-            </Box>
 
-            {/* Bottom notch */}
-            <Box
-              sx={{
-                position: "absolute",
-                width: 70,
-                height: 30,
-                backgroundColor: "#f5f5f5",
-                borderRadius: "30px 30px 0 0",
-                bottom: 0,
-                left: "37%",
-                transform: "translateX(-50%)",
-                zIndex: 1,
-              }}
-            />
-
-            {/* Booking Info footer */}
-            <Box
-              sx={{
-                backgroundColor: "#ffff",
-                p: 2,
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                borderTop: "1px solid #eee",
-              }}
-            >
-              <Box>
-                <Typography variant="caption" sx={{ color: "#777" }}>
-                  Booking Date & Time
-                </Typography>
-                <Typography variant="body2" fontWeight="medium">
-                  {currentDate} {currentTime}
-                </Typography>
-              </Box>
-              <Box>
-                <Typography variant="caption" sx={{ color: "#777" }}>
+              <Box
+                sx={{
+                  width: "30%",
+                  p: 2,
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  ml: 5,
+                }}
+              >
+                <Typography
+                  variant="h6"
+                  fontWeight="bold"
+                  sx={{ mb: 2, textAlign: "center" }}
+                >
                   Booking ID
                 </Typography>
-                <Typography variant="body2" fontWeight="medium">
+                <Typography
+                  variant="h5"
+                  fontWeight="bold"
+                  sx={{ mb: 2, color: "#19AEDC", textAlign: "center" }}
+                >
                   {bookingId}
                 </Typography>
-              </Box>
-              <Box>
-                <Typography variant="caption" sx={{ color: "#777" }}>
-                  Booking Status
+
+                <Box sx={{ mb: 2 }} ref={qrRef}>
+                  <QRCode
+                    value={qrCodeData}
+                    size={100}
+                    bgColor="#ffffff"
+                    fgColor="#000000"
+                    level="M"
+                    includeMargin={true}
+                  />
+                </Box>
+
+                <Typography
+                  variant="body2"
+                  sx={{ textAlign: "center", mb: 1 }}
+                >
+                  Booked on: {currentDate}
                 </Typography>
                 <Typography
                   variant="body2"
-                  fontWeight="medium"
-                  sx={{ color: ticketIsSaved ? "#4CAF50" : "#f57c00" }}
+                  sx={{ textAlign: "center", mb: 2 }}
                 >
-                  {ticketIsSaved ? "Confirmed" : "Pending Confirmation"}
+                  Time: {currentTime}
+                </Typography>
+
+                {!financial.isFreeEvent && (
+                  <Typography
+                    variant="h6"
+                    fontWeight="bold"
+                    sx={{ color: "#4CAF50", textAlign: "center" }}
+                  >
+                    Total: {formatCurrency(financial.totalAmount)}
+                  </Typography>
+                )}
+              </Box>
+            </Box>
+
+            <Box
+              sx={{
+                position: "absolute",
+                width: 30,
+                height: 30,
+                backgroundColor: "#f5f5f5",
+                borderRadius: "50%",
+                top: "50%",
+                left: -15,
+                transform: "translateY(-50%)",
+              }}
+            />
+            <Box
+              sx={{
+                position: "absolute",
+                width: 30,
+                height: 30,
+                backgroundColor: "#f5f5f5",
+                borderRadius: "50%",
+                top: "50%",
+                right: -15,
+                transform: "translateY(-50%)",
+              }}
+            />
+          </Paper>
+        )}
+
+        {isMobile && (
+          <Card
+            sx={{
+              mx: 2,
+              borderRadius: 2,
+              overflow: "hidden",
+              opacity: bookingStatus.status === "pending" ? 0.7 : 1,
+            }}
+            ref={ticketRef}
+            id="ticket-card"
+          >
+            <CardContent sx={{ p: 2 }}>
+              <Box sx={{ textAlign: "center", mb: 2 }}>
+                <Typography variant="h6" fontWeight="bold" sx={{ mb: 1 }}>
+                  {event.name || "Event"}
+                </Typography>
+                <Typography
+                  variant="h5"
+                  fontWeight="bold"
+                  sx={{ color: "#19AEDC" }}
+                >
+                  {bookingId}
                 </Typography>
               </Box>
+
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "center",
+                  mb: 2,
+                }}
+              >
+                <Box
+                  component="img"
+                  src={
+                    eventImage ||
+                    "https://via.placeholder.com/200x130?text=Event+Image"
+                  }
+                  alt={event.name || "Event"}
+                  sx={{
+                    width: 200,
+                    height: 130,
+                    borderRadius: 1,
+                    objectFit: "cover",
+                  }}
+                  onError={(e) => {
+                    e.target.src =
+                      "https://via.placeholder.com/200x130?text=Event+Image";
+                  }}
+                />
+              </Box>
+
+              <Divider sx={{ my: 2 }} />
+
+              <Box sx={{ mb: 2 }}>
+                <Box
+                  sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}
+                >
+                  <CalendarTodayIcon sx={{ fontSize: 16 }} />
+                  <Typography variant="body2">{formattedDate}</Typography>
+                </Box>
+
+                <Box
+                  sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}
+                >
+                  <AccessTimeIcon sx={{ fontSize: 16 }} />
+                  <Typography variant="body2">{eventTime}</Typography>
+                </Box>
+
+                <Box
+                  sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}
+                >
+                  <LocationOnIcon sx={{ fontSize: 16 }} />
+                  <Typography variant="body2">
+                    {eventData?.venueDetails?.venueName || event.location || "N/A"}
+                  </Typography>
+                </Box>
+
+                <Box
+                  sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}
+                >
+                  <DirectionsCarIcon sx={{ fontSize: 16 }} />
+                  <Typography variant="body2">
+                    {ticketTypes} ({totalTickets} ticket{totalTickets !== 1 ? 's' : ''})
+                  </Typography>
+                </Box>
+              </Box>
+
+              <Divider sx={{ my: 2 }} />
+
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  Ticket sent to:
+                </Typography>
+                <Box sx={{ display: "flex", alignItems: "center", mb: 0.5 }}>
+                  <PhoneIcon sx={{ fontSize: 14, mr: 0.5 }} />
+                  <Typography variant="body2">
+                    {userProfileData?.phoneNumber ||
+                      userProfileData?.phone ||
+                      user?.phone ||
+                      "N/A"}
+                  </Typography>
+                </Box>
+                <Box sx={{ display: "flex", alignItems: "center" }}>
+                  <EmailIcon sx={{ fontSize: 14, mr: 0.5 }} />
+                  <Typography variant="body2">
+                    {user?.email || "N/A"}
+                  </Typography>
+                </Box>
+              </Box>
+
+              <Box sx={{ textAlign: "center", mb: 2 }}>
+                <Box sx={{ mb: 1 }} ref={qrRef}>
+                  <QRCode
+                    value={qrCodeData}
+                    size={80}
+                    bgColor="#ffffff"
+                    fgColor="#000000"
+                    level="M"
+                    includeMargin={true}
+                  />
+                </Box>
+                <Typography variant="body2" sx={{ fontSize: 12 }}>
+                  Booked on: {currentDate} at {currentTime}
+                </Typography>
+              </Box>
+
+              {!financial.isFreeEvent && (
+                <Box sx={{ textAlign: "center", mb: 2 }}>
+                  <Typography
+                    variant="h6"
+                    fontWeight="bold"
+                    sx={{ color: "#4CAF50" }}
+                  >
+                    Total: {formatCurrency(financial.totalAmount)}
+                  </Typography>
+                </Box>
+              )}
+
+              {foodNote && (
+                <Typography
+                  variant="body2"
+                  sx={{ textAlign: "center", fontStyle: "italic", color: "#666" }}
+                >
+                  {foodNote}
+                </Typography>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Download Button */}
+        <Box sx={{ textAlign: "center", mt: 3, mb: 3 }}>
+          <Button
+            variant="contained"
+            startIcon={<DownloadIcon />}
+            onClick={handleDownloadTicket}
+            disabled={bookingStatus.status === "pending"}
+            sx={{
+              backgroundColor: "#19AEDC",
+              color: "white",
+              px: 4,
+              py: 1.5,
+              fontSize: isMobile ? 14 : 16,
+              "&:hover": {
+                backgroundColor: "#1591B8",
+              },
+              "&:disabled": {
+                backgroundColor: "#ccc",
+              },
+            }}
+          >
+            Download Ticket
+          </Button>
+        </Box>
+
+        {/* Status Message */}
+        {bookingStatus.message && bookingStatus.status !== "error" && (
+          <Alert
+            severity={bookingStatus.status === "success" ? "success" : "info"}
+            sx={{
+              maxWidth: isMobile ? "calc(100% - 32px)" : 800,
+              mx: "auto",
+              mt: 2,
+              mb: 2
+            }}
+          >
+            <Typography>{bookingStatus.message}</Typography>
+          </Alert>
+        )}
+
+        {/* Booking Summary for Non-Free Events */}
+        {!financial.isFreeEvent && (
+          <Paper
+            elevation={1}
+            sx={{
+              mx: isMobile ? 2 : 0,
+              mt: 3,
+              p: 2,
+              borderRadius: 2,
+            }}
+          >
+            <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>
+              Booking Summary
+            </Typography>
+
+            {ticketSummary.map((ticket, index) => (
+              <Box
+                key={index}
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  mb: 1,
+                }}
+              >
+                <Typography variant="body2">
+                  {ticket.type} x {ticket.quantity}
+                </Typography>
+                <Typography variant="body2">
+                  {formatCurrency(ticket.price * ticket.quantity)}
+                </Typography>
+              </Box>
+            ))}
+
+            {foodSummary.length > 0 && (
+              <>
+                <Divider sx={{ my: 1 }} />
+                {foodSummary.map((food, index) => (
+                  <Box
+                    key={index}
+                    sx={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      mb: 1,
+                    }}
+                  >
+                    <Typography variant="body2">
+                      {food.name} x {food.quantity}
+                    </Typography>
+                    <Typography variant="body2">
+                      {formatCurrency(food.price * food.quantity)}
+                    </Typography>
+                  </Box>
+                ))}
+              </>
+            )}
+
+            <Divider sx={{ my: 1 }} />
+
+            <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
+              <Typography variant="body2">Subtotal</Typography>
+              <Typography variant="body2">
+                {formatCurrency(financial.subtotal)}
+              </Typography>
+            </Box>
+
+            {financial.discount > 0 && (
+              <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
+                <Typography variant="body2">Discount</Typography>
+                <Typography variant="body2" sx={{ color: "#4CAF50" }}>
+                  -{formatCurrency(financial.discount)}
+                </Typography>
+              </Box>
+            )}
+
+            <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
+              <Typography variant="body2">Convenience Fee</Typography>
+              <Typography variant="body2">
+                {formatCurrency(financial.convenienceFee)}
+              </Typography>
+            </Box>
+
+            <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
+              <Typography variant="body2">GST</Typography>
+              <Typography variant="body2">
+                {formatCurrency(financial.gst)}
+              </Typography>
+            </Box>
+
+            <Divider sx={{ my: 1 }} />
+
+            <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+              <Typography variant="h6" fontWeight="bold">
+                Total Amount
+              </Typography>
+              <Typography variant="h6" fontWeight="bold" sx={{ color: "#4CAF50" }}>
+                {formatCurrency(financial.totalAmount)}
+              </Typography>
             </Box>
           </Paper>
         )}
 
-        {/* Mobile Ticket body */}
-        {isMobile && (
-          <Box
-            sx={{
-              position: "absolute",
-              width: 40,
-              height: 50,
-              backgroundColor: "#f5f5f5",
-              borderRadius: "0 30px 30px 0px",
-              top: "30%",
-              left: "10%",
-              transform: "translateX(-60%)",
-              zIndex: 1,
-            }}
-          />
-        )}
-        {isMobile && (
-          <Box
-            sx={{
-              position: "absolute",
-              width: 40,
-              height: 50,
-              backgroundColor: "#f5f5f5",
-              borderRadius: "30px 0px 0px 30px",
-              top: "30%",
-              left: "10%",
-              transform: "translateX(750%)",
-              zIndex: 1,
-            }}
-          />
-        )}
-        {isMobile && (
-          <Box sx={{ width: "90%", mx: "auto", mt: 3 }}>
-            <Card
-              sx={{
-                width: "100%",
-                borderRadius: 6,
-                p: 0,
-                overflow: "hidden",
-              }}
-              ref={ticketRef}
-            >
-              <CardContent sx={{ p: 2 }}>
-                <Box sx={{ display: "flex", gap: 3, mb: 3, p: 1 }}>
-                  <Box
-                    component="img"
-                    src={
-                      eventImage ||
-                      "https://via.placeholder.com/270x180?text=Event+Image"
-                    }
-                    alt={event.name || "Event"}
-                    sx={{
-                      width: "50%",
-                      height: 170,
-                      borderRadius: 1,
-                      objectFit: "cover",
-                      border: "1px solid",
-                      borderColor: "black",
-                    }}
-                    onError={(e) => {
-                      console.error("Image failed to load:", e);
-                      e.target.src =
-                        "https://via.placeholder.com/270x180?text=Event+Image";
-                    }}
-                  />
-                  <Box>
-                    <Typography
-                      sx={{
-                        fontFamily: "'Poppins', Helvetica",
-                        fontWeight: 600,
-                        fontSize: 14,
-                        mb: 1,
-                      }}
-                    >
-                      {event.name || "Event"}
-                    </Typography>
-
-                    <Box sx={{ display: "flex", alignItems: "center" }}>
-                      <CalendarTodayIcon
-                        sx={{ fontSize: 11, color: "text.secondary" }}
-                      />
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          fontFamily: "'Poppins', Helvetica",
-                          color: "text.secondary",
-                          fontSize: 11,
-                          pl: 0.2,
-                        }}
-                      >
-                        {formattedDate}
-                      </Typography>
-                      <Divider
-                        orientation="vertical"
-                        sx={{ mx: 1, height: 16 }}
-                      />
-                      <AccessTimeIcon
-                        sx={{ fontSize: 11, color: "text.secondary" }}
-                      />
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          fontFamily: "'Poppins', Helvetica",
-                          color: "text.secondary",
-                          fontSize: 11,
-                          pl: 0.2,
-                        }}
-                      >
-                        {eventTime}
-                      </Typography>
-                    </Box>
-                    <Box sx={{ display: "flex", alignItems: "center", mt: 1 }}>
-                      <LocationOnIcon
-                        sx={{ fontSize: 11, color: "text.secondary" }}
-                      />
-                      <Typography
-                        sx={{
-                          fontFamily: "'Poppins', Helvetica",
-                          color: "#adaebc",
-                          fontSize: 11,
-                          pl: 0.2,
-                        }}
-                      >
-                        {event.location || "N/A"}
-                      </Typography>
-                    </Box>
-                  </Box>
-                </Box>
-
-                <Divider sx={{ my: 2, mb: 4 }} />
-
-                <Box
-                  sx={{ bgcolor: "#d1d5db4c", p: 1, borderRadius: 2, mt: 2 }}
-                >
-                  <Box sx={{ display: "flex" }}>
-                    <Box
-                      sx={{
-                        bgcolor: "white",
-                        p: 1,
-                        width: 96,
-                        height: 100,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <div ref={qrRef}>
-                        <QRCode
-                          value={qrCodeData}
-                          size={120}
-                          level="H"
-                          includeMargin={true}
-                          id="qrcode"
-                        />
-                      </div>
-                    </Box>
-
-                    <Box
-                      sx={{
-                        ml: 2,
-                        display: "flex",
-                        flexDirection: "column",
-                        justifyContent: "space-between",
-                        py: 1,
-                      }}
-                    >
-                      <Typography
-                        sx={{
-                          fontFamily: "'Albert Sans', Helvetica",
-                          color: "text.secondary",
-                          fontSize: 12,
-                        }}
-                      >
-                        {totalTickets} Tickets
-                      </Typography>
-                      <Typography
-                        sx={{
-                          fontFamily: "'Albert Sans', Helvetica",
-                          color: "text.secondary",
-                          fontSize: 13,
-                        }}
-                      >
-                        {ticketTypes}
-                      </Typography>
-                      <Box sx={{ display: "flex", mt: 1 }}>
-                        <Typography
-                          sx={{
-                            fontFamily: "'Albert Sans', Helvetica",
-                            fontWeight: 600,
-                            fontSize: 10,
-                          }}
-                        >
-                          Booking ID :
-                        </Typography>
-                        <Typography
-                          sx={{
-                            fontFamily: "'Albert Sans', Helvetica",
-                            fontWeight: 600,
-                            fontSize: 10,
-                            ml: 0.5,
-                          }}
-                        >
-                          {bookingId}
-                        </Typography>
-                      </Box>
-                      <Typography
-                        sx={{
-                          fontFamily: "'Albert Sans', Helvetica",
-                          color: "#6f7287",
-                          fontSize: 10,
-                        }}
-                      >
-                        {foodNote}
-                      </Typography>
-                    </Box>
-                  </Box>
-
-                  <Box
-                    sx={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      mt: 1,
-                    }}
-                  >
-                    <Typography
-                      sx={{
-                        fontFamily: "'Poppins', Helvetica",
-                        fontSize: 9,
-                        textAlign: "center",
-                      }}
-                    >
-                      Present this QR code at
-                      <br />
-                      the venue for validation
-                    </Typography>
-                    <Button
-                      variant="contained"
-                      size="small"
-                      startIcon={<DownloadIcon sx={{ fontSize: 12 }} />}
-                      sx={{
-                        height: 21,
-                        bgcolor: "#19aedc",
-                        borderRadius: 4,
-                        fontSize: 8,
-                        fontFamily: "'Poppins', Helvetica",
-                        fontWeight: 600,
-                        textTransform: "none",
-                        mr: 5,
-                      }}
-                    >
-                      Download Ticket
-                    </Button>
-                  </Box>
-                </Box>
-
-                <Box sx={{ mt: 2.5 }}>
-                  {/* Price per Ticket - list each ticket type */}
-                  <Box
-                    sx={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      mb: 1,
-                    }}
-                  >
-                    <Box>
-                      <Typography
-                        sx={{
-                          fontFamily: "'Albert Sans', Helvetica",
-                          fontWeight: 300,
-                          fontSize: 12,
-                        }}
-                      >
-                        Price per Ticket
-                      </Typography>
-                      {ticketSummary?.map((ticket, idx) => (
-                        <Typography
-                          key={idx}
-                          sx={{
-                            fontFamily: "'Albert Sans', Helvetica",
-                            fontWeight: 200,
-                            fontSize: 10,
-                            ml: 1,
-                          }}
-                        >
-                          {ticket.type} x {ticket.quantity}
-                        </Typography>
-                      ))}
-                    </Box>
-                    <Typography
-                      sx={{
-                        fontFamily: "'Albert Sans', Helvetica",
-                        fontWeight: 300,
-                        fontSize: 12,
-                      }}
-                    >
-                      ₹
-                      {ticketSummary?.reduce(
-                        (total, item) => total + (item.subtotal || 0),
-                        0
-                      )}
-                    </Typography>
-                  </Box>
-
-                  {/* Discount */}
-                  <Box
-                    sx={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      mb: 1,
-                    }}
-                  >
-                    <Typography
-                      sx={{
-                        fontFamily: "'Albert Sans', Helvetica",
-                        fontWeight: 300,
-                        fontSize: 12,
-                      }}
-                    >
-                      Discount
-                    </Typography>
-                    <Typography
-                      sx={{
-                        fontFamily: "'Albert Sans', Helvetica",
-                        fontWeight: 300,
-                        fontSize: 12,
-                      }}
-                    >
-                      ₹{financial?.discount || 0}
-                    </Typography>
-                  </Box>
-
-                  {/* Grab a bite fees */}
-                  {foodSummary?.length > 0 && (
-                    <Box
-                      sx={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        mb: 1,
-                      }}
-                    >
-                      <Box>
-                        <Typography
-                          sx={{
-                            fontFamily: "'Albert Sans', Helvetica",
-                            fontWeight: 300,
-                            fontSize: 12,
-                          }}
-                        >
-                          Grab a bite fees
-                        </Typography>
-                        {foodSummary.map((food, idx) => (
-                          <Typography
-                            key={idx}
-                            sx={{
-                              fontFamily: "'Albert Sans', Helvetica",
-                              fontWeight: 200,
-                              fontSize: 10,
-                              ml: 1,
-                            }}
-                          >
-                            {food.name} x {food.quantity}
-                          </Typography>
-                        ))}
-                      </Box>
-                      <Typography
-                        sx={{
-                          fontFamily: "'Albert Sans', Helvetica",
-                          fontWeight: 300,
-                          fontSize: 12,
-                        }}
-                      >
-                        ₹
-                        {foodSummary.reduce(
-                          (total, item) => total + item.price * item.quantity,
-                          0
-                        )}
-                      </Typography>
-                    </Box>
-                  )}
-
-                  {/* Convenience Fees */}
-                  <Box
-                    sx={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      mb: 1,
-                    }}
-                  >
-                    <Box>
-                      <Typography
-                        sx={{
-                          fontFamily: "'Albert Sans', Helvetica",
-                          fontWeight: 300,
-                          fontSize: 12,
-                        }}
-                      >
-                        Convenience fees
-                      </Typography>
-                      <Typography
-                        sx={{
-                          fontFamily: "'Poppins', Helvetica",
-                          fontWeight: 300,
-                          fontSize: 9,
-                          color: "#4b5563e6",
-                        }}
-                      >
-                        Incl. of taxes
-                      </Typography>
-                    </Box>
-                    <Typography
-                      sx={{
-                        fontFamily: "'Albert Sans', Helvetica",
-                        fontWeight: 300,
-                        fontSize: 12,
-                      }}
-                    >
-                      ₹{financial?.convenienceFee || 0}
-                    </Typography>
-                  </Box>
-                </Box>
-
-                <Box
-                  sx={{
-                    bgcolor: "#d1d5db4c",
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    p: 2,
-                    mt: 2,
-                  }}
-                >
-                  <Typography
-                    sx={{
-                      fontFamily: "'Albert Sans', Helvetica",
-                      fontWeight: 600,
-                      fontSize: 14,
-                    }}
-                  >
-                    Total Amount
-                  </Typography>
-                  <Typography
-                    sx={{
-                      fontFamily: "'Albert Sans', Helvetica",
-                      fontWeight: 500,
-                      fontSize: 13,
-                    }}
-                  >
-                    ₹{financial.totalAmount}
-                  </Typography>
-                </Box>
-              </CardContent>
-            </Card>
-          </Box>
-        )}
-      </Box>
-
-      {/* Action buttons */}
-      <Box
-        sx={{
-          width: isMobile ? "90%" : "100%",
-          mx: "auto",
-          display: "flex",
-          justifyContent: "center",
-          mt: 4,
-          mb: 5,
-          gap: !isMobile ? 3 : 3,
-        }}
-      >
-        <Button
-          variant="contained"
+        {/* Navigation Buttons */}
+        <Box
           sx={{
-            backgroundColor: "#19AEDC",
-            borderRadius: 2,
-            px: !isMobile ? 4 : 2,
-            py: 1,
-            fontSize: !isMobile ? 16 : 10,
-            "&:hover": { backgroundColor: "#0e8eb8" },
+            display: "flex",
+            justifyContent: "center",
+            gap: 2,
+            mt: 4,
+            mb: 4,
+            px: isMobile ? 2 : 0,
           }}
-          onClick={() => navigate("/mytickets")}
         >
-          View All My Tickets
-        </Button>
-        <Button
-          variant="outlined"
-          sx={{
-            borderColor: "#19AEDC",
-            color: "#19AEDC",
-            borderRadius: 2,
-            px: !isMobile ? 4 : 2,
-            py: 1,
-            fontSize: !isMobile ? 16 : 10,
-            "&:hover": { borderColor: "#0e8eb8", color: "#0e8eb8" },
-          }}
-          onClick={() => navigate("/")}
-        >
-          Back to Home
-        </Button>
-      </Box>
+          <Button
+            variant="outlined"
+            onClick={() => navigate("/")}
+            sx={{
+              borderColor: "#19AEDC",
+              color: "#19AEDC",
+              px: 3,
+              py: 1,
+              "&:hover": {
+                borderColor: "#1591B8",
+                backgroundColor: "rgba(25, 174, 220, 0.1)",
+              },
+            }}
+          >
+            Discover More Events
+          </Button>
 
-      {/* Important Information */}
-      <Box
-        sx={{
-          width: isMobile ? "90%" : "70%",
-          mx: "auto",
-          mb: isMobile ? 9 : 5,
-        }}
-      >
-        <Paper elevation={1} sx={{ p: 3, borderRadius: 2 }}>
-          <Typography variant="h6" sx={{ mb: 2, fontWeight: "bold" }}>
+          <Button
+            variant="contained"
+            onClick={() => navigate("/profile")}
+            sx={{
+              backgroundColor: "#19AEDC",
+              color: "white",
+              px: 3,
+              py: 1,
+              "&:hover": {
+                backgroundColor: "#1591B8",
+              },
+            }}
+          >
+            View My Bookings
+          </Button>
+        </Box>
+
+        {/* Important Information */}
+        <Paper
+          elevation={1}
+          sx={{
+            mx: isMobile ? 2 : 0,
+            p: 2,
+            borderRadius: 2,
+            backgroundColor: "#f8f9fa",
+            mb: 4,
+          }}
+        >
+          <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>
             Important Information
           </Typography>
+
           <Typography variant="body2" sx={{ mb: 1 }}>
-            • Please arrive at least 30 minutes before the event starts.
+            • Please carry a valid ID proof along with this ticket
           </Typography>
           <Typography variant="body2" sx={{ mb: 1 }}>
-            • Keep this ticket handy - you'll need to show it at the entrance.
+            • Entry is subject to availability and event guidelines
           </Typography>
           <Typography variant="body2" sx={{ mb: 1 }}>
-            • The QR code will be scanned at entry for verification.
+            • This ticket is non-transferable and non-refundable
           </Typography>
           <Typography variant="body2" sx={{ mb: 1 }}>
-            • This ticket cannot be transferred or resold.
+            • Please arrive at least 30 minutes before the event starts
           </Typography>
           <Typography variant="body2">
-            • For any queries, please contact our support team at
-            support@eventify.com
+            • For any queries, contact event support or check your email
           </Typography>
         </Paper>
       </Box>
 
-      {!isMobile && <Footer />}
+      <Footer />
     </Box>
   );
 };

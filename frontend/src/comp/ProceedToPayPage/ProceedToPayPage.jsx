@@ -18,7 +18,7 @@ import { Stepper, Step, StepLabel } from "@mui/material";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 import EventIcon from "@mui/icons-material/Event";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import { doc, getDoc, collection, getDocs } from "firebase/firestore";
+import { doc, getDoc, runTransaction } from "firebase/firestore";
 import { getStorage, ref, getDownloadURL, listAll } from "firebase/storage";
 import { db } from "../../firebase_config";
 
@@ -48,10 +48,10 @@ const ProceedToPayPage = () => {
   });
   const [eventImage, setEventImage] = useState(DEFAULT_EVENT_IMAGE);
   const [imageLoading, setImageLoading] = useState(true);
-  //const [bannerImages, setBannerImages] = useState([]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const isMobile = useMediaQuery("(max-width:600px)");
   const [paddingBottom, setPaddingBottom] = useState(10);
+
   // Get the data passed from the TicketPricePage
   useEffect(() => {
     if (location.state) {
@@ -95,6 +95,7 @@ const ProceedToPayPage = () => {
         setEvent(eventData);
       }
     }
+
     let lastScrollY = window.scrollY;
 
     const handleScroll = () => {
@@ -113,10 +114,9 @@ const ProceedToPayPage = () => {
   const isFreeEvent =
     ticketData.length > 0 && ticketData.every((ticket) => ticket.price === 0);
 
+  // Fetch event details and coupons
   useEffect(() => {
-    // Check if we have event data and tickets booked
     if (!location.state || !location.state.event) {
-      // If no state is passed, try to fetch the event details from Firestore
       const fetchEventDetails = async () => {
         try {
           setIsLoading(true);
@@ -131,24 +131,27 @@ const ProceedToPayPage = () => {
             const fetchedEventData = eventDoc.data();
             setEvent({
               id: eventDoc.id,
-              vendorId: eventDoc.vendorId,
+              vendorId: fetchedEventData.vendorId,
               name: fetchedEventData.name,
               date: fetchedEventData.eventDate,
               location:
                 fetchedEventData.venueDetails?.city || "Unknown Location",
               description:
                 fetchedEventData.description || "No description available",
-              ticket: fetchedEventData.pricing || [], // Include ticket data for validation
+              ticket: fetchedEventData.pricing || [],
             });
-            // Extract coupon information
+            // Extract coupon information with timesUsed
             if (
               fetchedEventData.coupons &&
               Array.isArray(fetchedEventData.coupons)
             ) {
-              setEventCoupons(fetchedEventData.coupons);
+              const updatedCoupons = fetchedEventData.coupons.map((coupon) => ({
+                ...coupon,
+                timesUsed: coupon.timesUsed || 0, // Default to 0 if not set
+              }));
+              setEventCoupons(updatedCoupons);
             }
 
-            // After fetching event, we need ticket data
             setError("No tickets selected. Please select tickets first.");
           } else {
             setError("Event not found");
@@ -163,23 +166,23 @@ const ProceedToPayPage = () => {
 
       fetchEventDetails();
     } else {
-      // Use the passed event data
       setEvent(location.state.event);
 
-      // Fetch full event details to get coupons
       const fetchEventCoupons = async () => {
         try {
-          if (location.state.event.id) {
-            const eventDoc = await getDoc(
-              doc(db, "events", location.state.event.id)
-            );
+          if (location.state.event.id || eventId) {
+            const eventDoc = await getDoc(doc(db, "events", eventId));
             if (eventDoc.exists()) {
               const fullEventData = eventDoc.data();
               if (
                 fullEventData.coupons &&
                 Array.isArray(fullEventData.coupons)
               ) {
-                setEventCoupons(fullEventData.coupons);
+                const updatedCoupons = fullEventData.coupons.map((coupon) => ({
+                  ...coupon,
+                  timesUsed: coupon.timesUsed || 0, // Default to 0 if not set
+                }));
+                setEventCoupons(updatedCoupons);
               }
             }
           }
@@ -190,7 +193,6 @@ const ProceedToPayPage = () => {
 
       fetchEventCoupons();
 
-      // Handle case where no items are selected
       if (
         (!ticketData || ticketData.length === 0) &&
         (!foodData || foodData.length === 0)
@@ -203,43 +205,7 @@ const ProceedToPayPage = () => {
     }
   }, [eventId, location.state, ticketData, foodData]);
 
-  // Fetch all event banner images from Firebase Storage
-  // useEffect(() => {
-  //   const fetchEventImages = async () => {
-  //     setImageLoading(true);
-  //     try {
-
-  //       if (eventId) {
-  //         const storage = getStorage();
-  //         const imagesFolderRef = ref(storage, `events/${eventId}/`);
-
-  //         // List all items inside the 'images' folder
-  //         const imagesList = await listAll(imagesFolderRef);
-  //         const imageUrls = await Promise.all(
-  //           imagesList.items.map((item) => getDownloadURL(item))
-  //         );
-
-  //         if (imageUrls.length > 0) {
-  //           setBannerImages(imageUrls);
-  //           setEventImage(imageUrls[2] || imageUrls[0]); // Show 3rd image, fallback to 1st
-  //         } else {
-  //           setEventImage(DEFAULT_EVENT_IMAGE);
-  //         }
-  //       }
-  //     } catch (error) {
-  //       console.error("Error fetching event images:", error);
-  //       setEventImage(DEFAULT_EVENT_IMAGE);
-  //     } finally {
-  //       setImageLoading(false);
-  //     }
-  //   };
-
-  //   if (event?.id || eventId) {
-  //     fetchEventImages();
-  //   }
-  // }, [event, eventId]);
-
-  //fetch event banner images from firestore
+  // Fetch event banner images from Firestore
   useEffect(() => {
     const fetchEventImages = async () => {
       setImageLoading(true);
@@ -275,21 +241,7 @@ const ProceedToPayPage = () => {
     }
   }, [event, eventId]);
 
-  // Function to rotate between banner images every 5 seconds
-  // useEffect(() => {
-  //   if (bannerImages.length <= 1) return;
-
-  //   const intervalId = setInterval(() => {
-  //     setCurrentImageIndex((prevIndex) => {
-  //       const nextIndex = (prevIndex + 1) % bannerImages.length;
-  //       setEventImage(bannerImages[nextIndex]);
-  //       return nextIndex;
-  //     });
-  //   }, 5000);
-
-  //   return () => clearInterval(intervalId);
-  // }, [bannerImages]);
-
+  // Log vendor ID for debugging
   useEffect(() => {
     if (event) {
       console.log("Vendor ID:", event);
@@ -315,7 +267,7 @@ const ProceedToPayPage = () => {
   };
 
   // Handler for promo code application
-  const handleApplyPromoCode = () => {
+  const handleApplyPromoCode = async () => {
     // Clear previous coupon results
     setDiscount(0);
     setAppliedCoupon(null);
@@ -327,7 +279,7 @@ const ProceedToPayPage = () => {
       return;
     }
 
-    // Check if coupon code exists in event coupons
+    // Find the coupon
     const coupon = eventCoupons.find(
       (c) => c.couponCode === promoCode.toUpperCase()
     );
@@ -349,24 +301,60 @@ const ProceedToPayPage = () => {
       return;
     }
 
-    // Calculate discount - always a fixed price reduction
-    const discountAmount = Math.min(
-      coupon.reducePert || 0,
-      calculateTicketSubtotal()
-    );
+    // Check coupon usage limit using a transaction
+    try {
+      const eventRef = doc(db, "events", eventId);
+      await runTransaction(db, async (transaction) => {
+        const eventDoc = await transaction.get(eventRef);
+        if (!eventDoc.exists()) {
+          throw new Error("Event not found");
+        }
 
-    // Apply discount - make sure it's a number and rounded to 2 decimal places
-    const roundedDiscount = Math.round(discountAmount * 100) / 100;
-    setDiscount(roundedDiscount);
-    setAppliedCoupon(coupon);
-    setCouponSuccess(
-      `Coupon successfully applied! You saved ₹${roundedDiscount.toFixed(2)}`
-    );
-    setTimeout(() => setCouponSuccess(null), 5000);
+        const eventData = eventDoc.data();
+        const coupons = eventData.coupons || [];
+        const couponIndex = coupons.findIndex(
+          (c) => c.couponCode === promoCode.toUpperCase()
+        );
+
+        if (couponIndex === -1) {
+          throw new Error("Coupon not found");
+        }
+
+        const selectedCoupon = coupons[couponIndex];
+        const timesUsed = selectedCoupon.timesUsed || 0;
+
+        if (timesUsed >= selectedCoupon.couponLimits) {
+          throw new Error("Coupon usage limit reached");
+        }
+
+        // Calculate discount
+        const discountAmount = Math.min(
+          selectedCoupon.reducePert || 0,
+          calculateTicketSubtotal()
+        );
+        const roundedDiscount = Math.round(discountAmount * 100) / 100;
+
+        // Update timesUsed in Firestore
+        coupons[couponIndex].timesUsed = timesUsed + 1;
+        transaction.update(eventRef, { coupons });
+
+        // Update state
+        setDiscount(roundedDiscount);
+        setAppliedCoupon(selectedCoupon);
+        setCouponSuccess(
+          `Coupon successfully applied! You saved ₹${roundedDiscount.toFixed(2)}`
+        );
+        setTimeout(() => setCouponSuccess(null), 5000);
+      });
+    } catch (err) {
+      console.error("Error applying coupon:", err);
+      setError(err.message || "Failed to apply coupon");
+      setTimeout(() => setError(null), 3000);
+    }
   };
 
   // Function to apply coupon directly from the available coupons section
-  const applyDirectCoupon = (coupon) => {
+  const applyDirectCoupon = async (coupon) => {
     // Check if coupon is currently valid
     const currentDate = new Date();
     const startDate = new Date(coupon.startTime);
@@ -379,23 +367,57 @@ const ProceedToPayPage = () => {
       return;
     }
 
-    // Set the promo code in the input field
-    setPromoCode(coupon.couponCode);
+    // Check coupon usage limit using a transaction
+    try {
+      const eventRef = doc(db, "events", eventId);
+      await runTransaction(db, async (transaction) => {
+        const eventDoc = await transaction.get(eventRef);
+        if (!eventDoc.exists()) {
+          throw new Error("Event not found");
+        }
 
-    // Calculate discount - always a fixed price reduction
-    const discountAmount = Math.min(
-      coupon.reducePert || 0,
-      calculateTicketSubtotal()
-    );
+        const eventData = eventDoc.data();
+        const coupons = eventData.coupons || [];
+        const couponIndex = coupons.findIndex(
+          (c) => c.couponCode === coupon.couponCode
+        );
 
-    // Apply discount
-    const roundedDiscount = Math.round(discountAmount * 100) / 100;
-    setDiscount(roundedDiscount);
-    setAppliedCoupon(coupon);
-    setCouponSuccess(
-      `Coupon successfully applied! You saved ₹${roundedDiscount.toFixed(2)}`
-    );
-    setTimeout(() => setCouponSuccess(null), 5000);
+        if (couponIndex === -1) {
+          throw new Error("Coupon not found");
+        }
+
+        const selectedCoupon = coupons[couponIndex];
+        const timesUsed = selectedCoupon.timesUsed || 0;
+
+        if (timesUsed >= selectedCoupon.couponLimits) {
+          throw new Error("Coupon usage limit reached");
+        }
+
+        // Calculate discount
+        const discountAmount = Math.min(
+          selectedCoupon.reducePert || 0,
+          calculateTicketSubtotal()
+        );
+        const roundedDiscount = Math.round(discountAmount * 100) / 100;
+
+        // Update timesUsed in Firestore
+        coupons[couponIndex].timesUsed = timesUsed + 1;
+        transaction.update(eventRef, { coupons });
+
+        // Update state
+        setPromoCode(coupon.couponCode);
+        setDiscount(roundedDiscount);
+        setAppliedCoupon(selectedCoupon);
+        setCouponSuccess(
+          `Coupon successfully applied! You saved ₹${roundedDiscount.toFixed(2)}`
+        );
+        setTimeout(() => setCouponSuccess(null), 5000);
+      });
+    } catch (err) {
+      console.error("Error applying coupon:", err);
+      setError(err.message || "Failed to apply coupon");
+      setTimeout(() => setError(null), 3000);
+    }
   };
 
   // Calculate total with discount
@@ -436,7 +458,7 @@ const ProceedToPayPage = () => {
     {
       question: "Why isn't my coupon code working?",
       answer:
-        "Coupon codes may be limited by time period, maximum usage, or may only apply to specific tickets. Check that your coupon is valid for this event and hasn't expired.",
+        "Coupon codes may be limited by time period, maximum usage, or may only apply to specific tickets. Check that your coupon is valid for this event, hasn't expired, and hasn't reached its usage limit.",
     },
     {
       question: "Can I use multiple coupon codes?",
@@ -655,6 +677,8 @@ const ProceedToPayPage = () => {
                       const isValid =
                         new Date() >= new Date(coupon.startTime) &&
                         new Date() <= new Date(coupon.endTime);
+                      const timesUsed = coupon.timesUsed || 0;
+                      const remainingUses = coupon.couponLimits - timesUsed;
 
                       return (
                         <Box
@@ -664,7 +688,7 @@ const ProceedToPayPage = () => {
                             borderRadius: "8px",
                             p: 2,
                             mb: 2,
-                            backgroundColor: isValid
+                            backgroundColor: isValid && remainingUses > 0
                               ? "rgba(25, 174, 220, 0.05)"
                               : "#f5f5f5",
                             position: "relative",
@@ -676,7 +700,7 @@ const ProceedToPayPage = () => {
                               position: "absolute",
                               top: 0,
                               right: 0,
-                              backgroundColor: isValid ? "#19AEDC" : "#9e9e9e",
+                              backgroundColor: isValid && remainingUses > 0 ? "#19AEDC" : "#9e9e9e",
                               color: "white",
                               px: 2,
                               py: 0.5,
@@ -684,7 +708,7 @@ const ProceedToPayPage = () => {
                             }}
                           >
                             <Typography variant="caption" fontWeight="bold">
-                              {isValid ? "ACTIVE" : "INACTIVE"}
+                              {isValid && remainingUses > 0 ? "ACTIVE" : "INACTIVE"}
                             </Typography>
                           </Box>
 
@@ -708,6 +732,12 @@ const ProceedToPayPage = () => {
                               Valid: {startDate} - {endDate}
                             </Typography>
                             <Typography
+                              variant="body2"
+                              color="text.secondary"
+                            >
+                              Uses remaining: {remainingUses}/{coupon.couponLimits}
+                            </Typography>
+                            <Typography
                               variant="caption"
                               color="text.secondary"
                             >
@@ -725,7 +755,7 @@ const ProceedToPayPage = () => {
                               },
                             }}
                             onClick={() => applyDirectCoupon(coupon)}
-                            disabled={!isValid}
+                            disabled={!isValid || remainingUses <= 0}
                           >
                             Apply
                           </Button>
@@ -1013,6 +1043,8 @@ const ProceedToPayPage = () => {
                     const isValid =
                       new Date() >= new Date(coupon.startTime) &&
                       new Date() <= new Date(coupon.endTime);
+                    const timesUsed = coupon.timesUsed || 0;
+                    const remainingUses = coupon.couponLimits - timesUsed;
 
                     return (
                       <Box
@@ -1022,7 +1054,7 @@ const ProceedToPayPage = () => {
                           borderRadius: "8px",
                           p: 2,
                           mb: 2,
-                          backgroundColor: isValid
+                          backgroundColor: isValid && remainingUses > 0
                             ? "rgba(25, 174, 220, 0.05)"
                             : "#f5f5f5",
                           position: "relative",
@@ -1034,7 +1066,7 @@ const ProceedToPayPage = () => {
                             position: "absolute",
                             top: 0,
                             right: 0,
-                            backgroundColor: isValid ? "#19AEDC" : "#9e9e9e",
+                            backgroundColor: isValid && remainingUses > 0 ? "#19AEDC" : "#9e9e9e",
                             color: "white",
                             px: 2,
                             py: 0.5,
@@ -1042,7 +1074,7 @@ const ProceedToPayPage = () => {
                           }}
                         >
                           <Typography variant="caption" fontWeight="bold">
-                            {isValid ? "ACTIVE" : "INACTIVE"}
+                            {isValid && remainingUses > 0 ? "ACTIVE" : "INACTIVE"}
                           </Typography>
                         </Box>
 
@@ -1065,7 +1097,16 @@ const ProceedToPayPage = () => {
                           >
                             Valid: {startDate} - {endDate}
                           </Typography>
-                          <Typography variant="caption" color="text.secondary">
+                          <Typography
+                            variant="body2"
+                            color="text.secondary"
+                          >
+                            Uses remaining: {remainingUses}/{coupon.couponLimits}
+                          </Typography>
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                          >
                             *Applies to ticket prices only
                           </Typography>
                         </Box>
@@ -1080,7 +1121,7 @@ const ProceedToPayPage = () => {
                             },
                           }}
                           onClick={() => applyDirectCoupon(coupon)}
-                          disabled={!isValid}
+                          disabled={!isValid || remainingUses <= 0}
                         >
                           Apply
                         </Button>
@@ -1122,6 +1163,7 @@ const ProceedToPayPage = () => {
                             reducePert: appliedCoupon.reducePert,
                             startTime: appliedCoupon.startTime,
                             endTime: appliedCoupon.endTime,
+                            timesUsed: appliedCoupon.timesUsed,
                           }
                         : null,
                     },
@@ -1179,6 +1221,7 @@ const ProceedToPayPage = () => {
                           reducePert: appliedCoupon.reducePert,
                           startTime: appliedCoupon.startTime,
                           endTime: appliedCoupon.endTime,
+                          timesUsed: appliedCoupon.timesUsed,
                         }
                       : null,
                   },

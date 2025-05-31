@@ -34,7 +34,7 @@ import { getAuth } from "firebase/auth";
 
 const steps = ["Select Tickets", "Details", "Payment"];
 
-// Default images based on category (these will be used if no image is provided in the perks)
+// Default images based on category
 const defaultFoodImages = {
   Popcorn:
     "https://recipeforperfection.com/wp-content/uploads/2017/11/Movie-Theater-Popcorn-in-a-popcorn-bucket.jpg",
@@ -46,11 +46,9 @@ const defaultFoodImages = {
 };
 
 const getDefaultImage = (itemName) => {
-  // Check if the item name contains any of the keys in defaultFoodImages
   const category = Object.keys(defaultFoodImages).find((key) =>
     itemName.toLowerCase().includes(key.toLowerCase())
   );
-
   return category ? defaultFoodImages[category] : defaultFoodImages["Default"];
 };
 
@@ -71,8 +69,7 @@ const TicketPricePage = ({ activeStep = 0 }) => {
   const isMobile = useMediaQuery("(max-width:600px)");
 
   const auth = getAuth();
-const userUID = auth.currentUser?.uid;
-
+  const userUID = auth.currentUser?.uid;
 
   useEffect(() => {
     const fetchEventDetails = async () => {
@@ -91,28 +88,22 @@ const userUID = auth.currentUser?.uid;
         }
 
         const eventData = eventDoc.data();
-        const maxTicketCount = eventData.ticketCount;
-        // Extract tickets from pricing array instead of ticket
+        const maxTicketCount = parseInt(eventData.ticketCount) || 10; // Parse ticketCount as integer
         const ticketsWithUniqueIds = eventData.pricing
-          ? eventData.pricing.map((ticket, index) => {
-              return {
-                ...ticket,
-                id: ticket.id || `pricing-${index}`,
-                available: ticket.seats || 0,
-                limit: ticket.seats || 0,
-              };
-            })
+          ? eventData.pricing.map((ticket, index) => ({
+              ...ticket,
+              id: ticket.id || `pricing-${index}`,
+              available: ticket.seats || 0,
+              limit: ticket.seats || 0,
+            }))
           : [];
 
-        // Process food perks from the event data
         const perks =
           eventData.perks && Array.isArray(eventData.perks)
             ? eventData.perks
             : [];
 
-        // Transform perks into the foodItems format with categories
         const processedFoodItems = perks.map((perk, index) => {
-          // Determine category based on name (simple logic)
           let category = "Other";
           if (perk.itemName.toLowerCase().includes("popcorn")) {
             category = "Popcorn";
@@ -129,16 +120,17 @@ const userUID = auth.currentUser?.uid;
             perk.itemName.toLowerCase().includes("fries") ||
             perk.itemName.toLowerCase().includes("nugget") ||
             perk.itemName.toLowerCase().includes("sandwich") ||
-            perk.itemName.toLowerCase().includes("snack")
+            perk.itemName.toLowerCase().includes("snack") ||
+            perk.itemName.toLowerCase().includes("burger")
           ) {
             category = "Snacks";
           }
 
           return {
-            id: index + 1, // Simple ID based on index
+            id: index + 1,
             name: perk.itemName,
             description: `Delicious ${perk.itemName} for your movie enjoyment`,
-            image: getDefaultImage(perk.itemName),
+            image: perk.url || getDefaultImage(perk.itemName),
             price: perk.price || 0,
             category: category,
             limit: perk.limit || 100,
@@ -147,15 +139,14 @@ const userUID = auth.currentUser?.uid;
 
         setFoodItems(processedFoodItems);
 
-        // Set to event.ticket for compatibility with existing code
         setEvent({
           id: eventDoc.id,
           ...eventData,
           ticket: ticketsWithUniqueIds,
+          ticketCount: maxTicketCount, // Store parsed ticketCount
           foodPerks: perks,
         });
 
-        // Auto-set free ticket if all tickets are free
         if (
           ticketsWithUniqueIds.length > 0 &&
           ticketsWithUniqueIds.every((ticket) => ticket.free)
@@ -171,11 +162,12 @@ const userUID = auth.currentUser?.uid;
     };
 
     fetchEventDetails();
-  }, [eventId, navigate]);
+  }, [eventId]);
 
-useEffect(() => {
-  console.log(userUID)
-})
+  useEffect(() => {
+    console.log(userUID);
+  }, [userUID]);
+
   const handleIncrement = (ticketId) => {
     if (!ticketId || !event || !event.ticket) return;
 
@@ -188,14 +180,20 @@ useEffect(() => {
         : ticketType.limit || 0;
     const currentCount = selectedTickets[ticketId] || 0;
     const totalSelected = getTotalTicketCount();
-    const maxTicketCount = event.maxTicketCount || 10; // fallback if not set
+    const maxTicketCount = event.ticketCount || 10; // Use event.ticketCount
 
-    // Prevent increment if it exceeds available or max allowed tickets
-    if (currentCount < available && totalSelected < maxTicketCount) {
+    // Prevent increment if it exceeds available seats or max ticket count
+    if (
+      currentCount < available &&
+      totalSelected < maxTicketCount &&
+      !isFreeTicket // Disable increment if free ticket is selected
+    ) {
       setSelectedTickets((prev) => ({
         ...prev,
         [ticketId]: currentCount + 1,
       }));
+    } else if (totalSelected >= maxTicketCount) {
+      setError(`Cannot select more than ${maxTicketCount} tickets per purchase.`);
     }
   };
 
@@ -213,6 +211,10 @@ useEffect(() => {
       }
 
       setSelectedTickets(updatedSelectedTickets);
+      // Clear error if user reduces ticket count below the limit
+      if (getTotalTicketCount() - 1 < event.ticketCount) {
+        setError(null);
+      }
     }
   };
 
@@ -276,7 +278,6 @@ useEffect(() => {
     return Object.values(selectedFoodItems).reduce((a, b) => a + b, 0);
   };
 
-  // Get unique food categories dynamically from the food items
   const foodCategories = [
     "All",
     ...new Set(foodItems.map((item) => item.category)),
@@ -287,7 +288,6 @@ useEffect(() => {
       ? foodItems
       : foodItems.filter((item) => item.category === selectedCategory);
 
-  // Prepare selected food items for database storage
   const prepareSelectedFoodPerks = () => {
     return Object.keys(selectedFoodItems).map((id) => {
       const item = foodItems.find((item) => item.id === parseInt(id));
@@ -300,92 +300,97 @@ useEffect(() => {
     });
   };
 
-const handleProceed = async () => {
-  // ✅ Check if user is signed in
-  if (!userUID) {
-    alert("Please sign in to continue");
-    navigate("/"); // redirect to home or sign-in page
-    return;
-  }
-
-  setIsProcessingBooking(true);
-
-  try {
-    if (
-      getTotalTicketCount() === 0 &&
-      !isFreeTicket &&
-      getTotalFoodCount() === 0
-    ) {
-      throw new Error("Please select at least one ticket or food item");
+  const handleProceed = async () => {
+    if (!userUID) {
+      alert("Please sign in to continue");
+      navigate("/");
+      return;
     }
 
-    if (getTotalFoodCount() > 0) {
-      const selectedFoodPerks = prepareSelectedFoodPerks();
-      // Optional DB update
-      // await updateDoc(doc(db, "events", eventId), {
-      //   selectedPerks: selectedFoodPerks
-      // });
-    }
+    setIsProcessingBooking(true);
 
-    const ticketSummary = Object.keys(selectedTickets).map((id) => {
-      const ticket = event?.ticket?.find((t) => t.id === id);
-      return {
-        type: ticket?.ticketType || "Standard Ticket",
-        quantity: selectedTickets[id],
-        price: ticket?.price || 0,
-        subtotal: selectedTickets[id] * (ticket?.price || 0),
-      };
-    });
+    try {
+      if (
+        getTotalTicketCount() === 0 &&
+        !isFreeTicket &&
+        getTotalFoodCount() === 0
+      ) {
+        throw new Error("Please select at least one ticket or food item");
+      }
 
-    if (isFreeTicket) {
-      ticketSummary.push({
-        type: "Free Admission",
-        quantity: 1,
-        price: 0,
-        subtotal: 0,
+      if (getTotalTicketCount() > event.ticketCount && !isFreeTicket) {
+        throw new Error(
+          `Cannot select more than ${event.ticketCount} tickets per purchase.`
+        );
+      }
+
+      if (getTotalFoodCount() > 0) {
+        const selectedFoodPerks = prepareSelectedFoodPerks();
+        // Optional DB update
+        // await updateDoc(doc(db, "events", eventId), {
+        //   selectedPerks: selectedFoodPerks
+        // });
+      }
+
+      const ticketSummary = Object.keys(selectedTickets).map((id) => {
+        const ticket = event?.ticket?.find((t) => t.id === id);
+        return {
+          type: ticket?.ticketType || "Standard Ticket",
+          quantity: selectedTickets[id],
+          price: ticket?.price || 0,
+          subtotal: selectedTickets[id] * (ticket?.price || 0),
+        };
       });
+
+      if (isFreeTicket) {
+        ticketSummary.push({
+          type: "Free Admission",
+          quantity: 1,
+          price: 0,
+          subtotal: 0,
+        });
+      }
+
+      const foodSummary = Object.keys(selectedFoodItems).map((id) => {
+        const item = foodItems.find((item) => item.id === parseInt(id));
+        return {
+          name: item?.name || "Food Item",
+          quantity: selectedFoodItems[id],
+          price: item?.price || 0,
+          subtotal: selectedFoodItems[id] * (item?.price || 0),
+        };
+      });
+
+      const subtotal = calculateSubtotal();
+      const totalAmount = calculateTotal();
+
+      navigate(`/proceedtopay/${eventId}/${userUID}`, {
+        state: {
+          event: {
+            id: event.id,
+            vendorId: event.vendorId,
+            name: event.name,
+            date: event.eventDate,
+            location: event.venueDetails?.city || "Unknown Location",
+            description: event.description || "No description available",
+          },
+          ticketSummary,
+          foodSummary,
+          financial: {
+            subtotal,
+            convenienceFee: CONVENIENCE_FEE,
+            totalAmount,
+          },
+          selectedPerks: prepareSelectedFoodPerks(),
+        },
+      });
+    } catch (error) {
+      console.error("Error proceeding to payment:", error);
+      setError(error.message);
+    } finally {
+      setIsProcessingBooking(false);
     }
-
-    const foodSummary = Object.keys(selectedFoodItems).map((id) => {
-      const item = foodItems.find((item) => item.id === parseInt(id));
-      return {
-        name: item?.name || "Food Item",
-        quantity: selectedFoodItems[id],
-        price: item?.price || 0,
-        subtotal: selectedFoodItems[id] * (item?.price || 0),
-      };
-    });
-
-    const subtotal = calculateSubtotal();
-    const totalAmount = calculateTotal();
-
-    navigate(`/proceedtopay/${eventId}/${userUID}`, {
-      state: {
-        event: {
-          id: event.id,
-          vendorId: event.vendorId,
-          name: event.name,
-          date: event.eventDate,
-          location: event.venueDetails?.city || "Unknown Location",
-          description: event.description || "No description available",
-        },
-        ticketSummary,
-        foodSummary,
-        financial: {
-          subtotal,
-          convenienceFee: CONVENIENCE_FEE,
-          totalAmount,
-        },
-        selectedPerks: prepareSelectedFoodPerks(),
-      },
-    });
-  } catch (error) {
-    console.error("Error proceeding to payment:", error);
-    setError(error.message);
-  } finally {
-    setIsProcessingBooking(false);
-  }
-};
+  };
 
   if (loading) {
     return (
@@ -403,7 +408,6 @@ const handleProceed = async () => {
     );
   }
 
-  // Check if there are any food perks available
   const hasFoodPerks = foodItems && foodItems.length > 0;
 
   return (
@@ -418,7 +422,6 @@ const handleProceed = async () => {
     >
       <Header />
 
-      {/* Progress Stepper */}
       <Container maxWidth="md" sx={{ mt: 2 }}>
         <Stepper activeStep={activeStep} alternativeLabel>
           {steps.map((label, index) => (
@@ -451,7 +454,6 @@ const handleProceed = async () => {
         </Container>
       )}
 
-      {/* Event Info Card */}
       <Container maxWidth="md" sx={{ mt: 2 }}>
         <Card
           sx={{
@@ -459,7 +461,7 @@ const handleProceed = async () => {
             boxShadow: "0px 4px 12px rgba(0, 0, 0, 0.05)",
           }}
         >
-         <CardContent sx={{ textAlign: { xs: "left", sm: "center" } }}>
+          <CardContent sx={{ textAlign: { xs: "left", sm: "center" } }}>
             <Typography
               variant="h5"
               sx={{ fontWeight: "bold", textAlign: { xs: "left", sm: "center" } }}
@@ -512,14 +514,12 @@ const handleProceed = async () => {
               </Box>
             </Box>
           </CardContent>
-
         </Card>
       </Container>
 
-      {/* Ticket Selection */}
       <Container maxWidth="md" sx={{ mt: 3 }}>
         <Typography variant="h6" sx={{ fontWeight: "bold", mb: 2 }}>
-          Select Your Tickets
+          Select Your Tickets (Max {event.ticketCount} per purchase)
         </Typography>
 
         {event?.ticket && event.ticket.length > 0 ? (
@@ -621,13 +621,21 @@ const handleProceed = async () => {
                     </Typography>
                     <IconButton
                       onClick={() => handleIncrement(ticketId)}
-                      disabled={thisTicketCount >= available}
+                      disabled={
+                        thisTicketCount >= available ||
+                        getTotalTicketCount() >= event.ticketCount ||
+                        isFreeTicket
+                      }
                       size="small"
                     >
                       <AddIcon
                         sx={{
                           color:
-                            thisTicketCount >= available ? "#ccc" : "#19AEDC",
+                            thisTicketCount >= available ||
+                            getTotalTicketCount() >= event.ticketCount ||
+                            isFreeTicket
+                              ? "#ccc"
+                              : "#19AEDC",
                         }}
                       />
                     </IconButton>
@@ -636,6 +644,7 @@ const handleProceed = async () => {
                   <Button
                     variant="outlined"
                     onClick={() => handleIncrement(ticketId)}
+                    disabled={getTotalTicketCount() >= event.ticketCount || isFreeTicket}
                     sx={{
                       borderColor: "#19AEDC",
                       color: "#19AEDC",
@@ -658,7 +667,6 @@ const handleProceed = async () => {
         )}
       </Container>
 
-      {/* Free & Grab a Bite Buttons */}
       <Container maxWidth="md" sx={{ mt: 3 }}>
         <Box
           sx={{
@@ -685,7 +693,12 @@ const handleProceed = async () => {
                 flex: 1,
                 justifyContent: "center",
               }}
-              onClick={() => setIsFreeTicket(!isFreeTicket)}
+              onClick={() => {
+                setIsFreeTicket(!isFreeTicket);
+                if (!isFreeTicket) {
+                  setSelectedTickets({}); // Clear selected tickets when free ticket is selected
+                }
+              }}
             >
               FREE EVENT
               <Box
@@ -753,218 +766,216 @@ const handleProceed = async () => {
         </Box>
       </Container>
 
-      {/* Food Modal */}
       <Modal
-  open={openBiteModal}
-  onClose={() => setOpenBiteModal(false)}
-  sx={{
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    p: 2, // ensures padding on smaller screens
-  }}
->
-  <Card
-    sx={{
-      maxWidth: 800,
-      maxHeight: "90vh",
-      overflowY: "auto",
-      p: { xs: 2, sm: 3 },
-      width: "100%", // full width with padding will help responsiveness
-    }}
-  >
-    <Box
-      sx={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        mb: 2,
-        flexDirection:"row",
-        gap: 1,
-      }}
-    >
-      <Typography
-        variant="h6"
-        component="h2"
-        fontWeight="bold"
-        textAlign={{ xs: "center", sm: "left" }}
-      >
-        Add Snacks & Beverages
-      </Typography>
-      <IconButton onClick={() => setOpenBiteModal(false)}>
-        <CloseIcon />
-      </IconButton>
-    </Box>
-
-    {foodItems.length > 0 ? (
-      <>
-        <Tabs
-          value={selectedCategory}
-          onChange={(e, newValue) => setSelectedCategory(newValue)}
-          variant="scrollable"
-          scrollButtons="auto"
-          sx={{
-            mb: 2,
-            borderBottom: 1,
-            borderColor: "divider",
-          }}
-        >
-          {foodCategories.map((category) => (
-            <Tab
-              key={category}
-              label={category}
-              value={category}
-              sx={{
-                fontWeight:
-                  selectedCategory === category ? "bold" : "normal",
-                color:
-                  selectedCategory === category ? "#19AEDC" : "inherit",
-              }}
-            />
-          ))}
-        </Tabs>
-
-        <Grid container spacing={2}>
-          {filteredFoodItems.map((item) => {
-            const count = selectedFoodItems[item.id] || 0;
-
-            return (
-              <Grid item xs={12} sm={6} md={4} key={item.id}>
-                <Card
-                  sx={{
-                    display: "flex",
-                    flexDirection: "column",
-                    height: !isMobile?"100%":"100%",
-                    width: !isMobile?"100%":"80%",
-                    boxShadow:
-                      count > 0
-                        ? "0 0 0 2px #19AEDC"
-                        : "0px 4px 12px rgba(0, 0, 0, 0.05)",
-                    transition: "all 0.2s ease-in-out",
-                    "&:hover": {
-                      transform: "translateY(-4px)",
-                      boxShadow: "0px 8px 16px rgba(0, 0, 0, 0.1)",
-                    },
-                  }}
-                >
-                  <Box sx={{ height: 140, overflow: "hidden" }}>
-                    <img
-                      src={item.image}
-                      alt={item.name}
-                      style={{
-                        width: "100%",
-                        height: "100%",
-                        objectFit: "cover",
-                      }}
-                    />
-                  </Box>
-                  <Box sx={{ p: 2, flexGrow: 1 }}>
-                    <Typography
-                      variant="h6"
-                      component="h3"
-                      fontSize={{ xs: "1rem", sm: "1.1rem" }}
-                      gutterBottom
-                    >
-                      {item.name}
-                    </Typography>
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      sx={{ mb: 1, fontSize: { xs: "0.85rem", sm: "0.95rem" } }}
-                    >
-                      {item.description}
-                    </Typography>
-                    <Typography variant="subtitle1" fontWeight="bold">
-                      ₹{item.price}
-                    </Typography>
-                  </Box>
-                  <Box
-                    sx={{
-                      p: 2,
-                      display: "flex",
-                      justifyContent:
-                        count > 0 ? "space-between" : "flex-end",
-                      alignItems: "center",
-                    }}
-                  >
-                    {count > 0 ? (
-                      <>
-                        <IconButton
-                          size="small"
-                          onClick={() => handleFoodDecrement(item.id)}
-                          sx={{ color: "#19AEDC" }}
-                        >
-                          <RemoveIcon />
-                        </IconButton>
-                        <Typography fontWeight="bold">{count}</Typography>
-                        <IconButton
-                          size="small"
-                          onClick={() => handleFoodIncrement(item.id)}
-                          sx={{ color: "#19AEDC" }}
-                        >
-                          <AddIcon />
-                        </IconButton>
-                      </>
-                    ) : (
-                      <Button
-                        variant="outlined"
-                        size="small"
-                        onClick={() => handleFoodIncrement(item.id)}
-                        sx={{
-                          borderColor: "#19AEDC",
-                          color: "#19AEDC",
-                          fontSize: { xs: "0.75rem", sm: "0.875rem" },
-                        }}
-                      >
-                        Add
-                      </Button>
-                    )}
-                  </Box>
-                </Card>
-              </Grid>
-            );
-          })}
-        </Grid>
-      </>
-    ) : (
-      <Typography variant="body1" sx={{ textAlign: "center", py: 4 }}>
-        No food items available for this event.
-      </Typography>
-    )}
-
-    <Box
-      sx={{
-        display: "flex",
-        flexDirection: { xs: "column", sm: "row" },
-        justifyContent: "space-between",
-        alignItems: { xs: "stretch", sm: "center" },
-        mt: 3,
-        gap: 2,
-      }}
-    >
-      <Typography variant="h6" fontSize={{ xs: "1rem", sm: "1.2rem" }}>
-        {getTotalFoodCount() > 0
-          ? `${getTotalFoodCount()} items selected`
-          : "No items selected"}
-      </Typography>
-      <Button
-        variant="contained"
-        fullWidth={true}
-        onClick={() => setOpenBiteModal(false)}
+        open={openBiteModal}
+        onClose={() => setOpenBiteModal(false)}
         sx={{
-          backgroundColor: "#19AEDC",
-          "&:hover": { backgroundColor: "#148db1" },
-          maxWidth: { sm: "200px" },
-          alignSelf: { xs: "center", sm: "auto" },
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          p: 2,
         }}
       >
-        Done
-      </Button>
-    </Box>
-  </Card>
-</Modal>
+        <Card
+          sx={{
+            maxWidth: 800,
+            maxHeight: "90vh",
+            overflowY: "auto",
+            p: { xs: 2, sm: 3 },
+            width: "100%",
+          }}
+        >
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              mb: 2,
+              flexDirection: "row",
+              gap: 1,
+            }}
+          >
+            <Typography
+              variant="h6"
+              component="h2"
+              fontWeight="bold"
+              textAlign={{ xs: "center", sm: "left" }}
+            >
+              Add Snacks & Beverages
+            </Typography>
+            <IconButton onClick={() => setOpenBiteModal(false)}>
+              <CloseIcon />
+            </IconButton>
+          </Box>
 
-      {/* Footer with Price Summary */}
+          {foodItems.length > 0 ? (
+            <>
+              <Tabs
+                value={selectedCategory}
+                onChange={(e, newValue) => setSelectedCategory(newValue)}
+                variant="scrollable"
+                scrollButtons="auto"
+                sx={{
+                  mb: 2,
+                  borderBottom: 1,
+                  borderColor: "divider",
+                }}
+              >
+                {foodCategories.map((category) => (
+                  <Tab
+                    key={category}
+                    label={category}
+                    value={category}
+                    sx={{
+                      fontWeight:
+                        selectedCategory === category ? "bold" : "normal",
+                      color:
+                        selectedCategory === category ? "#19AEDC" : "inherit",
+                    }}
+                  />
+                ))}
+              </Tabs>
+
+              <Grid container spacing={2}>
+                {filteredFoodItems.map((item) => {
+                  const count = selectedFoodItems[item.id] || 0;
+
+                  return (
+                    <Grid item xs={12} sm={6} md={4} key={item.id}>
+                      <Card
+                        sx={{
+                          display: "flex",
+                          flexDirection: "column",
+                          height: !isMobile ? "100%" : "100%",
+                          width: !isMobile ? "100%" : "80%",
+                          boxShadow:
+                            count > 0
+                              ? "0 0 0 2px #19AEDC"
+                              : "0px 4px 12px rgba(0, 0, 0, 0.05)",
+                          transition: "all 0.2s ease-in-out",
+                          "&:hover": {
+                            transform: "translateY(-4px)",
+                            boxShadow: "0px 8px 16px rgba(0, 0, 0, 0.1)",
+                          },
+                        }}
+                      >
+                        <Box sx={{ height: 140, overflow: "hidden" }}>
+                          <img
+                            src={item.image}
+                            alt={item.name}
+                            style={{
+                              width: "100%",
+                              height: "100%",
+                              objectFit: "cover",
+                            }}
+                          />
+                        </Box>
+                        <Box sx={{ p: 2, flexGrow: 1 }}>
+                          <Typography
+                            variant="h6"
+                            component="h3"
+                            fontSize={{ xs: "1rem", sm: "1.1rem" }}
+                            gutterBottom
+                          >
+                            {item.name}
+                          </Typography>
+                          <Typography
+                            variant="body2"
+                            color="text.secondary"
+                            sx={{ mb: 1, fontSize: { xs: "0.85rem", sm: "0.95rem" } }}
+                          >
+                            {item.description}
+                          </Typography>
+                          <Typography variant="subtitle1" fontWeight="bold">
+                            ₹{item.price}
+                          </Typography>
+                        </Box>
+                        <Box
+                          sx={{
+                            p: 2,
+                            display: "flex",
+                            justifyContent:
+                              count > 0 ? "space-between" : "flex-end",
+                            alignItems: "center",
+                          }}
+                        >
+                          {count > 0 ? (
+                            <>
+                              <IconButton
+                                size="small"
+                                onClick={() => handleFoodDecrement(item.id)}
+                                sx={{ color: "#19AEDC" }}
+                              >
+                                <RemoveIcon />
+                              </IconButton>
+                              <Typography fontWeight="bold">{count}</Typography>
+                              <IconButton
+                                size="small"
+                                onClick={() => handleFoodIncrement(item.id)}
+                                sx={{ color: "#19AEDC" }}
+                              >
+                                <AddIcon />
+                              </IconButton>
+                            </>
+                          ) : (
+                            <Button
+                              variant="outlined"
+                              size="small"
+                              onClick={() => handleFoodIncrement(item.id)}
+                              sx={{
+                                borderColor: "#19AEDC",
+                                color: "#19AEDC",
+                                fontSize: { xs: "0.75rem", sm: "0.875rem" },
+                              }}
+                            >
+                              Add
+                            </Button>
+                          )}
+                        </Box>
+                      </Card>
+                    </Grid>
+                  );
+                })}
+              </Grid>
+            </>
+          ) : (
+            <Typography variant="body1" sx={{ textAlign: "center", py: 4 }}>
+              No food items available for this event.
+            </Typography>
+          )}
+
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: { xs: "column", sm: "row" },
+              justifyContent: "space-between",
+              alignItems: { xs: "stretch", sm: "center" },
+              mt: 3,
+              gap: 2,
+            }}
+          >
+            <Typography variant="h6" fontSize={{ xs: "1rem", sm: "1.2rem" }}>
+              {getTotalFoodCount() > 0
+                ? `${getTotalFoodCount()} items selected`
+                : "No items selected"}
+            </Typography>
+            <Button
+              variant="contained"
+              fullWidth={true}
+              onClick={() => setOpenBiteModal(false)}
+              sx={{
+                backgroundColor: "#19AEDC",
+                "&:hover": { backgroundColor: "#148db1" },
+                maxWidth: { sm: "200px" },
+                alignSelf: { xs: "center", sm: "auto" },
+              }}
+            >
+              Done
+            </Button>
+          </Box>
+        </Card>
+      </Modal>
+
       <Box
         sx={{
           backgroundColor: "white",
