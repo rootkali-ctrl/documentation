@@ -129,7 +129,7 @@ const loginvendor = async (req, res) => {
     const document = await userRef.get();
 
     if (document.empty) {
-      return res.status(401).json({ Message: "User does not exist" });
+      return res.status(401).json({ Message: "User does not exist.  Enter username and password correctly" });
     }
 
     let userData = null;
@@ -141,19 +141,19 @@ const loginvendor = async (req, res) => {
     });
 
     if (!userData) {
-      return res.status(401).json({ Message: "User does not exist" });
+      return res.status(401).json({ Message: "User does not exist.  Enter the username correctly" });
     }
 
     // Validate password inputs before bcrypt comparison
     if (!password || !userData.password) {
-      return res.status(401).json({ Message: "Invalid credentials" });
+      return res.status(401).json({ Message: "Invalid credentials.  Please enter valid credentials." });
     }
 
     // Verify password
     const pwdCheck = await bcrypt.compare(password, userData.password);
 
     if (!pwdCheck) {
-      return res.status(401).json({ Message: "Wrong password" });
+      return res.status(401).json({ Message: "Wrong password.  Please enter the correct password." });
     }
 
     // Get status from registration_request collection
@@ -198,7 +198,7 @@ const loginvendor = async (req, res) => {
           status: "removed",
         });
     }
-
+if (registrationData.status === "accepted") {
     return res
       .status(200)
       .json({
@@ -206,7 +206,7 @@ const loginvendor = async (req, res) => {
         vendorId: docId,
         status: "accepted",
       });
-  } catch (err) {
+  } }catch (err) {
     console.error("Login error:", err);
     res.status(500).json({ Error: err.message || "Internal server error" });
   }
@@ -566,10 +566,14 @@ const vendorGetWithPass = async (req, res) => {
 const vendorUpdateDetails = async (req, res) => {
   try {
     const { vendorId } = req.params;
-    const { username, organisationContact, organisationMail, newPassword } =
-      req.body;
+    const {
+      username,
+      organisationContact,
+      organisationMail,
+      newPassword,
+      email, // Extract email for registration_request
+    } = req.body;
 
-    // Validate required fields
     if (!vendorId) {
       return res.status(400).json({
         success: false,
@@ -577,7 +581,6 @@ const vendorUpdateDetails = async (req, res) => {
       });
     }
 
-    // Get the vendor document reference
     const vendorRef = db.collection("vendors").doc(vendorId);
     const doc = await vendorRef.get();
 
@@ -588,117 +591,93 @@ const vendorUpdateDetails = async (req, res) => {
       });
     }
 
-    // Prepare update object
     const updates = {};
 
-    // Validate and update username
+    // Validate username
     if (username !== undefined) {
       if (username.trim() === "") {
-        return res.status(400).json({
-          success: false,
-          message: "Username cannot be empty",
-        });
+        return res.status(400).json({ success: false, message: "Username cannot be empty" });
       }
 
-      // Check if username already exists (exclude current vendor)
       const usernameQuery = await db
         .collection("vendors")
         .where("username", "==", username.trim())
         .get();
 
-      const usernameExists = usernameQuery.docs.some(
-        (doc) => doc.id !== vendorId
-      );
+      const usernameExists = usernameQuery.docs.some((doc) => doc.id !== vendorId);
 
       if (usernameExists) {
-        return res.status(400).json({
-          success: false,
-          message: "Username already exists",
-        });
+        return res.status(400).json({ success: false, message: "Username already exists" });
       }
 
       updates.username = username.trim();
     }
 
-    // Validate and update organization contact
+    // Validate organisationContact
     if (organisationContact !== undefined) {
       if (organisationContact.trim() === "") {
-        return res.status(400).json({
-          success: false,
-          message: "Organization contact cannot be empty",
-        });
+        return res.status(400).json({ success: false, message: "Organization contact cannot be empty" });
       }
 
-      // Basic phone number validation (adjust regex as needed)
       const phoneRegex = /^\d{10,15}$/;
       if (!phoneRegex.test(organisationContact.trim())) {
-        return res.status(400).json({
-          success: false,
-          message: "Invalid phone number format",
-        });
+        return res.status(400).json({ success: false, message: "Invalid phone number format" });
       }
 
       updates.organisationContact = organisationContact.trim();
     }
 
-    // Validate and update organization email
+    // Validate organisationMail
     if (organisationMail !== undefined) {
       if (organisationMail.trim() === "") {
-        return res.status(400).json({
-          success: false,
-          message: "Organization email cannot be empty",
-        });
+        return res.status(400).json({ success: false, message: "Organization email cannot be empty" });
       }
 
-      // Email validation
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(organisationMail.trim())) {
-        return res.status(400).json({
-          success: false,
-          message: "Invalid email format",
-        });
+        return res.status(400).json({ success: false, message: "Invalid email format" });
       }
 
       updates.organisationMail = organisationMail.trim().toLowerCase();
     }
 
-    // Handle password update
+    // Password update
     if (newPassword !== undefined && newPassword.trim() !== "") {
-      // Validate password length
       if (newPassword.length < 8) {
-        return res.status(400).json({
-          success: false,
-          message: "Password must be at least 8 characters long",
-        });
+        return res.status(400).json({ success: false, message: "Password must be at least 8 characters long" });
       }
 
-      // Hash the new password
-      const saltRounds = 10;
-      const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
       updates.password = hashedPassword;
     }
 
-    // If no updates provided
     if (Object.keys(updates).length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "No valid updates provided",
-      });
+      return res.status(400).json({ success: false, message: "No valid updates provided" });
     }
 
-    // Add updatedAt timestamp
     updates.updatedAt = new Date();
 
-    // Update the vendor in Firestore
+    // Update vendors document
     await vendorRef.update(updates);
 
-    // Get the updated document (excluding password)
+    // ALSO update registration_request if email provided
+    if (email) {
+      const regQuery = await db
+        .collection("registration_request")
+        .where("email", "==", email.trim().toLowerCase())
+        .get();
+
+      if (!regQuery.empty) {
+        const regDocRef = regQuery.docs[0].ref;
+        await regDocRef.update(updates); // Apply same updates
+      } else {
+        console.warn("No registration_request found for email:", email);
+      }
+    }
+
     const updatedDoc = await vendorRef.get();
     const updatedVendor = updatedDoc.data();
-    delete updatedVendor.password; // Remove password from response
-
-    // Log the update (optional, for audit purposes)
-    console.log(`Vendor ${vendorId} updated:`, Object.keys(updates));
+    delete updatedVendor.password;
 
     res.status(200).json({
       success: true,
@@ -707,13 +686,10 @@ const vendorUpdateDetails = async (req, res) => {
     });
   } catch (error) {
     console.error("Error updating vendor profile:", error);
-
-    res.status(500).json({
-      success: false,
-      message: "Internal server error",
-    });
+    res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
+
 
 // Improved file upload function to resolve the socket hang-up error
 const uploadFileToStorage = async (file, type, authId) => {

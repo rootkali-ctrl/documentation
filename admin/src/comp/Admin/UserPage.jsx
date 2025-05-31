@@ -178,9 +178,9 @@ const UserPage = () => {
       if (searchTerm) {
         usersQuery = query(
           usersCollection,
-          where("name", ">=", searchTerm),
-          where("name", "<=", searchTerm + "\uf8ff"),
-          orderBy("name"),
+          where("username", ">=", searchTerm),
+          where("username", "<=", searchTerm + "\uf8ff"),
+          orderBy("username"),
           limit(usersPerPage + 1)
         );
       } else {
@@ -276,9 +276,9 @@ const UserPage = () => {
       if (searchTerm) {
         vendorsQuery = query(
           vendorsCollection,
-          where("name", ">=", searchTerm),
-          where("name", "<=", searchTerm + "\uf8ff"),
-          orderBy("name"),
+          where("username", ">=", searchTerm),
+          where("username", "<=", searchTerm + "\uf8ff"),
+          orderBy("username"),
           limit(usersPerPage + 1)
         );
       } else {

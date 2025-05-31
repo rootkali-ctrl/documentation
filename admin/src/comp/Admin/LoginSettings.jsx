@@ -106,7 +106,8 @@ const Loginsettings = () => {
       setError(null);
 
       // Check if API base URL is defined, use fallback if not
-      const baseUrl = process.env.REACT_APP_API_BASE_URL || "http://localhost:8080";
+      const baseUrl =
+        process.env.REACT_APP_API_BASE_URL || "http://localhost:8080";
       console.log("Using API base URL:", baseUrl);
 
       const res = await axios.get(`${baseUrl}/api/admin/allrequests`);
@@ -142,9 +143,12 @@ const Loginsettings = () => {
         const { data } = request;
 
         return (
-          (data.username && data.username.toLowerCase().includes(searchTermLower)) ||
-          (data.organisationMail && data.organisationMail.toLowerCase().includes(searchTermLower)) ||
-          (data.organisationContact && data.organisationContact.includes(searchTerm)) ||
+          (data.username &&
+            data.username.toLowerCase().includes(searchTermLower)) ||
+          (data.organisationMail &&
+            data.organisationMail.toLowerCase().includes(searchTermLower)) ||
+          (data.organisationContact &&
+            data.organisationContact.includes(searchTerm)) ||
           (data.email && data.email.toLowerCase().includes(searchTermLower))
         );
       });
@@ -168,7 +172,10 @@ const Loginsettings = () => {
   // Pagination calculation
   const totalPages = Math.ceil(filteredRequests.length / requestsPerPage);
   const startIndex = (currentPage - 1) * requestsPerPage;
-  const currentRequests = filteredRequests.slice(startIndex, startIndex + requestsPerPage);
+  const currentRequests = filteredRequests.slice(
+    startIndex,
+    startIndex + requestsPerPage
+  );
 
   const handlePrevPage = () => {
     if (currentPage > 1) setCurrentPage(currentPage - 1);
@@ -205,14 +212,11 @@ const Loginsettings = () => {
       navigate(`/admin/vendorstatus/${requestId}`, {
         state: { requestId, data },
       });
-      
-    } 
-     else if (data.status === "rejected") {
+    } else if (data.status === "rejected") {
       navigate(`/admin/vendorstatus/${requestId}`, {
         state: { requestId, data },
       });
-      
-    } else if(data.status === "accepted") {
+    } else if (data.status === "accepted") {
       navigate(`/admin/vendordetails/${requestId}`, {
         state: { requestId, data },
       });
@@ -254,7 +258,12 @@ const Loginsettings = () => {
 
   if (loading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" height="100vh">
+      <Box
+        display="flex"
+        justifyContent="center"
+        alignItems="center"
+        height="100vh"
+      >
         <CircularProgress />
       </Box>
     );
@@ -472,7 +481,25 @@ const Loginsettings = () => {
                           >
                             <Box display="flex" justifyContent="center" gap={1}>
                               <Typography
-                                onClick={() => handleViewMore(requestId, data)}
+                                onClick={() => {
+                                  if (data.status !== "removed") {
+                                    handleViewMore(requestId, data);
+                                  }
+                                }}
+                                sx={{
+                                  color:
+                                    data.status === "removed"
+                                      ? "gray"
+                                      : "#19aedc",
+                                  cursor:
+                                    data.status === "removed"
+                                      ? "not-allowed"
+                                      : "pointer",
+                                  textDecoration:
+                                    data.status === "removed"
+                                      ? "none"
+                                      : "underline",
+                                }}
                               >
                                 View more...
                               </Typography>
@@ -495,8 +522,11 @@ const Loginsettings = () => {
                   >
                     <Typography variant="body2">
                       Showing {startIndex + 1} to{" "}
-                      {Math.min(startIndex + requestsPerPage, filteredRequests.length)} of{" "}
-                      {filteredRequests.length} entries
+                      {Math.min(
+                        startIndex + requestsPerPage,
+                        filteredRequests.length
+                      )}{" "}
+                      of {filteredRequests.length} entries
                     </Typography>
                     <Box display="flex" gap={1}>
                       <Button
@@ -518,7 +548,8 @@ const Loginsettings = () => {
                             borderColor: "#42A5F5",
                             backgroundColor:
                               pageNum === currentPage ? "#42A5F5" : "white",
-                            color: pageNum === currentPage ? "white" : "#42A5F5",
+                            color:
+                              pageNum === currentPage ? "white" : "#42A5F5",
                             fontWeight: "bold",
                           }}
                           onClick={() => setCurrentPage(pageNum)}

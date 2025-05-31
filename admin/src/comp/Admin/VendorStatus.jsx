@@ -14,7 +14,7 @@ import {
   Paper,
   Typography,
 } from "@mui/material";
-import { CheckCircle, Cancel, Delete } from "@mui/icons-material";
+import { CheckCircle, Cancel } from "@mui/icons-material";
 import { useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
 
@@ -27,6 +27,8 @@ const VendorDetails = () => {
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState(null);
   const [pendingRequest, setPendingRequest] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+
 
   const viewDocument = (documentUrl) => {
     if (!documentUrl) {
@@ -64,59 +66,64 @@ const VendorDetails = () => {
     }
   };
 
-  const handleAction = async (action, request) => {
-    try {
-      if (!request || !request.email) {
-        setDialogContent("Vendor data is missing or invalid.");
-        setDialogOpen(true);
-        return;
-      }
-
-      const payload = {
-        email: request.email,
-        vendorName: request.username || "Vendor"
-      };
-      console.log("Payload being sent for action:", payload);
-
-      const baseUrl = process.env.REACT_APP_API_BASE_URL || "http://localhost:8080";
-      console.log("Using API base URL:", baseUrl);
-
-      let response;
-
-      switch(action) {
-        case "accepted":
-          console.log("Sending approval request to:", `${baseUrl}/api/admin/requests`);
-          response = await axios.put(`${baseUrl}/api/admin/requests`, payload);
-          console.log("Approval response:", response.data);
-          await sendVendorEmail(request.email, request.username, "accepted");
-          break;
-
-        case "rejected":
-          console.log("Sending rejection request to:", `${baseUrl}/api/admin/rejectvendor`);
-          response = await axios.delete(`${baseUrl}/api/admin/rejectvendor`, {
-            data: payload 
-          });
-          console.log("Rejection response:", response.data);
-          await sendVendorEmail(request.email, request.username, "rejected");
-          break;
-
-        default:
-          throw new Error(`Unknown action type: ${action}`);
-      }
-
-      setDialogContent(`Vendor ${action} successfully`);
+ const handleAction = async (action, request) => {
+  try {
+    setIsLoading(true);  // disable buttons
+    if (!request || !request.email) {
+      setDialogContent("Vendor data is missing or invalid.");
       setDialogOpen(true);
-    } catch (err) {
-      console.error(`Error during ${action}:`, err);
-      console.error("Error details:", err.response?.data || err.message);
-      setDialogContent(
-        `Failed to ${action} vendor: ${
-          err.response?.data?.message || err.message
-        }. Please check if the vendor is already ${action === "accepted" ? "approved" : "rejected"} or contact support.`
-      );
-      setDialogOpen(true);
+      return;
     }
-  };
+
+    const payload = {
+      email: request.email,
+      vendorName: request.username || "Vendor"
+    };
+    console.log("Payload being sent for action:", payload);
+
+    const baseUrl = process.env.REACT_APP_API_BASE_URL || "http://localhost:8080";
+    console.log("Using API base URL:", baseUrl);
+
+    let response;
+
+    switch(action) {
+      case "accepted":
+        console.log("Sending approval request to:", `${baseUrl}/api/admin/requests`);
+        response = await axios.put(`${baseUrl}/api/admin/requests`, payload);
+        console.log("Approval response:", response.data);
+        await sendVendorEmail(request.email, request.username, "accepted");
+        break;
+
+      case "rejected":
+        console.log("Sending rejection request to:", `${baseUrl}/api/admin/rejectvendor`);
+        response = await axios.delete(`${baseUrl}/api/admin/rejectvendor`, {
+          data: payload 
+        });
+        console.log("Rejection response:", response.data);
+        await sendVendorEmail(request.email, request.username, "rejected");
+        break;
+
+      default:
+        throw new Error(`Unknown action type: ${action}`);
+    }
+
+    setDialogContent(`Vendor ${action} successfully.`);
+    setDialogOpen(true);
+  } catch (err) {
+    console.error(`Error during ${action}:`, err);
+    setDialogContent(
+      `Failed to ${action} vendor: ${
+        err.response?.data?.message || err.message
+      }. Please check if the vendor is already ${
+        action === "accepted" ? "approved" : "rejected"
+      } or contact support.`
+    );
+    setDialogOpen(true);
+  } finally {
+    setIsLoading(false); // re-enable buttons
+  }
+};
+
 
   const askForConfirmation = (action, request) => {
     setPendingAction(action);
@@ -175,25 +182,29 @@ const VendorDetails = () => {
             {request.status==="pending" ?
             <Box display="flex" gap={2}>
               <Button
-                variant="contained"
-                sx={{
-                  backgroundColor: "green",
-                  color: "white",
-                  "&:hover": { backgroundColor: "#00BC01" },
-                }}
-                startIcon={<CheckCircle />}
-                onClick={() => askForConfirmation("accepted", request)}
-              >
-                Accept Vendor
-              </Button>
-              <Button
-                variant="contained"
-                color="error"
-                startIcon={<Cancel />}
-                onClick={() => askForConfirmation("rejected", request)}
-              >
-                Reject Vendor
-              </Button>
+  variant="contained"
+  sx={{
+    backgroundColor: "green",
+    color: "white",
+    "&:hover": { backgroundColor: "#00BC01" },
+  }}
+  startIcon={<CheckCircle />}
+  onClick={() => askForConfirmation("accepted", request)}
+  disabled={isLoading}
+>
+  Accept Vendor
+</Button>
+
+<Button
+  variant="contained"
+  color="error"
+  startIcon={<Cancel />}
+  onClick={() => askForConfirmation("rejected", request)}
+  disabled={isLoading}
+>
+  Reject Vendor
+</Button>
+
             </Box>: <></>
             }
             

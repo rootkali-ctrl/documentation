@@ -1,6 +1,5 @@
 import { Box, Button, Typography } from "@mui/material";
 import React from "react";
-import HeaderVendor from "../Header/HeaderVendor";
 import { useNavigate } from "react-router-dom";
 
 const VendorVerified = () => {
@@ -10,7 +9,6 @@ const VendorVerified = () => {
   };
   return (
     <Box>
-      <HeaderVendor />
       <Box
         sx={{
           display: "flex",

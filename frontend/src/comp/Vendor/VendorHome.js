@@ -1,5 +1,4 @@
 import { React, useEffect, useState } from "react";
-import VendorBeforeLogin from "../Header/VendorBeforeLogin";
 import {
   Box,
   Typography,

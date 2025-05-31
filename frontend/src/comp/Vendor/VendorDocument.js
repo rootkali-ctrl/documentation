@@ -8,7 +8,7 @@ import {
   IconButton,
   useMediaQuery,
 } from "@mui/material";
-import Header from "../Header/Header";
+
 import { useNavigate } from "react-router-dom";
 import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
@@ -188,7 +188,6 @@ const VendorDocument = () => {
         overflow: "hidden",
       }}
     >
-      {!isTab ? <Header /> : <Header />}
 
       <Typography
         sx={{

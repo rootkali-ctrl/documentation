@@ -71,106 +71,234 @@ const EventPage = () => {
   //event location
   const location = formData?.eventDetails?.venueDetails?.venueName;
 
+  // const handleSubmit = async () => {
+  //   const { eventDetails, pricing, finalSetup } = formData;
+  //   const form = new FormData();
+
+  //   // Append banner images
+  //   eventDetails.banner.forEach((file) => {
+  //     form.append("bannerImages", file);
+  //   });
+
+  //   // Format payload according to backend expectations
+  //   const payload = {
+  //     name: eventDetails.name,
+  //     description: eventDetails.description,
+  //     category: eventDetails.category,
+  //     eventDate: eventDetails.eventDate,
+  //     eventHost: eventDetails.eventHost,
+  //     mediaLink: eventDetails.mediaLink || "",
+  //     vendorId: eventDetails.vendorId,
+
+  //     speaker: (eventDetails.speaker || []).map((sp) => ({
+  //       name: sp.name || "",
+  //       role: sp.role || "",
+  //     })),
+
+  //     venueDetails: eventDetails.venueDetails,
+
+  //     pricing: (pricing.tickets || []).map((ticket) => ({
+  //       ticketType: ticket.ticketType || "",
+  //       features: ticket.features || "",
+  //       price: parseFloat(ticket.price) || 0,
+  //       tax: !!ticket.tax,
+  //       free: !!ticket.freeEvent,
+  //       seats: parseInt(ticket.seats) || 0,
+  //     })),
+
+  //     perks: (pricing.addons || []).map((addon) => ({
+  //       itemName: addon.itemName || "",
+  //       price: parseFloat(addon.price) || 0,
+  //       limit: parseInt(addon.limit) || 0,
+  //     })),
+
+  //     coupons: (pricing.coupons || []).map((coupon) => ({
+  //       couponCode: coupon.couponCode || "",
+  //       couponLimits: parseInt(coupon.couponLimits) || 0,
+  //       reducePert: parseFloat(coupon.reducePert) || 0,
+  //       startTime: coupon.startTime || "",
+  //       endTime: coupon.endTime || "",
+  //     })),
+
+  //     contact: finalSetup.contact || "",
+  //     FAQ: (finalSetup.FAQ || []).map((faq) => ({
+  //       question: faq.ques || "",
+  //       answer: faq.ans || "",
+  //     })),
+
+  //     ticketCount: finalSetup.ticketCount || "",
+  //     tags: finalSetup.tags || "",
+  //     cancellationAvailable: finalSetup.cancellationAvailable || false,
+  //     cancellationDays: finalSetup.cancellationDays || "",
+  //     deductionType: finalSetup.deductionType || "",
+  //     deductionRate: finalSetup.deductionRate || "",
+  //     createdAt: new Date().toISOString(),
+  //   };
+
+  //   // Append payload to formData
+  //   Object.entries(payload).forEach(([key, value]) => {
+  //     form.append(
+  //       key,
+  //       typeof value === "object" ? JSON.stringify(value) : value
+  //     );
+  //   });
+
+  //   try {
+  //     setSubmitting(true);
+  //     const response = await axios.post(
+  //       `${process.env.REACT_APP_API_BASE_URL}/api/event/`,
+  //       form,
+  //       {
+  //         headers: {
+  //           "Content-Type": "multipart/form-data",
+  //         },
+  //       }
+  //     );
+  //     console.log(response);
+  //     setOpenDialog(true);
+
+  //     // Navigate first, then reset form
+  //     navigate(`/vendorhome/${formData.eventDetails.vendorId}`);
+
+  //     // Reset form after navigation
+  //     setTimeout(() => {
+  //       resetForm();
+  //     }, 100); // Small delay to ensure navigation completes
+  //   } catch (error) {
+  //     alert("Failed to create event.");
+  //     setSubmitting(false);
+  //   } finally {
+  //     setSubmitting(false);
+  //   }
+  // };
+
   const handleSubmit = async () => {
-    const { eventDetails, pricing, finalSetup } = formData;
-    const form = new FormData();
+  const { eventDetails, pricing, finalSetup } = formData;
+  const form = new FormData();
 
-    // Append banner images
-    eventDetails.banner.forEach((file) => {
-      form.append("bannerImages", file);
-    });
+  // Append banner images
+  eventDetails.banner.forEach((file) => {
+    form.append("bannerImages", file);
+  });
 
-    // Format payload according to backend expectations
-    const payload = {
-      name: eventDetails.name,
-      description: eventDetails.description,
-      category: eventDetails.category,
-      eventDate: eventDetails.eventDate,
-      eventHost: eventDetails.eventHost,
-      mediaLink: eventDetails.mediaLink || "",
-      vendorId: eventDetails.vendorId,
+  const perksWithImages = await Promise.all(
+    (pricing.addons || []).map(async (addon) => {
+      const itemName = addon.itemName || "snacks";
+      let imageUrl = "";
 
-      speaker: (eventDetails.speaker || []).map((sp) => ({
-        name: sp.name || "",
-        role: sp.role || "",
-      })),
+      try {
+        const res = await axios.get(
+          `https://api.unsplash.com/search/photos`,
+          {
+            params: {
+              query: itemName,
+              per_page: 1,
+              orientation: "landscape",
+            },
+            headers: {
+              Authorization: `Client-ID ${process.env.REACT_APP_UNSPLASH_ACCESS_KEY}`,
+            },
+          }
+        );
 
-      venueDetails: eventDetails.venueDetails,
+        const results = res.data.results;
+        if (results.length > 0) {
+          imageUrl = results[0].urls.small; // or .regular for higher resolution
+        }
+      } catch (error) {
+        console.warn(`Unsplash image fetch failed for "${itemName}"`, error);
+      }
 
-      pricing: (pricing.tickets || []).map((ticket) => ({
-        ticketType: ticket.ticketType || "",
-        features: ticket.features || "",
-        price: parseFloat(ticket.price) || 0,
-        tax: !!ticket.tax,
-        free: !!ticket.freeEvent,
-        seats: parseInt(ticket.seats) || 0,
-      })),
-
-      perks: (pricing.addons || []).map((addon) => ({
-        itemName: addon.itemName || "",
+      return {
+        itemName,
         price: parseFloat(addon.price) || 0,
         limit: parseInt(addon.limit) || 0,
-      })),
+        url: imageUrl,
+      };
+    })
+  );
 
-      coupons: (pricing.coupons || []).map((coupon) => ({
-        couponCode: coupon.couponCode || "",
-        couponLimits: parseInt(coupon.couponLimits) || 0,
-        reducePert: parseFloat(coupon.reducePert) || 0,
-        startTime: coupon.startTime || "",
-        endTime: coupon.endTime || "",
-      })),
+  // 2️⃣ Build full payload
+  const payload = {
+    name: eventDetails.name,
+    description: eventDetails.description,
+    category: eventDetails.category,
+    eventDate: eventDetails.eventDate,
+    eventHost: eventDetails.eventHost,
+    mediaLink: eventDetails.mediaLink || "",
+    vendorId: eventDetails.vendorId,
 
-      contact: finalSetup.contact || "",
-      FAQ: (finalSetup.FAQ || []).map((faq) => ({
-        question: faq.ques || "",
-        answer: faq.ans || "",
-      })),
+    speaker: (eventDetails.speaker || []).map((sp) => ({
+      name: sp.name || "",
+      role: sp.role || "",
+    })),
 
-      ticketCount: finalSetup.ticketCount || "",
-      tags: finalSetup.tags || "",
-      cancellationAvailable: finalSetup.cancellationAvailable || false,
-      cancellationDays: finalSetup.cancellationDays || "",
-      deductionType: finalSetup.deductionType || "",
-      deductionRate: finalSetup.deductionRate || "",
-      createdAt: new Date().toISOString(),
-    };
+    venueDetails: eventDetails.venueDetails,
 
-    // Append payload to formData
-    Object.entries(payload).forEach(([key, value]) => {
-      form.append(
-        key,
-        typeof value === "object" ? JSON.stringify(value) : value
-      );
-    });
+    pricing: (pricing.tickets || []).map((ticket) => ({
+      ticketType: ticket.ticketType || "",
+      features: ticket.features || "",
+      price: parseFloat(ticket.price) || 0,
+      tax: !!ticket.tax,
+      free: !!ticket.freeEvent,
+      seats: parseInt(ticket.seats) || 0,
+    })),
 
-    try {
-      setSubmitting(true);
-      const response = await axios.post(
-        `${process.env.REACT_APP_API_BASE_URL}/api/event/`,
-        form,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        }
-      );
-      console.log(response);
-      setOpenDialog(true);
+    perks: perksWithImages, // ✅ with image URL now
 
-      // Navigate first, then reset form
-      navigate(`/vendorhome/${formData.eventDetails.vendorId}`);
+    coupons: (pricing.coupons || []).map((coupon) => ({
+      couponCode: coupon.couponCode || "",
+      couponLimits: parseInt(coupon.couponLimits) || 0,
+      reducePert: parseFloat(coupon.reducePert) || 0,
+      startTime: coupon.startTime || "",
+      endTime: coupon.endTime || "",
+    })),
 
-      // Reset form after navigation
-      setTimeout(() => {
-        resetForm();
-      }, 100); // Small delay to ensure navigation completes
-    } catch (error) {
-      alert("Failed to create event.");
-      setSubmitting(false);
-    } finally {
-      setSubmitting(false);
-    }
+    contact: finalSetup.contact || "",
+    FAQ: (finalSetup.FAQ || []).map((faq) => ({
+      question: faq.ques || "",
+      answer: faq.ans || "",
+    })),
+
+    ticketCount: finalSetup.ticketCount || "",
+    tags: finalSetup.tags || "",
+    cancellationAvailable: finalSetup.cancellationAvailable || false,
+    cancellationDays: finalSetup.cancellationDays || "",
+    deductionType: finalSetup.deductionType || "",
+    deductionRate: finalSetup.deductionRate || "",
+    createdAt: new Date().toISOString(),
   };
+
+  // 3️⃣ Append payload to FormData
+  Object.entries(payload).forEach(([key, value]) => {
+    form.append(key, typeof value === "object" ? JSON.stringify(value) : value);
+  });
+
+  // 4️⃣ Submit form
+  try {
+    setSubmitting(true);
+    const response = await axios.post(
+      `${process.env.REACT_APP_API_BASE_URL}/api/event/`,
+      form,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
+
+    console.log(response);
+    setOpenDialog(true);
+    navigate(`/vendorhome/${formData.eventDetails.vendorId}`);
+    setTimeout(() => resetForm(), 100);
+  } catch (error) {
+    alert("Failed to create event.");
+    console.error(error);
+    setSubmitting(false);
+  } finally {
+    setSubmitting(false);
+  }
+};
 
   const [previewUrls, setPreviewUrls] = useState([]);
 

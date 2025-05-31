@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { TextField, Button, Box, Typography, Modal, IconButton, CircularProgress } from "@mui/material";
+import { TextField, Button, Box, Typography, Modal, IconButton, CircularProgress, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions } from "@mui/material";
 import { ArrowBack } from "@mui/icons-material";
 import { useNavigate, useLocation, useParams } from "react-router-dom";
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
@@ -29,7 +29,8 @@ const VendorLogin = () => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const isResetEmailValid = resetEmail.trim() !== "" && emailRegex.test(resetEmail);
   const isNewPasswordValid = newPassword.trim() !== "" && confirmPassword.trim() !== "" && newPassword === confirmPassword;
-
+const [handleError, setHandleError] = useState("");
+const [openDialog, setOpenDialog] = useState(false);
   useEffect(() => {
     const query = new URLSearchParams(location.search);
     const token = query.get("token");
@@ -42,7 +43,8 @@ const VendorLogin = () => {
 
 const handleLogin = async () => {
   if (!username || !password) {
-    alert("Please enter both username and password.");
+    setHandleError("Please enter both username and password.");
+    setOpenDialog(true);
     return;
   }
 
@@ -54,16 +56,18 @@ const handleLogin = async () => {
     if (response.data.Message === "Login successful") {
       navigate(`/vendorhome/${response.data.vendorId}`);
     } else {
-      alert(response.data.Message);
+      setHandleError(response.data.Message);
+      setOpenDialog(true);
     }
   } catch (error) {
     console.error(error);
-    alert(
-      "Login failed. " +
-      (error.response?.data?.Message || "Please try again later.")
+    setHandleError(
+      error.response?.data?.Message || "Login failed. Please try again later."
     );
+    setOpenDialog(true);
   }
 };
+
 
   const handleForgotPassword = async () => {
     if (!emailRegex.test(resetEmail)) {
@@ -153,28 +157,40 @@ const handleLogin = async () => {
   };
 
   return (
-    <Box>
-      <Header />
+        
+   <Box sx={{ width: "100%", minHeight: "100vh", bgcolor: "#F9FAFB" }}>
+    <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
+  <DialogTitle sx={{fontFamily:'albert sans'}}>Error</DialogTitle>
+  <DialogContent>
+    <DialogContentText sx={{fontFamily:'albert sans'}}>{handleError}</DialogContentText>
+  </DialogContent>
+  <DialogActions>
+    <Button onClick={() => setOpenDialog(false)} color="primary" sx={{fontFamily:'albert sans'}}>
+      Close
+    </Button>
+  </DialogActions>
+</Dialog>
+
       <Box
         sx={{
           display: "flex",
-          flexDirection: { xs: "column", md: "row" },
-          justifyContent: "center",
+          maxWidth: "1200px",
+          margin: "0 auto",
+          padding: "2rem",
           alignItems: "center",
-          height: { xs: "auto", md: "70vh" },
-          width: { xs: "90%", md: "80%" },
-          margin: "2% auto",
-          backgroundColor: "#fff",
-          padding: { xs: "2rem 1rem", md: "0" },
-          gap: { xs: 4, md: 0 },
-          mt: { xs: 8, md: 3 },
+          justifyContent: "space-between",
+          minHeight: "90vh",
         }}
       >
         <Box
           sx={{
-            width: { xs: "100%", md: "30%" },
+            width: { xs: "100%", md: "45%" },
             textAlign: "left",
-            padding: { xs: "1rem", md: "2rem" },
+           boxSizing: "border-box",
+            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)",
+            padding: {lg:"3% 2%",md:"3% 2%",sm:"10% 6%",xs:"10% 6%"},
+            borderRadius: "10px",
+            backgroundColor: "#fff",
           }}
         >
           <Typography

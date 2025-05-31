@@ -78,6 +78,7 @@ const [item, setItem] = useState([
     itemName: "",
     price: "",
     limit: "",
+    url: ""
   },
 ]);
 
@@ -105,7 +106,16 @@ useEffect(() => {
     setCoupon(
       formData.pricing.coupons?.length ? formData.pricing.coupons : coupon
     );
-    setItem(formData.pricing.addons?.length ? formData.pricing.addons : item);
+    setItem(
+  formData.pricing.addons?.length
+    ? formData.pricing.addons.map((a) => ({
+        itemName: a.itemName || "",
+        price: a.price || "",
+        limit: a.limit || "",
+        url: a.url || "", 
+      }))
+    : item
+);
   }
 }, [formData]);
 
@@ -145,7 +155,11 @@ const handleGlobalTaxCheckbox = (isChecked) => {
 
 const handleAddonChange = (index, field, value) => {
   const updatedAddon = [...item];
-  updatedAddon[index][field] = value;
+  updatedAddon[index] = {
+    ...updatedAddon[index],
+    [field]: value,
+    url: updatedAddon[index].url || "",
+  };
   setItem(updatedAddon);
 };
 
@@ -169,8 +183,9 @@ const handleAddCoupon = () => {
 };
 
 const handleAddItem = () => {
-  setItem([...item, { itemName: "", price: "", limit: "" }]);
+  setItem([...item, { itemName: "", price: "", limit: "", url: "" }]);
 };
+
 
 const handleRemoveItem = (indexToRemove) => {
   const removeItem = [...item];

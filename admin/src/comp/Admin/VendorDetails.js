@@ -1,6 +1,5 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
-  Avatar,
   Box,
   Button,
   Card,
@@ -26,30 +25,10 @@ import {
 import { Delete, Description, AccountBalance } from "@mui/icons-material";
 import { useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
+import { collection, query, where, getDocs } from "firebase/firestore";
+import { db } from "../../firebase/firebase_config";
 
-const events = [
-  {
-    name: "Tech Conference 2025",
-    date: "Mar 15, 2025",
-    ticketsSold: "450",
-    gross: "₹4,50,000",
-    status: "Active",
-  },
-  {
-    name: "Digital Summit",
-    date: "Apr 20, 2025",
-    ticketsSold: "300",
-    gross: "₹3,00,000",
-    status: "Upcoming",
-  },
-  {
-    name: "AI Workshop",
-    date: "Feb 10, 2025",
-    ticketsSold: "200",
-    gross: "₹2,00,000",
-    status: "Completed",
-  },
-];
+const events = [];
 
 const VendorDetails = () => {
   const { state } = useLocation();
@@ -60,24 +39,68 @@ const VendorDetails = () => {
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState(null);
   const [pendingRequest, setPendingRequest] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [events, setEvents] = useState([]);
+
+  useEffect(() => {
+    const fetchVendorEvents = async () => {
+      if (!request?.email) return;
+
+      try {
+        // Step 1: Fetch vendor ID using email
+        const vendorQuery = query(
+          collection(db, "vendors"),
+          where("email", "==", request.email)
+        );
+        const vendorSnapshot = await getDocs(vendorQuery);
+
+        if (vendorSnapshot.empty) {
+          console.warn("No vendor found with the given email.");
+          setEvents([]); // or handle gracefully
+          return;
+        }
+
+        const vendorDoc = vendorSnapshot.docs[0];
+        const vendorId = vendorDoc.id;
+
+        // Step 2: Fetch events by vendorId
+        const eventsQuery = query(
+          collection(db, "events"),
+          where("vendorId", "==", vendorId)
+        );
+        const eventsSnapshot = await getDocs(eventsQuery);
+
+        const fetchedEvents = eventsSnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+
+        setEvents(fetchedEvents);
+      } catch (error) {
+        console.error("Error fetching events:", error);
+      }
+    };
+
+    fetchVendorEvents();
+  }, [request]);
 
   const handleAction = async (action, request) => {
     try {
+      setIsLoading(true);
+
       if (!request || !request.email) {
         setDialogContent("Vendor data is missing or invalid.");
         setDialogOpen(true);
         return;
       }
 
-      const payload = {
-        email: request.email,
-      };
+      const payload = { email: request.email };
       console.log("Payload being sent:", payload);
 
       if (action === "removed") {
         await axios.delete(
           `${process.env.REACT_APP_API_BASE_URL}/api/admin/removevendor`,
-          {data: payload}
+          { data: payload }
         );
       } else {
         setDialogContent("Unsupported action");
@@ -86,13 +109,15 @@ const VendorDetails = () => {
       }
 
       setDialogContent(`Vendor ${action} successfully`);
-      setDialogOpen(true);
     } catch (err) {
       console.error(`Error during ${action}:`, err);
       setDialogContent(`Failed to ${action} vendor`);
+    } finally {
       setDialogOpen(true);
+      setIsLoading(false);
     }
   };
+
   const askForConfirmation = (action, request) => {
     setPendingAction(action);
     setPendingRequest(request);
@@ -175,8 +200,9 @@ const VendorDetails = () => {
               color="error"
               startIcon={<Delete />}
               onClick={() => askForConfirmation("removed", request)}
+              disabled={isLoading}
             >
-              Remove Vendor
+              {isLoading ? "Removing..." : "Remove Vendor"}
             </Button>
           </Box>
         </Box>
@@ -437,7 +463,7 @@ const VendorDetails = () => {
 
             <Box width={{ xs: "100%", md: "30%" }} mb={3}>
               <Typography color="text.secondary">GSTIN</Typography>
-              <Typography fontWeight={500}>{request.GSTIN}</Typography>
+              <Typography fontWeight={500}>{request.GSTIN===""?"none":request.GSTIN}</Typography>
             </Box>
 
             <Box width={{ xs: "100%", md: "30%" }} mb={3}>
@@ -478,15 +504,44 @@ const VendorDetails = () => {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {events.map((event, index) => (
-                    <TableRow key={index}>
-                      <TableCell>{event.name}</TableCell>
-                      <TableCell>{event.date}</TableCell>
-                      <TableCell>{event.ticketsSold}</TableCell>
-                      <TableCell>{event.gross}</TableCell>
-                      <TableCell>{getStatusChip(event.status)}</TableCell>
+                  {events.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} align="center">
+                        No events conducted yet
+                      </TableCell>
                     </TableRow>
-                  ))}
+                  ) : (
+                    events.map((event) => {
+                      const eventDate = new Date(event.eventDate);
+                      const isPast = eventDate < new Date();
+                      const status = isPast ? "Done" : "Upcoming";
+
+                      return (
+                        <TableRow key={event.id}>
+                          <TableCell>{event.name || "Untitled"}</TableCell>
+                          <TableCell>
+                            {event.eventDate
+                              ? new Date(event.eventDate).toLocaleDateString()
+                              : "N/A"}
+                          </TableCell>
+                          <TableCell>{event.ticketCount || 0}</TableCell>
+                          <TableCell>
+                            ₹
+                            {Array.isArray(event.pricing)
+                              ? event.pricing.reduce(
+                                  (sum, p) =>
+                                    sum +
+                                    parseFloat(p.price || 0) *
+                                      parseInt(p.quantity || 0),
+                                  0
+                                )
+                              : "0.00"}
+                          </TableCell>
+                          <TableCell>{getStatusChip(status)}</TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
                 </TableBody>
               </Table>
             </TableContainer>

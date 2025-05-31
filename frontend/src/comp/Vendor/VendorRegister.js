@@ -9,13 +9,15 @@ import {
   CircularProgress,
 } from "@mui/material";
 import { Visibility, VisibilityOff } from "@mui/icons-material";
-import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import { useNavigate } from "react-router-dom";
 import { useVendor } from "./VendorContext";
 import { useParams } from "react-router-dom";
 import { collection, query, where, getDocs } from "firebase/firestore";
-import { db } from "../../firebase/firebase_config"
-
+import { db } from "../../firebase/firebase_config";
+import SettingsIcon from "@mui/icons-material/Settings";
+import HandymanIcon from "@mui/icons-material/Handyman";
+import AutoFixHighIcon from "@mui/icons-material/AutoFixHigh";
+import BarChartIcon from "@mui/icons-material/BarChart";
 
 const VendorRegister = () => {
   const navigate = useNavigate();
@@ -37,191 +39,101 @@ const VendorRegister = () => {
     confirmPassword: "",
   });
 
-  // Update in VendorRegister.js component
-  // Update the fetch URL to match the backend route
-
-  // useEffect(() => {
-  //   let isMounted = true;
-
-  //   const fetchVendor = async () => {
-  //     setIsLoading(true);
-
-  //     if (vendorId) {
-  //       try {
-  //         const res = await fetch(
-  //           `${process.env.REACT_APP_API_BASE_URL}/api/user/current-user/${vendorId}`
-  //         );
-
-  //         // Check if component is still mounted before updating state
-  //         if (!isMounted) return;
-
-  //         if (!res.ok) {
-  //           console.log("Vendor not found or error occurred");
-  //           setLoginCase("new");
-  //           return;
-  //         }
-
-  //         const data = await res.json();
-  //         console.log("Fetched vendor:", data);
-
-  //         // Only update if component is still mounted
-  //         if (!isMounted) return;
-
-  //         setFormData({
-  //           email: data.email || "",
-  //           username: data.username || "",
-  //           password: data.password || "",
-  //           confirmPassword: data.password || "",
-  //         });
-
-  //         // Set login case based on the data type
-  //         if (data?.type === "google-signin") {
-  //           setLoginCase("google");
-  //         } else if (data.email) {
-  //           setLoginCase("manual");
-  //         } else {
-  //           setLoginCase("new");
-  //         }
-
-  //         try {
-  //           // Update the URL to match the backend route
-  //           const emailRes = await fetch(
-  //             `${process.env.REACT_APP_API_BASE_URL}/api/vendor/check-email?email=${data.email}`
-  //           );
-
-  //           if (!isMounted) return;
-
-  //           const emailData = await emailRes.json();
-  //           if (emailData.exists) {
-  //             setEmailExists(true);
-  //             setErrors((prev) => ({
-  //               ...prev,
-  //               email: "Email already registered as vendor",
-  //             }));
-  //           }
-  //         } catch (err) {
-  //           console.error("Error checking email:", err);
-  //         }
-  //       } catch (err) {
-  //         console.error("Error fetching vendor:", err);
-  //         if (isMounted) {
-  //           setLoginCase("new");
-  //         }
-  //       } finally {
-  //         if (isMounted) {
-  //           setIsLoading(false);
-  //         }
-  //       }
-  //     } else {
-  //       if (isMounted) {
-  //         setLoginCase("new");
-  //         setIsLoading(false);
-  //       }
-  //     }
-  //   };
-
-  //   fetchVendor();
-
-  //   // Cleanup function to prevent state updates after unmount
-  //   return () => {
-  //     isMounted = false;
-  //   };
-  // }, [vendorId]);
-
-
   useEffect(() => {
-  let isMounted = true;
+    let isMounted = true;
 
-  const fetchVendor = async () => {
-    setIsLoading(true);
+    const fetchVendor = async () => {
+      setIsLoading(true);
 
-    if (vendorId) {
-      try {
-        // Step 1: Fetch from users collection via backend
-        const res = await fetch(
-          `${process.env.REACT_APP_API_BASE_URL}/api/user/current-user/${vendorId}`
-        );
+      if (vendorId) {
+        try {
+          // Step 1: Fetch from users collection via backend
+          const res = await fetch(
+            `${process.env.REACT_APP_API_BASE_URL}/api/user/current-user/${vendorId}`
+          );
 
-        if (!isMounted) return;
+          if (!isMounted) return;
 
-        if (!res.ok) {
-          console.log("User not found or error occurred");
-          setLoginCase("new");
-          return;
-        }
+          if (!res.ok) {
+            console.log("User not found or error occurred");
+            setLoginCase("new");
+            return;
+          }
 
-        const userData = await res.json();
-        const userEmail = userData.email;
+          const userData = await res.json();
+          const userEmail = userData.email;
 
-        if (!isMounted) return;
+          if (!isMounted) return;
 
-        // Step 2: Firestore - Check if vendor exists by email
-        const vendorsRef = collection(db, "vendors");
-        const q = query(vendorsRef, where("email", "==", userEmail));
-        const querySnapshot = await getDocs(q);
+          // Step 2: Firestore - Check if vendor exists by email
+          const vendorsRef = collection(db, "vendors");
+          const q = query(vendorsRef, where("email", "==", userEmail));
+          const querySnapshot = await getDocs(q);
 
-        if (!isMounted) return;
+          if (!isMounted) return;
 
-        if (!querySnapshot.empty) {
-          // Vendor exists - use vendor data instead of user data
-          const vendorDoc = querySnapshot.docs[0].data();
-          console.log("Vendor data from Firestore:", vendorDoc);
+          if (!querySnapshot.empty) {
+            // Vendor exists - use vendor data instead of user data
+            const vendorDoc = querySnapshot.docs[0].data();
+            console.log("Vendor data from Firestore:", vendorDoc);
 
-          setFormData({
-            email: vendorDoc.email || "",
-            username: vendorDoc.username || "",
-            password: "",
-            confirmPassword: "",
-          });
+            setFormData({
+              email: vendorDoc.email || "",
+              username: vendorDoc.username || "",
+              password: "",
+              confirmPassword: "",
+            });
 
-          setLoginCase(vendorDoc?.type === "google-signin" ? "google" : "manual");
+            setLoginCase(
+              vendorDoc?.type === "google-signin" ? "google" : "manual"
+            );
 
-          setEmailExists(true);
-          setErrors((prev) => ({
-            ...prev,
-            email: "Email already registered as vendor",
-          }));
-        } else {
-          // Vendor doesn't exist - fallback to user data
-          setFormData({
-            email: userData.email || "",
-            username: userData.username || "",
-            password: userData.password || "",
-            confirmPassword: userData.password || "",
-          });
-
-          if (userData?.type === "google-signin") {
-            setLoginCase("google");
-          } else if (userData.email) {
-            setLoginCase("manual");
+            setEmailExists(true);
+            setErrors((prev) => ({
+              ...prev,
+              email: "Email already registered as vendor.  Please login",
+            }));
           } else {
+            // Vendor doesn't exist - fallback to user data
+            setFormData({
+              email: userData.email || "",
+              username: userData.username || "",
+              password: userData.password || "",
+              confirmPassword: userData.password || "",
+            });
+
+            if (userData?.type === "google-signin") {
+              setLoginCase("google");
+            } else if (userData.email) {
+              setLoginCase("manual");
+            } else {
+              setLoginCase("new");
+            }
+          }
+        } catch (err) {
+          console.error("Error fetching data:", err);
+          if (isMounted) {
             setLoginCase("new");
           }
+        } finally {
+          if (isMounted) {
+            setIsLoading(false);
+          }
         }
-      } catch (err) {
-        console.error("Error fetching data:", err);
+      } else {
         if (isMounted) {
           setLoginCase("new");
-        }
-      } finally {
-        if (isMounted) {
           setIsLoading(false);
         }
       }
-    } else {
-      if (isMounted) {
-        setLoginCase("new");
-        setIsLoading(false);
-      }
-    }
-  };
+    };
 
-  fetchVendor();
+    fetchVendor();
 
-  return () => {
-    isMounted = false;
-  };
-}, [vendorId]);
+    return () => {
+      isMounted = false;
+    };
+  }, [vendorId]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -312,8 +224,35 @@ const VendorRegister = () => {
     );
   }
 
+  const leftSection = [
+    {
+      icon: <SettingsIcon sx={{ color: "#47536B" }} />,
+      heading: "Seamless Control",
+      content:
+        "Effortlessly create, edit, and manage your events—all from one streamlined dashboard designed to save you time and effort.",
+    },
+    {
+      icon: <HandymanIcon sx={{ color: "#47536B" }} />,
+      heading: "Smart Tools,Smart Moves",
+      content:
+        "Leverage powerful features like real-time analytics, coupon controls, and category tagging to stay ahead and make data-driven decisions.",
+    },
+    {
+      icon: <AutoFixHighIcon sx={{ color: "#47536B" }} />,
+      heading: "Designed For Ease",
+      content:
+        "Navigate your vendor dashboard with a user-friendly interface that makes event setup and tracking feel natural—even for first-timers.",
+    },
+    {
+      icon: <BarChartIcon sx={{ color: "#47536B" }} />,
+      heading: "Built to Scale",
+      content:
+        "From small gatherings to grand events, our platform is built to grow with your business—ensuring dependable performance every step of the way.",
+    },
+  ];
+
   return (
-    <Box sx={{ width: "100%", minHeight: "100vh", bgcolor: "#fff" }}>
+    <Box sx={{ width: "100%", minHeight: "100vh", bgcolor: "#F9FAFB" }}>
       <Box
         sx={{
           display: "flex",
@@ -325,7 +264,55 @@ const VendorRegister = () => {
           minHeight: "90vh",
         }}
       >
-        {/* Left: Registration Form */}
+        {/* Left: Text/animaton */}
+        <Box
+          sx={{
+            width: { xs: "0%", md: "45%" },
+            display: { xs: "none", md: "flex" },
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <Box sx={{ display: "flex", flexDirection: "column" }}>
+            <Typography
+              sx={{
+                fontFamily: "albert sans",
+                color: "#19AEDC",
+                fontSize: "45px",
+                fontWeight: "600",
+                mb: "1rem",
+              
+              }}
+            >
+              Ticketb
+            </Typography>
+
+            {leftSection.map((item, index) => (
+              <Box key={index} sx={{margin:'0 0 0 3%'}}>
+                <Box sx={{ display: "flex", gap: "3%",margin:'2% 0' }}>
+                  <Box mt='0.5%'> {item.icon}</Box>
+                  <Box>
+                    <Typography
+                      sx={{
+                        fontFamily: "albert sans",
+                        fontWeight: "600",
+                        fontSize: "18px",
+                        color:"#47536B"
+                      }}
+                    >
+                      {item.heading}
+                    </Typography>
+                    <Typography sx={{fontFamily: "albert sans",
+                        fontSize: "14px",
+                        color:"#47536B"}}>{item.content}</Typography>
+                  </Box>
+                </Box>
+              </Box>
+            ))}
+          </Box>
+        </Box>
+
+        {/* Right: Registration*/}
         <Box
           component="form"
           onSubmit={handleSubmit}
@@ -334,6 +321,11 @@ const VendorRegister = () => {
             display: "flex",
             flexDirection: "column",
             justifyContent: "center",
+            boxSizing: "border-box",
+            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)",
+            padding: {lg:"3% 2%",md:"3% 2%",sm:"10% 6%",xs:"10% 6%"},
+            borderRadius: "10px",
+            backgroundColor: "#fff",
           }}
         >
           <Typography
@@ -342,11 +334,11 @@ const VendorRegister = () => {
               fontWeight: "bold",
               color: "#1e1e1e",
               fontFamily: "albert sans",
-              fontSize: { xs: "2rem", md: "2.5rem" },
-              marginBottom: "2rem",
+              fontSize: { xs: "30px", md: "38px" },
+              marginBottom: { xs: "1rem", md: "2.5rem" },
             }}
           >
-            Register {loginCase === "google" && "(Google Sign-in)"}
+            Vendor Register {loginCase === "google" && "(Google Sign-in)"}
           </Typography>
 
           <TextField
@@ -357,7 +349,7 @@ const VendorRegister = () => {
             value={formData.username}
             onChange={handleChange}
             disabled={loginCase === "google" || loginCase === "manual"}
-           sx={{
+            sx={{
               mb: 2,
               "& .MuiInputBase-input": {
                 fontFamily: "Albert Sans",
@@ -365,7 +357,7 @@ const VendorRegister = () => {
               "& .MuiInputLabel-root": {
                 fontFamily: "Albert Sans",
                 "&.Mui-focused": {
-                  color: "#19AEDC", 
+                  color: "#19AEDC",
                 },
               },
               "& .MuiOutlinedInput-root": {
@@ -376,7 +368,7 @@ const VendorRegister = () => {
                 },
 
                 "&.Mui-focused fieldset": {
-                  borderColor: "#19AEDC", 
+                  borderColor: "#19AEDC",
                 },
 
                 "&.Mui-error fieldset": {
@@ -408,7 +400,7 @@ const VendorRegister = () => {
               "& .MuiInputLabel-root": {
                 fontFamily: "Albert Sans",
                 "&.Mui-focused": {
-                  color: "#19AEDC", 
+                  color: "#19AEDC",
                 },
               },
               "& .MuiOutlinedInput-root": {
@@ -419,7 +411,7 @@ const VendorRegister = () => {
                 },
 
                 "&.Mui-focused fieldset": {
-                  borderColor: "#19AEDC", 
+                  borderColor: "#19AEDC",
                 },
 
                 "&.Mui-error fieldset": {
@@ -451,7 +443,7 @@ const VendorRegister = () => {
               "& .MuiInputLabel-root": {
                 fontFamily: "Albert Sans",
                 "&.Mui-focused": {
-                  color: "#19AEDC", 
+                  color: "#19AEDC",
                 },
               },
               "& .MuiOutlinedInput-root": {
@@ -462,7 +454,7 @@ const VendorRegister = () => {
                 },
 
                 "&.Mui-focused fieldset": {
-                  borderColor: "#19AEDC", 
+                  borderColor: "#19AEDC",
                 },
 
                 "&.Mui-error fieldset": {
@@ -498,7 +490,7 @@ const VendorRegister = () => {
             variant="outlined"
             value={formData.confirmPassword}
             onChange={handleChange}
-           sx={{
+            sx={{
               mb: 2,
               "& .MuiInputBase-input": {
                 fontFamily: "Albert Sans",
@@ -506,7 +498,7 @@ const VendorRegister = () => {
               "& .MuiInputLabel-root": {
                 fontFamily: "Albert Sans",
                 "&.Mui-focused": {
-                  color: "#19AEDC", 
+                  color: "#19AEDC",
                 },
               },
               "& .MuiOutlinedInput-root": {
@@ -517,7 +509,7 @@ const VendorRegister = () => {
                 },
 
                 "&.Mui-focused fieldset": {
-                  borderColor: "#19AEDC", 
+                  borderColor: "#19AEDC",
                 },
 
                 "&.Mui-error fieldset": {
@@ -583,23 +575,6 @@ const VendorRegister = () => {
               Log in
             </Typography>
           </Box>
-        </Box>
-
-        {/* Right: Lottie Animation */}
-        <Box
-          sx={{
-            width: { xs: "0%", md: "45%" },
-            display: { xs: "none", md: "flex" },
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <DotLottieReact
-            src="https://lottie.host/3f2a1b67-ce42-4f14-b422-96ec411f8dbb/XqSQAleGb4.lottie"
-            loop
-            autoplay
-            style={{ width: "100%", height: "auto" }}
-          />
         </Box>
       </Box>
     </Box>

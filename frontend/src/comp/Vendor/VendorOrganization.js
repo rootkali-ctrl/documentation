@@ -10,10 +10,6 @@ import {
   Radio,
   useMediaQuery,
 } from "@mui/material";
-import { motion } from "framer-motion";
-import Footer from "../Footer/Footer";
-import Header from "../Header/Header";
-import HeaderVendor1 from "../Header/HeaderVendor";
 import { ErrorOutline } from "@mui/icons-material";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useVendor } from "./VendorContext";
@@ -122,8 +118,6 @@ const VendorOrganization = () => {
 
   return (
     <Box sx={{ backgroundColor: "#F9FAFB", minHeight: "100vh" }}>
-      <Header />
-      {/* {!isMobile ? <Header /> : <Typography>Hello world</Typography>} */}
       <Typography
         sx={{
           fontSize: { lg: "40px", md: "36px", sm: "32px", xs: "26px" },

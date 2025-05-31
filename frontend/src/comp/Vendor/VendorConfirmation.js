@@ -1,6 +1,4 @@
 import { Box, Button, Typography, useMediaQuery, useTheme } from "@mui/material";
-import React from "react";
-import HeaderVendor from "../Header/HeaderVendor";
 import { useNavigate } from "react-router-dom";
 
 const VendorConfirmation = () => {
@@ -10,7 +8,6 @@ const VendorConfirmation = () => {
 
   return (
     <Box>
-      <HeaderVendor />
       <Box
         sx={{
           display: "flex",

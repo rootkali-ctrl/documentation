@@ -89,7 +89,8 @@ const insertNewEvent = async ({
             perks: Array.isArray(perks) ? perks.map(perk => ({
                 itemName: perk.itemName || "",
                 price: perk.price || 0,
-                limit: perk.limit || 0
+                limit: perk.limit || 0,
+                url: perk.url || 0
             })) : [],
             coupons: Array.isArray(coupons) ? coupons.map(coupon => ({
                 couponCode: coupon.couponCode || "",
