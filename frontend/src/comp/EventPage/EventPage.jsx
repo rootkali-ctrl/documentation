@@ -51,12 +51,12 @@ import Slider from "react-slick";
 
 const EventPage = () => {
   const navigate = useNavigate();
-  const { eventId, userUID } = useParams(); // Get the event ID from URL params
+  const { eventId, userUID } = useParams();
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [similarEvents, setSimilarEvents] = useState([]);
+  const [youtubeVideoId, setYoutubeVideoId] = useState(null);
   const isMobile = useMediaQuery("(max-width:600px)");
-  // Share menu state
   const [shareAnchorEl, setShareAnchorEl] = useState(null);
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
@@ -65,19 +65,15 @@ const EventPage = () => {
   const [paddingBottom, setPaddingBottom] = useState(10);
 
   // Extract YouTube video ID from URL
-  // const extractYoutubeId = (url) => {
-  //   if (!url) return null;
-
-  //   // Match YouTube URL patterns
-  //   const regExp =
-  //     /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
-  //   const match = url.match(regExp);
-
-  //   return match && match[2].length === 11 ? match[2] : null;
-  // };
+  const extractYoutubeId = (url) => {
+    if (!url) return null;
+    const regExp =
+      /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+    const match = url.match(regExp);
+    return match && match[2].length === 11 ? match[2] : null;
+  };
 
   // Fetch event details when component mounts
-
   useEffect(() => {
     const fetchEventDetails = async () => {
       try {
@@ -86,17 +82,16 @@ const EventPage = () => {
 
         if (eventDoc.exists()) {
           const eventData = eventDoc.data();
-          console.log(eventData);
           setEvent({
             id: eventDoc.id,
             ...eventData,
           });
 
           // Extract YouTube video ID if mediaLink exists
-          // if (eventData.mediaLink) {
-          //   const videoId = extractYoutubeId(eventData.mediaLink);
-          //   setYoutubeVideoId(videoId);
-          // }
+          if (eventData.mediaLink) {
+            const videoId = extractYoutubeId(eventData.mediaLink);
+            setYoutubeVideoId(videoId);
+          }
 
           // Fetch similar events based on category
           if (eventData.category && eventData.category.length > 0) {
@@ -104,11 +99,10 @@ const EventPage = () => {
           }
         } else {
           console.error("Event not found");
-          // Redirect to main page if event doesn't exist
           navigate("/");
         }
       } catch (error) {
-        console.error("Error fetching event details:", error);
+        console.error(`Error fetching event details: ${error.message}`);
       } finally {
         setLoading(false);
       }
@@ -145,11 +139,9 @@ const EventPage = () => {
       const eventsData = [];
 
       querySnapshot.forEach((doc) => {
-        // Don't include the current event in similar events
         if (doc.id !== currentEventId) {
           const data = doc.data();
 
-          // Format date for display
           let formattedDate = "Date not specified";
           if (data.eventDate) {
             const dateObj = new Date(data.eventDate);
@@ -173,7 +165,7 @@ const EventPage = () => {
 
       setSimilarEvents(eventsData);
     } catch (error) {
-      console.error("Error fetching similar events:", error);
+      console.error(`Error fetching similar events: ${error.message}`);
     }
   };
 
@@ -207,7 +199,7 @@ const EventPage = () => {
     return `₹${lowestPrice}`;
   };
 
-  // Get event capacity (total number of tickets available)
+  // Get event capacity
   const getEventCapacity = (pricing) => {
     if (!pricing || pricing.length === 0) return "Not specified";
 
@@ -248,11 +240,11 @@ const EventPage = () => {
   };
 
   // Play YouTube video in a new tab/window
-  // const handlePlayVideo = () => {
-  //   if (event?.mediaLink) {
-  //     window.open(event.mediaLink, "_blank");
-  //   }
-  // };
+  const handlePlayVideo = () => {
+    if (event?.mediaLink) {
+      window.open(event.mediaLink, "_blank");
+    }
+  };
 
   // Share functionality
   const handleShareClick = (event) => {
@@ -267,12 +259,10 @@ const EventPage = () => {
     setShowShareDialog(false);
   };
 
-  // Generate the current URL for sharing
   const getShareUrl = () => {
     return window.location.href;
   };
 
-  // Copy link to clipboard
   const copyToClipboard = () => {
     const shareUrl = getShareUrl();
     navigator.clipboard
@@ -283,8 +273,7 @@ const EventPage = () => {
         handleShareClose();
       })
       .catch((err) => {
-        console.error("Failed to copy text: ", err);
-        // Fallback method for copying using a text field
+        console.error(`Failed to copy text: ${err.message}`);
         setShowShareDialog(true);
         handleShareClose();
         setTimeout(() => {
@@ -298,7 +287,6 @@ const EventPage = () => {
       });
   };
 
-  // Share via social media platforms
   const shareVia = (platform) => {
     const shareUrl = encodeURIComponent(getShareUrl());
     const eventTitle = encodeURIComponent(
@@ -375,10 +363,8 @@ const EventPage = () => {
     : [];
 
   return (
-    // minHeight: "100vh"
     <Box sx={{ margin: 0 }}>
       <Header />
-
       <Box
         sx={{
           display: "flex",
@@ -390,7 +376,6 @@ const EventPage = () => {
           backgroundColor: "#f9f9f9",
         }}
       >
-        {/* Left Section */}
         <Box sx={{ flex: 2 }}>
           <Card
             sx={{
@@ -410,7 +395,6 @@ const EventPage = () => {
                   objectFit: "cover",
                 }}
               />
-
               {isMobile && (
                 <Box
                   sx={{
@@ -429,7 +413,7 @@ const EventPage = () => {
                     border: "1px solid",
                     borderColor: "rgb(25, 174, 220)",
                   }}
-                  onClick={handleShareClick} // optional: add your handler
+                  onClick={handleShareClick}
                 >
                   <ShareIcon
                     fontSize="small"
@@ -445,6 +429,7 @@ const EventPage = () => {
               mt: isMobile ? 1 : 3,
               borderRadius: "20px",
               boxShadow: "none",
+              width: isMobile ? "100%" : null,
             }}
           >
             <CardContent>
@@ -457,7 +442,6 @@ const EventPage = () => {
               >
                 {event.name || "Event Title"}
               </Typography>
-
               <Box
                 sx={{
                   display: "flex",
@@ -479,18 +463,20 @@ const EventPage = () => {
                     />
                   ))}
               </Box>
-
               <Typography variant="subtitle1" sx={{ fontWeight: "bold" }}>
                 About the Event
               </Typography>
               <Typography
                 color="text.secondary"
-                sx={{ mb: isMobile ? 0.5 : 1, whiteSpace: "pre-line" }}
+                sx={{
+                  mb: isMobile ? 0.5 : 1,
+                  whiteSpace: "pre-line",
+                  wordBreak: "break-word",
+                  overflowWrap: "break-word",
+                }}
               >
-                {event.description ||
-                  "No description available for this event."}
+                {event.description || "No description available for this event."}
               </Typography>
-
               {event.perks && event.perks.length > 0 && (
                 <>
                   <Typography
@@ -575,7 +561,6 @@ const EventPage = () => {
             </CardContent>
           </Card>
 
-          {/* FAQ Section */}
           <Card
             sx={{
               mt: isMobile ? 1 : 3,
@@ -623,7 +608,6 @@ const EventPage = () => {
           </Card>
         </Box>
 
-        {/* Right Section */}
         <Box sx={{ flex: 1, mt: isMobile ? -2 : 0 }}>
           <Card sx={{ borderRadius: "20px", boxShadow: "none" }}>
             <CardContent>
@@ -710,7 +694,6 @@ const EventPage = () => {
               Share Event
             </Button>
           )}
-          {/* Share Menu */}
           <Menu
             anchorEl={shareAnchorEl}
             open={Boolean(shareAnchorEl)}
@@ -759,7 +742,6 @@ const EventPage = () => {
             </MenuItem>
           </Menu>
 
-          {/* Speakers Section */}
           <Card
             sx={{
               mt: isMobile ? 1 : 3,
@@ -794,8 +776,50 @@ const EventPage = () => {
             </CardContent>
           </Card>
 
-          {/* Tags Section */}
           {tagsList.length > 0 && (
+            <Card
+              sx={{
+                mt: isMobile ? 1 : 3,
+                borderRadius: "20px",
+                boxShadow: "none",
+                width: "100%",
+                maxWidth: "100%",
+                overflow: "hidden",
+              }}
+            >
+              <CardContent>
+                <Typography variant="h6" sx={{ fontWeight: "bold", mb: 2 }}>
+                  Tags
+                </Typography>
+                <Box
+                  sx={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: 1,
+                    maxWidth: "100%",
+                  }}
+                >
+                  {tagsList.map((tag, index) => (
+                    <Chip
+                      key={`tag-${index}`}
+                      label={tag}
+                      sx={{
+                        backgroundColor: "#E0F2FE",
+                        color: "#19AEDC",
+                        maxWidth: "100%",
+                        overflow: "hidden",
+                        wordBreak: "break-word",
+                        overflowWrap: "break-word",
+                        whiteSpace: "normal",
+                      }}
+                    />
+                  ))}
+                </Box>
+              </CardContent>
+            </Card>
+          )}
+
+          {youtubeVideoId && (
             <Card
               sx={{
                 mt: isMobile ? 1 : 3,
@@ -805,17 +829,71 @@ const EventPage = () => {
             >
               <CardContent>
                 <Typography variant="h6" sx={{ fontWeight: "bold", mb: 2 }}>
-                  Tags
+                  Event Video
                 </Typography>
-                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
-                  {tagsList.map((tag, index) => (
-                    <Chip
-                      key={`tag-${index}`}
-                      label={tag}
-                      sx={{ backgroundColor: "#E0F2FE", color: "#19AEDC" }}
-                    />
-                  ))}
+                <Box
+                  sx={{
+                    position: "relative",
+                    cursor: "pointer",
+                    "&:hover .play-overlay": {
+                      opacity: 1,
+                    },
+                  }}
+                  onClick={handlePlayVideo}
+                >
+                  <CardMedia
+                    component="img"
+                    image={`https://img.youtube.com/vi/${youtubeVideoId}/maxresdefault.jpg`}
+                    onError={(e) => {
+                      e.target.src = `https://img.youtube.com/vi/${youtubeVideoId}/mqdefault.jpg`;
+                    }}
+                    alt="Event Video Thumbnail"
+                    sx={{
+                      width: "100%",
+                      height: "180px",
+                      objectFit: "cover",
+                      borderRadius: "10px",
+                    }}
+                  />
+                  <Box
+                    className="play-overlay"
+                    sx={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      width: "100%",
+                      height: "100%",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      background: "rgba(0,0,0,0.3)",
+                      opacity: 0.7,
+                      transition: "opacity 0.3s",
+                      borderRadius: "10px",
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        width: "60px",
+                        height: "60px",
+                        borderRadius: "50%",
+                        backgroundColor: "#19AEDC",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <PlayArrowIcon sx={{ color: "#fff", fontSize: "32px" }} />
+                    </Box>
+                  </Box>
                 </Box>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ mt: 1, textAlign: "center", fontStyle: "italic" }}
+                >
+                  Click to watch event video
+                </Typography>
               </CardContent>
             </Card>
           )}
@@ -830,9 +908,8 @@ const EventPage = () => {
             >
               <CardContent>
                 <Typography variant="h6" sx={{ fontWeight: "bold", mb: 2 }}>
-                  Previous event
+                  Previous Event
                 </Typography>
-
                 <Box
                   sx={{
                     position: "relative",
@@ -874,82 +951,7 @@ const EventPage = () => {
               </CardContent>
             </Card>
           )}
-          {/* {youtubeVideoId && (
-            <Card sx={{ mt: 3, borderRadius: "20px", boxShadow: "none" }}>
-              <CardContent>
-                <Typography variant="h6" sx={{ fontWeight: "bold", mb: 2 }}>
-                  Event Video
-                </Typography>
-                <Box
-                  sx={{
-                    position: "relative",
-                    cursor: "pointer",
-                    "&:hover .play-overlay": {
-                      opacity: 1
-                    }
-                  }}
-                  onClick={handlePlayVideo}
-                >
-                 
-                  <CardMedia
-                    component="img"
-                    image={`https://img.youtube.com/vi/${youtubeVideoId}/maxresdefault.jpg`}
-                    onError={(e) => {
-                      e.target.src = `https://img.youtube.com/vi/${youtubeVideoId}/mqdefault.jpg`;
-                    }}
-                    alt="Video Thumbnail"
-                    sx={{
-                      width: "100%",
-                      height: "180px",
-                      objectFit: "cover",
-                      borderRadius: "10px"
-                    }}
-                  />
-                
-                  <Box
-                    className="play-overlay"
-                    sx={{
-                      position: "absolute",
-                      top: 0,
-                      left: 0,
-                      width: "100%",
-                      height: "100%",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      background: "rgba(0,0,0,0.3)",
-                      opacity: 0.7,
-                      transition: "opacity 0.3s",
-                      borderRadius: "10px"
-                    }}
-                  >
-                     <Box
-                      sx={{
-                        width: "60px",
-                        height: "60px",
-                        borderRadius: "50%",
-                        backgroundColor: "#19AEDC",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center"
-                      }}
-                    >
-                      <PlayArrowIcon sx={{ color: "#fff", fontSize: "32px" }} />
-                    </Box> 
-                  </Box>
-                </Box>
-                 <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  sx={{ mt: 1, textAlign: "center", fontStyle: "italic" }}
-                >
-                  Click to watch event video
-                </Typography> 
-              </CardContent>
-            </Card>
-          )} */}
 
-          {/* Similar Events Section */}
           {similarEvents.length > 0 && (
             <Card
               sx={{
@@ -1046,7 +1048,6 @@ const EventPage = () => {
         </Box>
       )}
 
-      {/* Snackbar for notifications */}
       <Snackbar
         open={snackbarOpen}
         autoHideDuration={3000}
@@ -1054,7 +1055,6 @@ const EventPage = () => {
         message={snackbarMessage}
       />
 
-      {/* Fallback Copy Dialog (for browsers where clipboard API is not available) */}
       <Dialog open={showShareDialog} onClose={handleDialogClose}>
         <DialogTitle>Share Event</DialogTitle>
         <DialogContent>
