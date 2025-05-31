@@ -2,13 +2,12 @@
     background-color: white;
     color: black;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-    font-family: 'Albert Sans',sans-serif;
     font-weight: 900;
 }
 
 .mobile-title {
     flex-grow: 1;
-    font-family: 'Albert Sans', sans-serif;
+
     font-size: 24px;
     font-weight: 900;
     color: rgb(25, 174, 220);
@@ -17,7 +16,7 @@
 
 .mobile-signin{
     flex-grow: 1;
-    font-family: 'Albert Sans', sans-serif;
+ 
     font-size: 20px;
     font-weight: 900;
     color: rgb(25, 174, 220);

@@ -18,7 +18,7 @@ const MobileHeader = () => {
                     ticketb
                 </Box>
                 
-                <Typography className="mobile-signin" sx={{fontWeight: 500 }}>
+                <Typography className="mobile-signin" sx={{fontWeight: 500, fontFamily:'albert sans'}}>
                     Signup
                 </Typography>
             </Toolbar>

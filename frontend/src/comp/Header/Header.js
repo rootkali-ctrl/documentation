@@ -71,7 +71,7 @@ const MainHeader = () => {
         <InputBase
           placeholder="Search events"
           sx={{
-            fontFamily: "'Albert Sans', sans-serif",
+            fontFamily:'albert sans',
             fontSize: "16px",
             flex: 1,
           }}
@@ -102,7 +102,7 @@ const MainHeader = () => {
         <Typography
           variant="body1"
           sx={{
-            fontFamily: "'Albert Sans', sans-serif",
+            fontFamily:'albert sans',
             width: "60%",
             fontSize: "16px",
             flex: 1,
@@ -153,10 +153,10 @@ const MainHeader = () => {
           <ListItemText primary="Find my tickets" />
         </ListItem>
         <ListItem button>
-          <ListItemText primary="Recent Orders" />
+          <ListItemText primary="Recent Orders" sx={{fontFamily:'albert sans'}} />
         </ListItem>
         <ListItem button onClick={() => navigate("/vendorregister")}>
-          <ListItemText primary="Create Events" />
+          <ListItemText primary="Create Events" sx={{fontFamily:'albert sans'}} />
         </ListItem>
       </List>
     </Box>
@@ -177,7 +177,7 @@ const MainHeader = () => {
           <Typography
             variant="h5"
             sx={{
-              fontFamily: "'Albert Sans', sans-serif",
+              fontFamily:'albert sans',
               fontWeight: "900",
               fontSize: !isMobile ? "30px" : "24px",
               p: 1,
@@ -216,6 +216,7 @@ const MainHeader = () => {
                 sx={{
                   cursor: "pointer",
                   whiteSpace: "nowrap",
+                  fontFamily:'albert sans',
                   "&:hover": { textDecoration: "underline" },
                 }}
               >
@@ -226,6 +227,7 @@ const MainHeader = () => {
                 sx={{
                   cursor: "pointer",
                   whiteSpace: "nowrap",
+                  fontFamily:'albert sans',
                   "&:hover": { textDecoration: "underline" },
                 }}
               >
@@ -237,6 +239,7 @@ const MainHeader = () => {
                 sx={{
                   cursor: "pointer",
                   whiteSpace: "nowrap",
+                  fontFamily:'albert sans',
                   "&:hover": { textDecoration: "underline" },
                 }}
               >

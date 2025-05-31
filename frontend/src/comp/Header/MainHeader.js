@@ -132,13 +132,13 @@ const MainHeader = () => {
         {isAuthenticated ? (
             <>
               <ListItem>
-                <ListItemText primary={username} sx={{color:"rgb(25, 174, 220)"}}/>
+                <ListItemText primary={username} sx={{color:"rgb(25, 174, 220)",fontFamily:'albert sans'}}/>
               </ListItem>
               <ListItem button onClick={handleProfileClick}>
-                <ListItemText primary="Profile" />
+                <ListItemText sx={{fontFamily:'albert sans'}} primary="Profile" />
               </ListItem>
               <ListItem button onClick={handleSettingsClick}>
-                <ListItemText primary="Settings" />
+                <ListItemText sx={{fontFamily:'albert sans'}} primary="Settings" />
               </ListItem>
               {/* <ListItem button onClick={handleLogout}>
                 <ListItemText primary="Logout" />
@@ -147,15 +147,15 @@ const MainHeader = () => {
           ) : (
             <>
               <ListItem button onClick={() => setOpenLogin(true)}>
-                <ListItemText primary="Log In" />
+                <ListItemText primary="Log In" sx={{fontFamily:'albert sans'}} />
               </ListItem>
               <ListItem button onClick={() => setOpenSignin(true)}>
-                <ListItemText primary="Sign Up" />
+                <ListItemText primary="Sign Up" sx={{fontFamily:'albert sans'}}  />
               </ListItem>
             </>
           )}
           <ListItem button onClick={handleRecentOrdersClick}>
-            <ListItemText primary="Recent Orders" />
+            <ListItemText primary="Recent Orders" sx={{fontFamily:'albert sans'}}  />
           </ListItem>
           <ListItem
             button
@@ -167,13 +167,14 @@ const MainHeader = () => {
                 navigate(`/vendor/register/${vendorId}`);
               }
             }}
+            
           >
-            <ListItemText primary="Create Events" />
+            <ListItemText primary="Create Events" sx={{fontFamily:'albert sans'}}  />
           </ListItem>
           {isAuthenticated ? (
             <>
               <ListItem button onClick={handleLogout}>
-                <ListItemText primary="Logout" />
+                <ListItemText primary="Logout" sx={{fontFamily:'albert sans'}}  />
               </ListItem>
             </>
           ) : null}
@@ -208,7 +209,7 @@ const MainHeader = () => {
             variant="h5"
             onClick={() => navigate("/")}
             sx={{
-              fontFamily: "'Albert Sans', sans-serif",
+              fontFamily: 'albert sans',
               fontWeight: "900",
               fontSize: "30px",
               color: "rgb(25, 174, 220)",
@@ -236,7 +237,7 @@ const MainHeader = () => {
                 <InputBase
                   placeholder="Search events"
                   sx={{
-                    fontFamily: "'Albert Sans', sans-serif",
+                    fontFamily: 'albert sans',
                     fontSize: "16px",
                     flex: 1,
                     border: "none",
@@ -249,7 +250,7 @@ const MainHeader = () => {
                 <LocationOnIcon sx={{ color: "gray", marginRight: "4%" }} />
                 <Typography
                   variant="body1"
-                  sx={{ fontFamily: "'Albert Sans', sans-serif", fontSize: "16px", flex: 1 }}
+                  sx={{ fontFamily: 'albert sans', fontSize: "16px", flex: 1 }}
                 >
                   Coimbatore
                 </Typography>
@@ -275,7 +276,7 @@ const MainHeader = () => {
             <Box sx={{ display: "flex", alignItems: "center", gap: 3 }}>
               <Typography
                 onClick={handleRecentOrdersClick}
-                sx={{ cursor: "pointer", "&:hover": { textDecoration: "underline" } }}
+                sx={{ cursor: "pointer", fontFamily:'albert sans', "&:hover": { textDecoration: "underline", fontFamily:'albert sans' } }}
               >
                 Recent Orders
               </Typography>
@@ -288,7 +289,7 @@ const MainHeader = () => {
                     navigate(`/vendor/register/${vendorId}`);
                   }
                 }}
-                sx={{ cursor: "pointer", "&:hover": { textDecoration: "underline" } }}
+                sx={{ cursor: "pointer",fontFamily:'albert sans', "&:hover": { textDecoration: "underline" ,fontFamily:'albert sans'} }}
               >
                 Create Events
               </Typography>
@@ -315,13 +316,13 @@ const MainHeader = () => {
                 <>
                   <Typography
                     onClick={() => setOpenLogin(true)}
-                    sx={{ cursor: "pointer", "&:hover": { textDecoration: "underline" } }}
+                    sx={{ cursor: "pointer", fontFamily:'albert sans', "&:hover": { textDecoration: "underline", fontFamily:'albert sans' } }}
                   >
                     Log In
                   </Typography>
                   <Typography
                     onClick={() => setOpenSignin(true)}
-                    sx={{ cursor: "pointer", "&:hover": { textDecoration: "underline" } }}
+                    sx={{ cursor: "pointer", fontFamily:'albert sans', "&:hover": { textDecoration: "underline", fontFamily:'albert sans' } }}
                   >
                     Sign Up
                   </Typography>
@@ -355,13 +356,13 @@ const MainHeader = () => {
         }}
       >
         <MenuItem
-          sx={{ fontFamily: "'Albert Sans', sans-serif", fontWeight: "bold", color: "rgb(25, 174, 220)" }}
+          sx={{ fontFamily: 'albert sans', fontWeight: "bold", color: "rgb(25, 174, 220)" }}
         >
           {username}
         </MenuItem>
-        <MenuItem onClick={handleProfileClick}>Profile</MenuItem>
-        <MenuItem onClick={handleSettingsClick}>Settings</MenuItem>
-        <MenuItem onClick={handleLogout}>Logout</MenuItem>
+        <MenuItem onClick={handleProfileClick} sx={{fontFamily:'albert sans'}}>Profile</MenuItem>
+        <MenuItem onClick={handleSettingsClick} sx={{fontFamily:'albert sans'}}>Settings</MenuItem>
+        <MenuItem onClick={handleLogout} sx={{fontFamily:'albert sans'}}>Logout</MenuItem>
       </Menu>
 
       {/* Drawer menu for mobile */}

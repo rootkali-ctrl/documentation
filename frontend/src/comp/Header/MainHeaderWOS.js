@@ -107,13 +107,13 @@ const MainHeader = () => {
     <>
       <Typography
         onClick={() => navigate("/recent-orders")}
-        sx={{ cursor: "pointer", "&:hover": { textDecoration: "underline" } }}
+        sx={{ cursor: "pointer", "&:hover": { textDecoration: "underline", fontFamily:'albert sans' }, fontFamily: 'Albert Sans' }}
       >
         Recent Orders
       </Typography>
       <Typography
         onClick={() => navigate("/vendor/register")}
-        sx={{ cursor: "pointer", "&:hover": { textDecoration: "underline" } }}
+        sx={{ cursor: "pointer", "&:hover": { textDecoration: "underline" }, fontFamily: 'Albert Sans' }}
       >
         Create Events
       </Typography>
@@ -137,7 +137,7 @@ const MainHeader = () => {
           variant="h5"
           onClick={() => navigate("/")}
           sx={{
-            fontFamily: "'Albert Sans', sans-serif",
+            fontFamily: 'Albert Sans',
             fontWeight: "900",
             fontSize: "30px",
             color: "rgb(25, 174, 220)",
@@ -166,7 +166,8 @@ const MainHeader = () => {
                     height: 35,
                     bgcolor: "rgb(25, 174, 220)",
                     "&:hover": { bgcolor: "rgb(20, 140, 180)" },
-                    fontSize: "1rem"
+                    fontSize: "1rem",
+                    fontFamily: 'Albert Sans'
                   }}
                 >
                   {username.charAt(0).toUpperCase()}
@@ -176,13 +177,13 @@ const MainHeader = () => {
               <>
                 <Typography
                   onClick={() => setOpenLogin(true)}
-                  sx={{ cursor: "pointer", "&:hover": { textDecoration: "underline" } }}
+                  sx={{ cursor: "pointer", "&:hover": { textDecoration: "underline" }, fontFamily: 'Albert Sans' }}
                 >
                   Log In
                 </Typography>
                 <Typography
                   onClick={() => setOpenSignin(true)}
-                  sx={{ cursor: "pointer", "&:hover": { textDecoration: "underline" } }}
+                  sx={{ cursor: "pointer", "&:hover": { textDecoration: "underline" }, fontFamily: 'Albert Sans' }}
                 >
                   Sign Up
                 </Typography>
@@ -213,15 +214,16 @@ const MainHeader = () => {
             minWidth: 180,
             borderRadius: 2,
             paddingRight: "40px",
+            fontFamily: 'Albert Sans'
           },
         }}
       >
-        <MenuItem sx={{ fontFamily: "'Albert Sans', sans-serif", fontWeight: "bold", color: "rgb(25, 174, 220)" }}>
+        <MenuItem sx={{ fontFamily: 'Albert Sans', fontWeight: "bold", color: "rgb(25, 174, 220)" }}>
           {username}
         </MenuItem>
-        <MenuItem onClick={handleProfileClick}>Profile</MenuItem>
-        <MenuItem onClick={handleSettingsClick}>Settings</MenuItem>
-        <MenuItem onClick={handleLogout}>Logout</MenuItem>
+        <MenuItem onClick={handleProfileClick} sx={{ fontFamily: 'Albert Sans' }}>Profile</MenuItem>
+        <MenuItem onClick={handleSettingsClick} sx={{ fontFamily: 'Albert Sans' }}>Settings</MenuItem>
+        <MenuItem onClick={handleLogout} sx={{ fontFamily: 'Albert Sans' }}>Logout</MenuItem>
       </Menu>
 
       {/* Mobile Drawer */}
@@ -231,36 +233,36 @@ const MainHeader = () => {
             {isAuthenticated && (
               <>
                 <ListItem>
-                  <ListItemText primary={`Hello, ${username}`} />
+                  <ListItemText primary={`Hello, ${username}`} sx={{ fontFamily: 'Albert Sans' }} />
                 </ListItem>
                 <Divider />
               </>
             )}
-            <ListItem button onClick={() => navigate("/recent-orders")}>
-              <ListItemText primary="Recent Orders" />
+            <ListItem button onClick={() => navigate("/recent-orders")} sx={{ fontFamily: 'Albert Sans' }}>
+              <ListItemText primary="Recent Orders"  />
             </ListItem>
-            <ListItem button onClick={() => navigate("/vendor/register")}>
-              <ListItemText primary="Create Events" />
+            <ListItem button onClick={() => navigate("/vendor/register")} sx={{ fontFamily: 'Albert Sans' }}>
+              <ListItemText primary="Create Events"  />
             </ListItem>
             {isAuthenticated ? (
               <>
-                <ListItem button onClick={handleProfileClick}>
-                  <ListItemText primary="Profile" />
+                <ListItem button onClick={handleProfileClick}  sx={{ fontFamily: 'Albert Sans' }} >
+                  <ListItemText primary="Profile"/>
                 </ListItem>
-                <ListItem button onClick={handleSettingsClick}>
+                <ListItem button onClick={handleSettingsClick}  sx={{ fontFamily: 'Albert Sans' }}>
                   <ListItemText primary="Settings" />
                 </ListItem>
-                <ListItem button onClick={handleLogout}>
-                  <ListItemText primary="Logout" />
+                <ListItem button onClick={handleLogout} sx={{ fontFamily: 'Albert Sans' }}>
+                  <ListItemText primary="Logout"  />
                 </ListItem>
               </>
             ) : (
               <>
-                <ListItem button onClick={() => setOpenLogin(true)}>
-                  <ListItemText primary="Log In" />
+                <ListItem button onClick={() => setOpenLogin(true)} sx={{ fontFamily: 'Albert Sans' }}>
+                  <ListItemText primary="Log In"  />
                 </ListItem>
-                <ListItem button onClick={() => setOpenSignin(true)}>
-                  <ListItemText primary="Sign Up" />
+                <ListItem button onClick={() => setOpenSignin(true)} sx={{ fontFamily: 'Albert Sans' }}>
+                  <ListItemText primary="Sign Up"  />
                 </ListItem>
               </>
             )}

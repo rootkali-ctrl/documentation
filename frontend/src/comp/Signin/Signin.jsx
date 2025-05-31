@@ -7,6 +7,11 @@ import {
   Modal,
   IconButton,
    useMediaQuery,
+    Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
 } from "@mui/material";
 import { ArrowBack } from "@mui/icons-material";
 import { auth, db, googleProvider } from "../../firebase_config";
@@ -159,23 +164,24 @@ const SignIn = ({
             variant="h5"
             fontWeight="bold"
             mb={1}
-            sx={{ fontSize: "24px" }}
+            sx={{ fontSize: "24px", fontFamily:'albert sans' }}
           >
             ROLL THE CARPET!
           </Typography>
-          <Typography variant="body2" color="gray" mb={2}>
+          <Typography variant="body2" color="gray" mb={2} fontFamily="albert sans">
             Sign in to continue to TicketB
           </Typography>
 
           <Typography
             variant="body2"
-            sx={{ textAlign: "left", color: "black", mb: 0.5 }}
+            sx={{ textAlign: "left", color: "black", mb: 0.5 , fontFamily:'albert sans'}}
           >
             Email Address
           </Typography>
           <TextField
             fullWidth
             placeholder="Enter your email"
+            fontFamily="albert sans"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             sx={{ mb: 2 }}
@@ -183,13 +189,14 @@ const SignIn = ({
               sx: {
                 borderRadius: "12px",
                 backgroundColor: "#F8F8F8",
+                fontFamily:"albert sans"
               },
             }}
           />
 
           <Typography
             variant="body2"
-            sx={{ textAlign: "left", color: "black", mb: 0.5 }}
+            sx={{ textAlign: "left", color: "black", mb: 0.5, fontFamily:'albert sans' }}
           >
             Password
           </Typography>
@@ -204,12 +211,13 @@ const SignIn = ({
               sx: {
                 borderRadius: "12px",
                 backgroundColor: "#F8F8F8",
+                fontFamily:'albert sans'
               },
             }}
           />
           <Typography
             variant="body2"
-            sx={{ textAlign: "left", color: "black", mb: 0.5 }}
+            sx={{ textAlign: "left", color: "black", mb: 0.5 , fontFamily:'albert sans'}}
           >
             Confirm Password
           </Typography>
@@ -224,6 +232,7 @@ const SignIn = ({
               sx: {
                 borderRadius: "12px",
                 backgroundColor: "#F8F8F8",
+                fontFamily:'albert sans'
               },
             }}
             error={checkPass && password !== confirmPassword}
@@ -235,13 +244,13 @@ const SignIn = ({
           />
 
           <Box sx={{ display: "flex", justifyContent: "space-between", mb: 2 }}>
-            <Typography variant="body2" color="gray">
+            <Typography variant="body2" color="gray" fontFamily="albert sans">
               Remember me
             </Typography>
             <Typography
               variant="body2"
               color="#19AEDC"
-              sx={{ cursor: "pointer" }}
+              sx={{ cursor: "pointer" , fontFamily:'albert sans'}}
             >
               Forgot password?
             </Typography>
@@ -257,6 +266,7 @@ const SignIn = ({
               mb: 1,
               borderRadius: "10px",
               fontWeight: "bold",
+              fontFamily:'albert sans',
               cursor: isFormValid ? "pointer" : "not-allowed",
               boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.1)",
             }}
@@ -266,7 +276,7 @@ const SignIn = ({
             Sign Up
           </Button>
 
-          <Typography variant="body2" color="gray">
+          <Typography variant="body2" color="gray" fontFamily="albert sans">
             Or continue with
           </Typography>
 
@@ -279,16 +289,17 @@ const SignIn = ({
               py: 1,
               mt: 1,
               borderRadius: "10px",
+              fontFamily:'albert sans'
             }}
             onClick={handleGoogleSignIn}
           >
             Google
           </Button>
 
-          <Typography variant="body2" mt={1}>
+          <Typography variant="body2" mt={1} fontFamily="albert sans">
             I have an account?{" "}
             <Button
-              sx={{ textTransform: "none", color: "#19AEDC" }}
+              sx={{ textTransform: "none", color: "#19AEDC", fontFamily:'albert sans' }}
               onClick={handleSwitchToLogin}
             >
               Login

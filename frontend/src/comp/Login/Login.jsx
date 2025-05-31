@@ -1,7 +1,20 @@
 import React, { useState, useEffect } from "react";
-import { TextField, Button, Box, Typography, Modal, IconButton, useMediaQuery,} from "@mui/material";
+import {
+  TextField,
+  Button,
+  Box,
+  Typography,
+  Modal,
+  IconButton,
+  useMediaQuery,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+} from "@mui/material";
 import { ArrowBack } from "@mui/icons-material";
-import { auth, googleProvider, db } from '../../firebase_config';
+import { auth, googleProvider, db } from "../../firebase_config";
 import {
   signInWithEmailAndPassword,
   signInWithPopup,
@@ -29,7 +42,14 @@ const Login = ({ open, handleClose, handleSwitchToSignUp, onLoginSuccess }) => {
   const isMobile = useMediaQuery("(max-width:600px)");
   const isFormValid = email.trim() !== "" && password.trim() !== "";
   const isResetEmailValid = resetEmail.trim() !== "";
-  const isNewPasswordValid = newPassword.trim() !== "" && confirmPassword.trim() !== "" && newPassword === confirmPassword;
+  const isNewPasswordValid =
+    newPassword.trim() !== "" &&
+    confirmPassword.trim() !== "" &&
+    newPassword === confirmPassword;
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [isManual, setIsManual] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogMessage, setDialogMessage] = useState("");
 
   useEffect(() => {
     const query = new URLSearchParams(location.search);
@@ -49,11 +69,15 @@ const Login = ({ open, handleClose, handleSwitchToSignUp, onLoginSuccess }) => {
   }, [location]);
 
   const handleLogin = async () => {
+     if (isManual) return;
+    setIsManual(true);
     try {
       const result = await signInWithEmailAndPassword(auth, email, password);
 
       if (!result.user.emailVerified) {
-        alert("Please verify your email before logging in.");
+        setDialogMessage("Please verify your email before logging in.");
+        setDialogOpen(true);
+
         return;
       }
 
@@ -65,31 +89,42 @@ const Login = ({ open, handleClose, handleSwitchToSignUp, onLoginSuccess }) => {
         await auth.signOut();
         return;
       }
-       localStorage.setItem("userEmail", result.user.email);
-    localStorage.setItem("loginType", "manual");
+      localStorage.setItem("userEmail", result.user.email);
+      localStorage.setItem("loginType", "manual");
 
       if (onLoginSuccess) {
         onLoginSuccess();
       }
 
-      alert("Logged in successfully!");
+      setDialogMessage("Logged in successfully!");
+      setDialogOpen(true);
+
       handleClose();
       navigate("/");
     } catch (error) {
       console.error("Login error:", error);
       if (error.code === "auth/user-not-found") {
-        alert("Email not registered. Please Sign Up first.");
+        setDialogMessage("Email not registered. Please Sign Up first.");
+        setDialogOpen(true);
       } else if (error.code === "auth/wrong-password") {
-        alert("Incorrect password. Please try again.");
+        setDialogMessage("Incorrect password. Please try again.");
+        setDialogOpen(true);
       } else if (error.code === "auth/invalid-email") {
-        alert("Invalid email format.");
+        setDialogMessage("Invalid email format.");
+        setDialogOpen(true);
       } else {
-        alert("Login failed. Please try again later.");
+        setDialogMessage("User does not exist.  Please sign up");
+        setDialogOpen(true);
       }
+    } finally{
+      setIsManual(false);
     }
   };
 
   const handleGoogleLogin = async () => {
+    if (isLoggingIn) return;
+    setIsLoggingIn(true);
+
     try {
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
@@ -124,12 +159,18 @@ const Login = ({ open, handleClose, handleSwitchToSignUp, onLoginSuccess }) => {
         onLoginSuccess();
       }
 
-      alert("Logged in with Google!");
+      setDialogMessage("Logged in with Google!");
+      setDialogOpen(true);
+
       handleClose();
       navigate("/");
     } catch (error) {
       console.error("Google login error:", error);
-      alert("Google login failed");
+
+      setDialogMessage("Google login failed");
+      setDialogOpen(true);
+    } finally {
+      setIsLoggingIn(false);
     }
   };
 
@@ -140,7 +181,9 @@ const Login = ({ open, handleClose, handleSwitchToSignUp, onLoginSuccess }) => {
       navigate("/");
     } catch (error) {
       console.error("Logout error:", error);
-      alert("Failed to log out. Please try again.");
+
+      setDialogMessage("Failed to log out. Please try again.");
+      setDialogOpen(true);
     }
   };
 
@@ -228,6 +271,34 @@ const Login = ({ open, handleClose, handleSwitchToSignUp, onLoginSuccess }) => {
             backdropFilter: "blur(5px)",
           }}
         >
+          <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
+            <DialogTitle sx={{ fontFamily: "Albert Sans", fontWeight: "bold" }}>
+              Notice
+            </DialogTitle>
+            <DialogContent sx={{ fontFamily: "Albert Sans" }}>
+              <Typography sx={{ fontFamily: "Albert Sans" }}>
+                {dialogMessage}
+              </Typography>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
+            <DialogTitle sx={{ fontFamily: "albert sans" }}>Error</DialogTitle>
+            <DialogContent>
+              <DialogContentText sx={{ fontFamily: "albert sans" }}>
+                {dialogMessage}
+              </DialogContentText>
+            </DialogContent>
+            <DialogActions>
+              <Button
+                onClick={() => setDialogOpen(false)}
+                color="primary"
+                sx={{ fontFamily: "albert sans" }}
+              >
+                Close
+              </Button>
+            </DialogActions>
+          </Dialog>
           <Box
             sx={{
               width: isMobile ? "70%" : "400px",
@@ -244,7 +315,7 @@ const Login = ({ open, handleClose, handleSwitchToSignUp, onLoginSuccess }) => {
                 position: "absolute",
                 top: "10px",
                 left: "10px",
-                mt:isMobile ? 2 : 0
+                mt: isMobile ? 2 : 0,
               }}
               onClick={handleClose}
             >
@@ -255,15 +326,33 @@ const Login = ({ open, handleClose, handleSwitchToSignUp, onLoginSuccess }) => {
               variant="h6"
               fontWeight="bold"
               mb={1}
-              sx={{ fontSize: isMobile ? "22px" : "30px" }}
+              sx={{
+                fontSize: isMobile ? "22px" : "30px",
+                fontFamily: "albert sans",
+              }}
             >
               Welcome Back!
             </Typography>
-            <Typography variant="body2" color="gray" mb={2} sx={{ fontSize: isMobile ? "12px" : "20px" }}>
+            <Typography
+              variant="body2"
+              color="gray"
+              mb={2}
+              sx={{
+                fontSize: isMobile ? "12px" : "20px",
+                fontFamily: "albert sans",
+              }}
+            >
               Login to continue to TicketB
             </Typography>
 
-            <Typography variant="body2" sx={{ textAlign: "left", color: "black" }}>
+            <Typography
+              variant="body2"
+              sx={{
+                textAlign: "left",
+                color: "black",
+                fontFamily: "albert sans",
+              }}
+            >
               Email Address
             </Typography>
             <TextField
@@ -271,10 +360,23 @@ const Login = ({ open, handleClose, handleSwitchToSignUp, onLoginSuccess }) => {
               placeholder="Enter your email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              sx={{ mb: 2, mt: 1 }}
+              sx={{ mb: 2, mt: 1, fontFamily: "albert sans", }}
+              InputProps={{
+              sx: {
+                borderRadius: "12px",
+                backgroundColor: "#F8F8F8",
+                fontFamily:'albert sans'
+              },}}
             />
 
-            <Typography variant="body2" sx={{ textAlign: "left", color: "black" }}>
+            <Typography
+              variant="body2"
+              sx={{
+                textAlign: "left",
+                color: "black",
+                fontFamily: "albert sans",
+              }}
+            >
               Password
             </Typography>
             <TextField
@@ -284,14 +386,28 @@ const Login = ({ open, handleClose, handleSwitchToSignUp, onLoginSuccess }) => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               sx={{ mb: 2, mt: 1 }}
+              InputProps={{
+              sx: {
+                borderRadius: "12px",
+                backgroundColor: "#F8F8F8",
+                fontFamily:'albert sans'
+              },}}
             />
 
-            <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
-              <Typography variant="body2" color="gray">Remember me</Typography>
+            <Box
+              sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}
+            >
+              <Typography
+                variant="body2"
+                color="gray"
+                sx={{ fontFamily: "albert sans" }}
+              >
+                Remember me
+              </Typography>
               <Typography
                 variant="body2"
                 color="#19AEDC"
-                sx={{ cursor: "pointer" }}
+                sx={{ cursor: "pointer", fontFamily: "albert sans" }}
                 onClick={handleOpenForgotPassword}
               >
                 Forgot password?
@@ -308,34 +424,51 @@ const Login = ({ open, handleClose, handleSwitchToSignUp, onLoginSuccess }) => {
                 mb: 2,
                 borderRadius: "10px",
                 cursor: isFormValid ? "pointer" : "not-allowed",
+                fontFamily: "albert sans",
               }}
-              disabled={!isFormValid}
+              disabled={!isFormValid || isManual}
               onClick={handleLogin}
             >
-              Log In
+              {isManual ? "Please wait" : "Log In"}
             </Button>
 
-            <Typography variant="body2" color="gray">Or continue with</Typography>
+            <Typography
+              variant="body2"
+              color="gray"
+              sx={{ fontFamily: "albert sans" }}
+            >
+              Or continue with
+            </Typography>
 
             <Button
               fullWidth
               variant="outlined"
               sx={{
-                backgroundColor: "#19AEDC",
+                backgroundColor: !isLoggingIn ? "#19AEDC" : "#ccc",
                 color: "#FFFFFF",
                 py: 1,
                 mt: 1,
                 borderRadius: "10px",
+                fontFamily: "albert sans",
               }}
               onClick={handleGoogleLogin}
+              disabled={isLoggingIn}
             >
-              Google
+              {isLoggingIn ? "Please wait" : "Google"}
             </Button>
 
-            <Typography variant="body2" mt={2}>
+            <Typography
+              variant="body2"
+              mt={2}
+              sx={{ fontFamily: "albert sans" }}
+            >
               Don't have an account?{" "}
               <Button
-                sx={{ textTransform: "none", color: "#19AEDC" }}
+                sx={{
+                  textTransform: "none",
+                  color: "#19AEDC",
+                  fontFamily: "albert sans",
+                }}
                 onClick={handleSwitchToSignUp}
               >
                 Sign up
@@ -375,21 +508,25 @@ const Login = ({ open, handleClose, handleSwitchToSignUp, onLoginSuccess }) => {
               fontWeight="bold"
               mb={2}
               color="error"
-              sx={{ fontSize: "24px" }}
+              sx={{ fontSize: "24px", fontFamily: "albert sans" }}
             >
               Account Suspended
             </Typography>
 
-            <Typography variant="body1" mb={3}>
-              Your account has been suspended by the admin. To reactivate your account,
-              please contact the admin via email at:
+            <Typography
+              variant="body1"
+              mb={3}
+              sx={{ fontFamily: "albert sans" }}
+            >
+              Your account has been suspended by the admin. To reactivate your
+              account, please contact the admin via email at:
             </Typography>
 
             <Typography
               variant="body1"
               fontWeight="bold"
               mb={3}
-              sx={{ color: "#19AEDC" }}
+              sx={{ color: "#19AEDC", fontFamily: "albert sans" }}
             >
               bubaln@ticketb.in
             </Typography>
@@ -402,6 +539,7 @@ const Login = ({ open, handleClose, handleSwitchToSignUp, onLoginSuccess }) => {
                 color: "#fff",
                 py: 1.5,
                 borderRadius: "10px",
+                fontFamily: "albert sans",
               }}
               onClick={handleLogout}
             >
@@ -452,12 +590,16 @@ const Login = ({ open, handleClose, handleSwitchToSignUp, onLoginSuccess }) => {
               variant="h6"
               fontWeight="bold"
               mb={2}
-              sx={{ fontSize: "24px" }}
+              sx={{ fontSize: "24px", fontFamily: "albert sans" }}
             >
               Reset Password
             </Typography>
 
-            <Typography variant="body1" mb={2}>
+            <Typography
+              variant="body1"
+              mb={2}
+              sx={{ fontFamily: "albert sans" }}
+            >
               Enter your email address to receive a password reset link.
             </Typography>
 
@@ -467,6 +609,12 @@ const Login = ({ open, handleClose, handleSwitchToSignUp, onLoginSuccess }) => {
               value={resetEmail}
               onChange={(e) => setResetEmail(e.target.value)}
               sx={{ mb: 2 }}
+              InputProps={{
+              sx: {
+                borderRadius: "12px",
+                backgroundColor: "#F8F8F8",
+                fontFamily:'albert sans'
+              },}}
             />
 
             {resetMessage && (
@@ -474,6 +622,7 @@ const Login = ({ open, handleClose, handleSwitchToSignUp, onLoginSuccess }) => {
                 variant="body2"
                 color={resetMessage.includes("sent") ? "green" : "error"}
                 mb={2}
+                sx={{ fontFamily: "albert sans" }}
               >
                 {resetMessage}
               </Typography>
@@ -488,6 +637,7 @@ const Login = ({ open, handleClose, handleSwitchToSignUp, onLoginSuccess }) => {
                 py: 1.5,
                 borderRadius: "10px",
                 cursor: isResetEmailValid ? "pointer" : "not-allowed",
+                fontFamily: "albert sans",
               }}
               disabled={!isResetEmailValid || resetMessage.includes("sent")} // Disable after sending
               onClick={handleForgotPassword}
@@ -505,6 +655,7 @@ const Login = ({ open, handleClose, handleSwitchToSignUp, onLoginSuccess }) => {
                   py: 1.5,
                   mt: 1,
                   borderRadius: "10px",
+                  fontFamily: "albert sans",
                 }}
                 onClick={handleContinueToLogin}
               >
@@ -515,7 +666,10 @@ const Login = ({ open, handleClose, handleSwitchToSignUp, onLoginSuccess }) => {
         </Box>
       </Modal>
 
-      <Modal open={showResetPasswordModal} onClose={() => setShowResetPasswordModal(false)}>
+      <Modal
+        open={showResetPasswordModal}
+        onClose={() => setShowResetPasswordModal(false)}
+      >
         <Box
           sx={{
             position: "fixed",
@@ -556,12 +710,16 @@ const Login = ({ open, handleClose, handleSwitchToSignUp, onLoginSuccess }) => {
               variant="h6"
               fontWeight="bold"
               mb={2}
-              sx={{ fontSize: "24px" }}
+              sx={{ fontSize: "24px", fontFamily: "albert sans" }}
             >
               Set New Password
             </Typography>
 
-            <Typography variant="body1" mb={2}>
+            <Typography
+              variant="body1"
+              mb={2}
+              sx={{ fontFamily: "albert sans" }}
+            >
               Enter your new password below.
             </Typography>
 
@@ -572,6 +730,12 @@ const Login = ({ open, handleClose, handleSwitchToSignUp, onLoginSuccess }) => {
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               sx={{ mb: 2 }}
+              InputProps={{
+              sx: {
+                borderRadius: "12px",
+                backgroundColor: "#F8F8F8",
+                fontFamily:'albert sans'
+              },}}
             />
 
             <TextField
@@ -581,10 +745,21 @@ const Login = ({ open, handleClose, handleSwitchToSignUp, onLoginSuccess }) => {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               sx={{ mb: 2 }}
+              InputProps={{
+              sx: {
+                borderRadius: "12px",
+                backgroundColor: "#F8F8F8",
+                fontFamily:'albert sans'
+              },}}
             />
 
             {resetError && (
-              <Typography variant="body2" color="error" mb={2}>
+              <Typography
+                variant="body2"
+                color="error"
+                mb={2}
+                sx={{ fontFamily: "albert sans" }}
+              >
                 {resetError}
               </Typography>
             )}
@@ -598,6 +773,7 @@ const Login = ({ open, handleClose, handleSwitchToSignUp, onLoginSuccess }) => {
                 py: 1.5,
                 borderRadius: "10px",
                 cursor: isNewPasswordValid ? "pointer" : "not-allowed",
+                fontFamily: "albert sans",
               }}
               disabled={!isNewPasswordValid}
               onClick={handleResetPassword}
@@ -637,12 +813,16 @@ const Login = ({ open, handleClose, handleSwitchToSignUp, onLoginSuccess }) => {
               variant="h6"
               fontWeight="bold"
               mb={2}
-              sx={{ fontSize: "24px" }}
+              sx={{ fontSize: "24px", fontFamily: "albert sans" }}
             >
               Password Changed
             </Typography>
 
-            <Typography variant="body1" mb={3}>
+            <Typography
+              variant="body1"
+              mb={3}
+              sx={{ fontFamily: "albert sans" }}
+            >
               You can now sign in with your new password.
             </Typography>
 
@@ -654,6 +834,7 @@ const Login = ({ open, handleClose, handleSwitchToSignUp, onLoginSuccess }) => {
                 color: "#fff",
                 py: 1.5,
                 borderRadius: "10px",
+                fontFamily: "albert sans",
               }}
               onClick={handleReturnToLogin}
             >
