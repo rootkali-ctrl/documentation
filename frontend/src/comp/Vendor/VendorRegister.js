@@ -281,7 +281,7 @@ const VendorRegister = () => {
                 fontSize: "45px",
                 fontWeight: "600",
                 mb: "1rem",
-              
+
               }}
             >
               Ticketb
