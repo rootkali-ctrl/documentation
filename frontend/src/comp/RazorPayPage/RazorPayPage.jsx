@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useNavigate, useLocation, useParams } from "react-router-dom";
 import { Box, Typography, Button, CircularProgress, Alert, Divider } from "@mui/material";
-import Header from "../Header/MainHeaderWOS";
 import axios from "axios";
 
 const RazorPayPage = () => {
@@ -396,8 +395,6 @@ const RazorPayPage = () => {
         minHeight: "100vh",
       }}
     >
-      {/* Header */}
-      <Header />
 
       <Typography
         variant="h6"
