@@ -22,7 +22,7 @@ import CurrencyRupeeOutlinedIcon from "@mui/icons-material/CurrencyRupeeOutlined
 import ConfirmationNumberIcon from "@mui/icons-material/ConfirmationNumber";
 import CloseIcon from "@mui/icons-material/Close";
 import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
-import { useLocation, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
 import { db } from "../../firebase_config";
 import axios from "axios";
@@ -70,6 +70,7 @@ const EventDashboard = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [displayedOrders, setDisplayedOrders] = useState([]);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchEventData = async () => {
@@ -384,9 +385,6 @@ const EventDashboard = () => {
     csvLink.current.link.click();
   };
 
-  const toggleAnalytics = () => {
-    setShowAnalytics(!showAnalytics);
-  };
 
   const formatEventDate = () => {
     if (!eventData.eventDate) return "Date not set";
@@ -412,6 +410,15 @@ const EventDashboard = () => {
       </Box>
     );
   }
+
+  const handleanalytics = () => {
+  navigate(`/eventanalytics/${eventId}`, { 
+    state: { 
+      eventId: eventId,
+      eventData: eventData 
+    } 
+  });
+};
 
   const CustomTooltip = ({ active, payload }) => {
     if (active && payload && payload.length) {
@@ -496,7 +503,7 @@ const EventDashboard = () => {
                   },
                   p: isMobile ? "1% 2%" : null,
                 }}
-                onClick={toggleAnalytics}
+                onClick={()=> {handleanalytics()}}
               >
                 <InsertChartIcon sx={{ fontSize: "18px", mr: "8px" }} />
                 View Analytics
@@ -957,381 +964,6 @@ const EventDashboard = () => {
           </Box>
         )}
       </Box>
-
-      {showAnalytics && (
-        <Box
-          sx={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            width: "100%",
-            height: "100%",
-            backgroundColor: "rgba(0, 0, 0, 0.5)",
-            zIndex: 1000,
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-          }}
-        >
-          <Box
-            sx={{
-              width: isMobile ? "80%" : "80%",
-              maxWidth: "1000px",
-              backgroundColor: "white",
-              borderRadius: "10px",
-              padding: isMobile ? "20px" : "24px",
-              maxHeight: "90vh",
-              overflowY: "auto",
-            }}
-          >
-            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
-              <Typography
-                sx={{
-                  fontFamily: "Albert Sans",
-                  fontSize: isMobile ? "20px" : "24px",
-                  fontWeight: "700",
-                }}
-              >
-                Ticket Sales Analytics
-              </Typography>
-              <IconButton onClick={toggleAnalytics} sx={{ color: "#666" }}>
-                <CloseIcon />
-              </IconButton>
-            </Box>
-
-            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
-              <FormControl size="small">
-                <Select
-                  value={timeFilter}
-                  onChange={(e) => setTimeFilter(e.target.value)}
-                  sx={{
-                    height: "36px",
-                    minWidth: "150px",
-                    fontFamily: "Albert Sans",
-                  }}
-                >
-                  <MenuItem value="7">Last 7 days</MenuItem>
-                  <MenuItem value="30">Last 30 days</MenuItem>
-                  <MenuItem value="90">Last 90 days</MenuItem>
-                  <MenuItem value="all">All time</MenuItem>
-                </Select>
-              </FormControl>
-
-              <Button
-                variant="contained"
-                sx={{
-                  backgroundColor: "#19AEDC",
-                  textTransform: "none",
-                  fontFamily: "Albert Sans",
-                  padding: isMobile ? "4px 8px" : "6px 16px",
-                  borderRadius: "4px",
-                  "&:hover": {
-                    backgroundColor: "#1793B8",
-                  },
-                }}
-                onClick={downloadSalesReport}
-              >
-                Export
-              </Button>
-            </Box>
-
-            <Card
-              elevation={0}
-              sx={{
-                border: "1px solid #e0e0e0",
-                borderRadius: "8px",
-                overflow: "hidden",
-                marginBottom: "24px",
-                width: isMobile ? "100%" : null,
-              }}
-            >
-              <CardContent sx={{ padding: isMobile ? "1px" : "24px" }}>
-                <ResponsiveContainer width="100%" height={400}>
-                  <BarChart
-                    data={salesData}
-                    margin={{
-                      top: isMobile ? 5 : 20,
-                      right: isMobile ? 5 : 30,
-                      left: isMobile ? 10 : 20,
-                      bottom: isMobile ? 0 : 5,
-                    }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis
-                      dataKey="name"
-                      tick={{ fill: "#666", fontFamily: "Albert Sans", fontSize: isMobile ? 10 : 12 }}
-                      axisLine={{ stroke: "#e0e0e0" }}
-                    />
-                    <YAxis
-                      tick={{ fill: "#666", fontFamily: "Albert Sans", fontSize: isMobile ? 10 : 12 }}
-                      axisLine={{ stroke: "#e0e0e0" }}
-                      label={{
-                        value: "Tickets Sold",
-                        angle: -90,
-                        position: "insideLeft",
-                        fontFamily: "Albert Sans",
-                        fill: "#666",
-                        fontSize: isMobile ? 10 : 12,
-                      }}
-                    />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Legend />
-                    {ticketTypes
-                      .filter((ticket) => ticket.sold > 0)
-                      .map((ticket, index) => {
-                        const sanitizedKey = ticket.type.replace(/\s+/g, "_");
-                        return (
-                          <Bar
-                            key={`bar-${index}`}
-                            dataKey={sanitizedKey}
-                            name={ticket.type}
-                            fill={salesData[0][`${sanitizedKey}Color`] || COLORS[index % COLORS.length]}
-                            radius={[4, 4, 0, 0]}
-                          />
-                        );
-                      })}
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-
-            <Card elevation={0} sx={{ backgroundColor: "#f9f9f9", borderRadius: "8px", overflow: "hidden" }}>
-              <CardContent sx={{ padding: "24px" }}>
-                <Box
-                  sx={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "flex-start",
-                    marginBottom: "24px",
-                  }}
-                >
-                  <Box sx={{ flex: 1 }}>
-                    <Typography
-                      sx={{
-                        fontFamily: "Albert Sans",
-                        fontSize: "20px",
-                        fontWeight: "700",
-                        marginBottom: "8px",
-                      }}
-                    >
-                      Event Details
-                    </Typography>
-
-                    <Box sx={{ display: "flex", alignItems: "center", marginTop: "8px" }}>
-                      <CalendarTodayIcon sx={{ color: "#666", marginRight: "8px", fontSize: "18px" }} />
-                      <Typography sx={{ fontFamily: "Albert Sans", fontSize: "14px", color: "#666" }}>
-                        {formatEventDate()}
-                      </Typography>
-                    </Box>
-                  </Box>
-                  {!isMobile && (
-                    <Box sx={{ width: "240px", height: "120px", overflow: "hidden", borderRadius: "8px" }}>
-                      <img
-                        src={bannerImage || "/placeholder-event.jpg"}
-                        alt={eventData.name}
-                        style={{
-                          width: "100%",
-                          height: "100%",
-                          objectFit: "cover",
-                        }}
-                      />
-                    </Box>
-                  )}
-                </Box>
-
-                <Box
-                  sx={{
-                    display: "flex",
-                    flexDirection: { xs: "column", md: "row" },
-                    gap: 3,
-                    width: "100%",
-                  }}
-                >
-                  <Box sx={{ flex: 1 }}>
-                    <Card elevation={1} sx={{ height: "100%" }}>
-                      <CardContent>
-                        <Typography
-                          sx={{
-                            fontFamily: "Albert Sans",
-                            fontSize: "14px",
-                            color: "#666",
-                            marginBottom: "8px",
-                          }}
-                        >
-                          Total Tickets Sold
-                        </Typography>
-                        <Typography
-                          sx={{
-                            fontFamily: "Albert Sans",
-                            fontSize: "28px",
-                            fontWeight: "700",
-                          }}
-                        >
-                          {eventStats.ticketsSold.toLocaleString()}
-                        </Typography>
-                      </CardContent>
-                    </Card>
-                  </Box>
-
-                  <Box sx={{ flex: 1 }}>
-                    <Card elevation={1} sx={{ height: "100%" }}>
-                      <CardContent>
-                        <Typography
-                          sx={{
-                            fontFamily: "Albert Sans",
-                            fontSize: "14px",
-                            color: "#666",
-                            marginBottom: "8px",
-                          }}
-                        >
-                          Gross Sales
-                        </Typography>
-                        <Typography
-                          sx={{
-                            fontFamily: "Albert Sans",
-                            fontSize: "28px",
-                            fontWeight: "700",
-                          }}
-                        >
-                          ₹{eventStats.grossSales.toLocaleString()}
-                        </Typography>
-                      </CardContent>
-                    </Card>
-                  </Box>
-
-                  <Box sx={{ flex: 1 }}>
-                    <Card elevation={1} sx={{ height: "100%" }}>
-                      <CardContent>
-                        <Typography
-                          sx={{
-                            fontFamily: "Albert Sans",
-                            fontSize: "14px",
-                            color: "#666",
-                            marginBottom: "8px",
-                          }}
-                        >
-                          Vendor Tax
-                        </Typography>
-                        <Typography
-                          sx={{
-                            fontFamily: "Albert Sans",
-                            fontSize: "28px",
-                            fontWeight: "700",
-                          }}
-                        >
-                          ₹{eventStats.vendorTaxAmount.toLocaleString()}
-                        </Typography>
-                      </CardContent>
-                    </Card>
-                  </Box>
-
-                  <Box sx={{ flex: 1 }}>
-                    <Card elevation={1} sx={{ height: "100%" }}>
-                      <CardContent>
-                        <Typography
-                          sx={{
-                            fontFamily: "Albert Sans",
-                            fontSize: "14px",
-                            color: "#666",
-                            marginBottom: "8px",
-                          }}
-                        >
-                          Profits
-                        </Typography>
-                        <Typography
-                          sx={{
-                            fontFamily: "Albert Sans",
-                            fontSize: "28px",
-                            fontWeight: "700",
-                          }}
-                        >
-                          ₹{eventStats.profits.toLocaleString()}
-                        </Typography>
-                      </CardContent>
-                    </Card>
-                  </Box>
-
-                  <Box sx={{ flex: 1 }}>
-                    <Card elevation={1} sx={{ height: "100%" }}>
-                      <CardContent>
-                        <Typography
-                          sx={{
-                            fontFamily: "Albert Sans",
-                            fontSize: "14px",
-                            color: "#666",
-                            marginBottom: "8px",
-                          }}
-                        >
-                          Ticket Types
-                        </Typography>
-                        <Typography
-                          sx={{
-                            fontFamily: "Albert Sans",
-                            fontSize: "28px",
-                            fontWeight: "700",
-                            marginBottom: "8px",
-                          }}
-                        >
-                          {ticketTypes.length}
-                        </Typography>
-                        <Box sx={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                          {ticketTypes
-                            .filter((ticket) => ticket.sold > 0)
-                            .slice(0, 3)
-                            .map((ticket, idx) => (
-                              <Box
-                                key={idx}
-                                sx={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "space-between",
-                                }}
-                              >
-                                <Typography sx={{ fontFamily: "Albert Sans", fontSize: "12px" }}>
-                                  {ticket.type}
-                                </Typography>
-                                <Typography
-                                  sx={{
-                                    fontFamily: "Albert Sans",
-                                    fontSize: "12px",
-                                    fontWeight: "600",
-                                  }}
-                                >
-                                  {ticket.sold} sold
-                                </Typography>
-                              </Box>
-                            ))}
-                          {ticketTypes.filter((t) => t.sold > 0).length > 3 && (
-                            <Typography
-                              sx={{
-                                fontFamily: "Albert Sans",
-                                fontSize: "12px",
-                                color: "#19AEDC",
-                                textAlign: "center",
-                                cursor: "pointer",
-                              }}
-                            >
-                              + {ticketTypes.filter((t) => t.sold > 0).length - 3} more types
-                            </Typography>
-                          )}
-                        </Box>
-                      </CardContent>
-                    </Card>
-                  </Box>
-                </Box>
-              </CardContent>
-            </Card>
-          </Box>
-        </Box>
-      )}
-
-      <CSVLink
-        data={csvData}
-        filename={`${eventData.name || "event"}_sales_report.csv`}
-        className="hidden"
-        ref={csvLink}
-        target="_blank"
-      />
     </div>
   );
 };

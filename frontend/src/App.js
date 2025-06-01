@@ -45,6 +45,7 @@ import VendorScanner from "./comp/Vendor/Vendor Profile/VendorScanner";
 import VendorProfile from "./comp/Vendor/Vendor Profile/VendorProfile";
 import VendorDoc from "./comp/Vendor/Vendor Profile/VendorDoc";
 import VendorOrg from "./comp/Vendor/Vendor Profile/VendorOrg";
+import EventAnalytics from "./comp/EventDashboard/EventAnalytics";
 
 function App() {
   return (
@@ -118,6 +119,7 @@ function App() {
             <Route path="/vendorhome/QRScanner/:vendorId" element={<QRScannerPage/>} />
             <Route path='/eventdashboard' element={<EventDashboard />} />
             <Route path='/eventdashboard/:eventId' element={<EventDashboard />} />
+            <Route path='/eventanalytics/:eventId' element={<EventAnalytics/>} />
             <Route path="/admindashboard" element={<AdminDashboard />} />
             <Route path="/eventpreview" element={<EventPreview />} />
             <Route path="/priceperk" element={<PricePerk />} />
