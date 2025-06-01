@@ -118,7 +118,7 @@ function App() {
             <Route path='/vendorhome/:vendorId' element={<VendorHome />} />
             <Route path="/vendorhome/QRScanner/:vendorId" element={<QRScannerPage/>} />
             <Route path='/eventdashboard' element={<EventDashboard />} />
-            <Route path='/eventdashboard/:eventId' element={<EventDashboard />} />
+            <Route path='/eventdashboard/:eventId/:vendorId' element={<EventDashboard />} />
             <Route path='/eventanalytics/:eventId' element={<EventAnalytics/>} />
             <Route path="/admindashboard" element={<AdminDashboard />} />
             <Route path="/eventpreview" element={<EventPreview />} />

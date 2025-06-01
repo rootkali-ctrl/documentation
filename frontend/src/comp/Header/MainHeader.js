@@ -51,7 +51,7 @@ const MainHeader = () => {
         setUsername(derivedUsername);
 
         try {
-          const res = await fetch("http://localhost:8080/api/user/post-email", {
+          const res = await fetch(`${process.env.REACT_APP_API_BASE_URL}/api/user/post-email`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ email: user.email }),

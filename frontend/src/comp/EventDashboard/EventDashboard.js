@@ -24,23 +24,14 @@ import CloseIcon from "@mui/icons-material/Close";
 import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
-import { db } from "../../firebase_config";
+import { db,auth } from "../../firebase_config";
+import { onAuthStateChanged, signOut } from "firebase/auth";
+
 import axios from "axios";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
-} from "recharts";
-import { CSVLink } from "react-csv";
 
 const EventDashboard = () => {
   const { state } = useLocation();
-  const { eventId } = useParams();
+  const { eventId,vendorId } = useParams();
   const [eventData, setEventData] = useState(state?.eventData || {});
   const [loading, setLoading] = useState(true);
   const [ticketTypes, setTicketTypes] = useState([]);
@@ -62,7 +53,9 @@ const EventDashboard = () => {
   const [allOrders, setAllOrders] = useState([]);
   const isMobile = useMediaQuery("(max-width:900px)");
   const COLORS = ["#19AEDC", "#4FC3F7", "#2196F3", "#1565C0", "#0D47A1"];
-
+ const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [passvendorId, passsetVendorId] = useState(null);
+  const [username, setUsername] = useState("");
   const [csvData, setCsvData] = useState([]);
   const csvLink = React.createRef();
 
@@ -71,6 +64,61 @@ const EventDashboard = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [displayedOrders, setDisplayedOrders] = useState([]);
   const navigate = useNavigate();
+  
+    const [userProfile, setUserProfile] = useState(null);
+  
+    useEffect(() => {
+      const unsubscribe = onAuthStateChanged(auth, async (user) => {
+        if (user) {
+          setIsAuthenticated(true);
+          const derivedUsername = user.displayName || user.email.split("@")[0];
+          setUsername(derivedUsername);
+  
+          // Add this userProfile setting
+          setUserProfile({
+            photoURL: user.photoURL,
+            displayName: user.displayName,
+            email: user.email,
+            uid: user.uid,
+          });
+  
+          try {
+            const res = await fetch(`${process.env.REACT_APP_API_BASE_URL}/api/user/post-email`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ email: user.email }),
+            });
+  
+            const data = await res.json();
+            if (res.ok) {
+              localStorage.setItem("vendorId", data.vendorId);
+              passsetVendorId(data.vendorId); // Make sure you set this in state
+            } else {
+              console.error("Vendor not found:", data.message);
+            }
+          } catch (error) {
+            console.error("Error fetching vendor data:", error);
+          }
+        } else {
+          setIsAuthenticated(false);
+          setUsername("");
+          setUserProfile(null); // Add this
+          passsetVendorId(null); // Add this
+        }
+      });
+  
+      return () => unsubscribe();
+    }, []);
+     const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      localStorage.removeItem("vendorId"); // Add this line
+      navigate("/");
+    } catch (error) {
+      console.error("Logout error:", error);
+      alert("Failed to log out. Please try again.");
+    }
+  };
 
   useEffect(() => {
     const fetchEventData = async () => {
@@ -441,7 +489,10 @@ const EventDashboard = () => {
 
   return (
     <div sx={{ overflowX: "hidden" }}>
-      <HeaderVendorLogged />
+      <HeaderVendorLogged 
+       vendorId={vendorId}
+        userProfile={userProfile}
+        onLogout={handleLogout}/>
       <Box
         sx={{
           display: "flex",

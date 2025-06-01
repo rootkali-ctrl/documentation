@@ -280,7 +280,7 @@ const VendorHome = () => {
   };
 
   const handleEventClick = (eventData) => {
-    navigate(`/eventdashboard/${eventData.eventId}`, { state: { eventData } });
+    navigate(`/eventdashboard/${eventData.eventId}/${vendorId}`, { state: { eventData } });
   };
 
   const handleUpdateEvent = (e) => {
