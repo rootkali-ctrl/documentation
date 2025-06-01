@@ -49,7 +49,7 @@ const VendorDetails = () => {
 
   const sendVendorEmail = async (email, vendorName, status) => {
     try {
-      const baseUrl = process.env.REACT_APP_API_BASE_URL || "http://localhost:8080";
+      const baseUrl = process.env.REACT_APP_API_BASE_URL;
       const payload = {
         to: email,
         vendorName: vendorName || "Vendor",
@@ -81,7 +81,7 @@ const VendorDetails = () => {
     };
     console.log("Payload being sent for action:", payload);
 
-    const baseUrl = process.env.REACT_APP_API_BASE_URL || "http://localhost:8080";
+    const baseUrl = process.env.REACT_APP_API_BASE_URL;
     console.log("Using API base URL:", baseUrl);
 
     let response;

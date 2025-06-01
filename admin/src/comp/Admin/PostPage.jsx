@@ -100,7 +100,7 @@ const PostPage = () => {
     try {
       // Banner was uploaded – delete from backend (includes storage)
       const res = await fetch(
-        "http://localhost:8080/api/admin/banners/delete",
+        `${REACT_APP_API_BASE_URL}/api/admin/banners/delete`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -140,7 +140,7 @@ const PostPage = () => {
       try {
         // Fetch hero banners
         const heroRes = await fetch(
-          "http://localhost:8080/api/admin/banners/recent"
+          `${REACT_APP_API_BASE_URL}/api/admin/banners/recent`
         );
         const heroData = await heroRes.json();
 
@@ -155,7 +155,7 @@ const PostPage = () => {
 
         // Fetch inline banners
         const inlineRes = await fetch(
-          "http://localhost:8080/api/admin/banners/recent-inline"
+          `${REACT_APP_API_BASE_URL}/api/admin/banners/recent-inline`
         );
         const inlineData = await inlineRes.json();
 
@@ -204,7 +204,7 @@ const PostPage = () => {
 
       // Send URLs to backend
       const response = await fetch(
-        "http://localhost:8080/api/admin/save-banner-urls",
+        `${REACT_APP_API_BASE_URL}/api/admin/save-banner-urls`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -273,7 +273,7 @@ const PostPage = () => {
 
     // Banner was uploaded – delete from backend (includes storage)
     const res = await fetch(
-      "http://localhost:8080/api/admin/banners-delete-inline",
+      `${REACT_APP_API_BASE_URL}/api/admin/banners-delete-inline`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -329,7 +329,7 @@ const PostPage = () => {
             redirectUrl: banner.redirectUrl || "",
           }));
           const response = await fetch(
-            "http://localhost:8080/api/admin/save-banner-urls-inline",
+            `${REACT_APP_API_BASE_URL}/api/admin/save-banner-urls-inline`,
             {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -388,7 +388,7 @@ const PostPage = () => {
 
       // Send URLs to backend - limit to only the first/latest banner
       const response = await fetch(
-        "http://localhost:8080/api/admin/save-banner-urls-inline",
+        `${REACT_APP_API_BASE_URL}/api/admin/save-banner-urls-inline`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

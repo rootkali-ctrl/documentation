@@ -107,7 +107,7 @@ const Loginsettings = () => {
 
       // Check if API base URL is defined, use fallback if not
       const baseUrl =
-        process.env.REACT_APP_API_BASE_URL || "http://localhost:8080";
+        process.env.REACT_APP_API_BASE_URL || "https://ticketb-backend.onrender.com";
       console.log("Using API base URL:", baseUrl);
 
       const res = await axios.get(`${baseUrl}/api/admin/allrequests`);
