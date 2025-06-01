@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useNavigate, useLocation, useParams } from "react-router-dom";
 import { Box, Typography, Button, CircularProgress, Alert, Divider } from "@mui/material";
+import Header from "../Header/MainHeaderWOS";
 import axios from "axios";
 
 const RazorPayPage = () => {
@@ -142,16 +143,21 @@ const RazorPayPage = () => {
   } = paymentData || {};
 
   // Format date for display
-  const formattedDate = event?.date
-    ? typeof event.date === "string"
-      ? event.date
-      : new Date(event.date).toLocaleDateString("en-US", {
-          month: "long",
-          day: "numeric",
-          year: "numeric",
-        })
-    : "Date not available";
+const formattedDate = event?.date
+  ? new Date(event.date).toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    })
+  : "Date not available";
 
+const formattedTime = event?.date
+  ? new Date(event.date).toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    })
+  : "Time not available";
   // Calculate total amount in paise (Razorpay requires amount in smallest currency unit)
   const amountInPaise = Math.round((financial?.totalAmount || 0) * 100);
 
@@ -395,11 +401,8 @@ const RazorPayPage = () => {
         minHeight: "100vh",
       }}
     >
-<<<<<<< Updated upstream
-=======
       {/* Header */}
-
->>>>>>> Stashed changes
+      <Header />
 
       <Typography
         variant="h6"
@@ -466,7 +469,7 @@ const RazorPayPage = () => {
               {event?.name || "Event Information Not Available"}
             </Typography>
             <Typography variant="body2" sx={{ color: "#4B5563", marginTop: "5px" }}>
-              {formattedDate} at {event?.time || "Time not available"}
+              {formattedDate} at {formattedTime || "Time not available"}
             </Typography>
             <Typography variant="body2" sx={{ color: "#4B5563" }}>
               {event?.location || "Location not available"}

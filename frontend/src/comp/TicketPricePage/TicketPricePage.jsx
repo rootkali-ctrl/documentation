@@ -28,7 +28,7 @@ import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
 import FastfoodIcon from "@mui/icons-material/Fastfood";
 import { useNavigate, useParams } from "react-router-dom";
 import Header from "../Header/MainHeaderWOS";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { doc, getDoc, onSnapshot, updateDoc } from "firebase/firestore";
 import { db } from "../../firebase_config";
 import { getAuth } from "firebase/auth";
 
@@ -71,98 +71,97 @@ const TicketPricePage = ({ activeStep = 0 }) => {
   const auth = getAuth();
   const userUID = auth.currentUser?.uid;
 
-  useEffect(() => {
-    const fetchEventDetails = async () => {
-      try {
-        setLoading(true);
-        setError(null);
+useEffect(() => {
+  if (!eventId) return;
 
-        if (!eventId) {
-          throw new Error("No event ID provided");
-        }
+  const unsubscribe = onSnapshot(doc(db, "events", eventId), (eventDoc) => {
+    if (eventDoc.exists()) {
+      const eventData = eventDoc.data();
+      const maxTicketCount = parseInt(eventData.ticketCount) || 10;
 
-        const eventDoc = await getDoc(doc(db, "events", eventId));
+      const ticketsWithUniqueIds = eventData.pricing
+        ? eventData.pricing.map((ticket, index) => {
+            const availableTickets = calculateAvailableTickets(ticket);
 
-        if (!eventDoc.exists()) {
-          throw new Error("Event not found");
-        }
-
-        const eventData = eventDoc.data();
-        const maxTicketCount = parseInt(eventData.ticketCount) || 10; // Parse ticketCount as integer
-        const ticketsWithUniqueIds = eventData.pricing
-          ? eventData.pricing.map((ticket, index) => ({
+            return {
               ...ticket,
               id: ticket.id || `pricing-${index}`,
-              available: ticket.available || 0, // Ensure available is set
-              seats: ticket.seats || 0, // Total seats for reference
-            }))
-          : [];
+              available: availableTickets,
+              seats: ticket.seats || 0,
+              booked: ticket.booked || 0,
+            };
+          })
+        : [];
 
-        const perks =
-          eventData.perks && Array.isArray(eventData.perks)
-            ? eventData.perks
-            : [];
+      const perks = Array.isArray(eventData.perks) ? eventData.perks : [];
 
-        const processedFoodItems = perks.map((perk, index) => {
-          let category = "Other";
-          if (perk.itemName.toLowerCase().includes("popcorn")) {
-            category = "Popcorn";
-          } else if (
-            perk.itemName.toLowerCase().includes("soda") ||
-            perk.itemName.toLowerCase().includes("water") ||
-            perk.itemName.toLowerCase().includes("drink") ||
-            perk.itemName.toLowerCase().includes("juice") ||
-            perk.itemName.toLowerCase().includes("coffee")
-          ) {
-            category = "Beverages";
-          } else if (
-            perk.itemName.toLowerCase().includes("nachos") ||
-            perk.itemName.toLowerCase().includes("fries") ||
-            perk.itemName.toLowerCase().includes("nugget") ||
-            perk.itemName.toLowerCase().includes("sandwich") ||
-            perk.itemName.toLowerCase().includes("snack") ||
-            perk.itemName.toLowerCase().includes("burger")
-          ) {
-            category = "Snacks";
-          }
+      const processedFoodItems = perks
+  .map((perk, index) => {
+    const itemName = perk?.itemName;
 
-          return {
-            id: index + 1,
-            name: perk.itemName,
-            description: `Delicious ${perk.itemName} for your event enjoyment`,
-            image: perk.url || getDefaultImage(perk.itemName),
-            price: perk.price || 0,
-            category: category,
-            limit: perk.limit || 100,
-          };
-        });
+    if (!itemName || typeof itemName !== "string") return null; // Skip invalid perks
 
-        setFoodItems(processedFoodItems);
+    let category = "Other";
+    const nameLower = itemName.toLowerCase();
 
-        setEvent({
-          id: eventDoc.id,
-          ...eventData,
-          ticket: ticketsWithUniqueIds,
-          ticketCount: maxTicketCount,
-          foodPerks: perks,
-        });
+    if (nameLower.includes("popcorn")) {
+      category = "Popcorn";
+    } else if (
+      nameLower.includes("soda") ||
+      nameLower.includes("water") ||
+      nameLower.includes("drink") ||
+      nameLower.includes("juice") ||
+      nameLower.includes("coffee")
+    ) {
+      category = "Beverages";
+    } else if (
+      nameLower.includes("nachos") ||
+      nameLower.includes("fries") ||
+      nameLower.includes("nugget") ||
+      nameLower.includes("sandwich") ||
+      nameLower.includes("snack") ||
+      nameLower.includes("burger")
+    ) {
+      category = "Snacks";
+    }
 
-        if (
-          ticketsWithUniqueIds.length > 0 &&
-          ticketsWithUniqueIds.every((ticket) => ticket.free)
-        ) {
-          setIsFreeTicket(true);
-        }
-      } catch (error) {
-        console.error("Error fetching event details:", error);
-        setError(error.message);
-      } finally {
-        setLoading(false);
-      }
+    return {
+      id: index + 1,
+      name: itemName,
+      description: `Delicious ${itemName} for your event enjoyment`,
+      image: perk.url, // Use directly from backend
+      price: perk.price || 0,
+      category,
+      limit: perk.limit || 100,
     };
+  })
+  .filter(Boolean); // Remove nulls
 
-    fetchEventDetails();
-  }, [eventId]);
+
+      setFoodItems(processedFoodItems);
+      setEvent({
+        id: eventDoc.id,
+        ...eventData,
+        ticket: ticketsWithUniqueIds,
+        ticketCount: maxTicketCount,
+        foodPerks: perks,
+      });
+
+      if (
+        ticketsWithUniqueIds.length > 0 &&
+        ticketsWithUniqueIds.every((ticket) => ticket.free)
+      ) {
+        setIsFreeTicket(true);
+      }
+    } else {
+      setError("Event not found");
+    }
+
+    setLoading(false);
+  });
+
+  return () => unsubscribe();
+}, [eventId]);
 
   useEffect(() => {
     console.log(userUID);
@@ -189,7 +188,9 @@ const TicketPricePage = ({ activeStep = 0 }) => {
         [ticketId]: currentCount + 1,
       }));
     } else if (totalSelected >= maxTicketCount) {
-      setError(`Cannot select more than ${maxTicketCount} tickets per purchase.`);
+      setError(
+        `Cannot select more than ${maxTicketCount} tickets per purchase.`
+      );
     }
   };
 
@@ -372,9 +373,9 @@ const TicketPricePage = ({ activeStep = 0 }) => {
           ticketSummary,
           foodSummary,
           financial: {
-            subtotal,
+            subtotal: calculateSubtotal(),
             convenienceFee: CONVENIENCE_FEE,
-            totalAmount,
+            totalAmount: calculateTotal(),
           },
           selectedPerks: prepareSelectedFoodPerks(),
         },
@@ -386,6 +387,18 @@ const TicketPricePage = ({ activeStep = 0 }) => {
       setIsProcessingBooking(false);
     }
   };
+
+  const calculateAvailableTickets = (ticket) => {
+    const totalSeats = ticket.seats || 0;
+    const bookedTickets = ticket.booked || 0;
+
+    return Math.max(0, totalSeats - bookedTickets);
+  };
+
+  const areAllTicketsSoldOut = () => {
+  return event?.ticket?.every((ticket) => calculateAvailableTickets(ticket) === 0);
+};
+
 
   if (loading) {
     return (
@@ -459,7 +472,10 @@ const TicketPricePage = ({ activeStep = 0 }) => {
           <CardContent sx={{ textAlign: { xs: "left", sm: "center" } }}>
             <Typography
               variant="h5"
-              sx={{ fontWeight: "bold", textAlign: { xs: "left", sm: "center" } }}
+              sx={{
+                fontWeight: "bold",
+                textAlign: { xs: "left", sm: "center" },
+              }}
             >
               {event?.name || "Event Name"}
             </Typography>
@@ -520,7 +536,7 @@ const TicketPricePage = ({ activeStep = 0 }) => {
         {event?.ticket && event.ticket.length > 0 ? (
           event.ticket.map((ticket) => {
             const ticketId = String(ticket.id);
-            const available = ticket.available || 0;
+            const available = calculateAvailableTickets(ticket); // Use the fixed calculation
             const isSoldOut = available <= 0;
             const thisTicketCount = selectedTickets[ticketId] || 0;
 
@@ -636,7 +652,9 @@ const TicketPricePage = ({ activeStep = 0 }) => {
                   <Button
                     variant="outlined"
                     onClick={() => handleIncrement(ticketId)}
-                    disabled={getTotalTicketCount() >= event.ticketCount || isFreeTicket}
+                    disabled={
+                      getTotalTicketCount() >= event.ticketCount || isFreeTicket
+                    }
                     sx={{
                       borderColor: "#19AEDC",
                       color: "#19AEDC",
@@ -874,7 +892,10 @@ const TicketPricePage = ({ activeStep = 0 }) => {
                           <Typography
                             variant="body2"
                             color="text.secondary"
-                            sx={{ mb: 1, fontSize: { xs: "0.85rem", sm: "0.95rem" } }}
+                            sx={{
+                              mb: 1,
+                              fontSize: { xs: "0.85rem", sm: "0.95rem" },
+                            }}
                           >
                             {item.description}
                           </Typography>
@@ -1002,11 +1023,11 @@ const TicketPricePage = ({ activeStep = 0 }) => {
           startIcon={<ShoppingCartIcon />}
           onClick={handleProceed}
           disabled={
-            isProcessingBooking ||
-            (getTotalTicketCount() === 0 &&
-              !isFreeTicket &&
-              getTotalFoodCount() === 0)
-          }
+    isProcessingBooking ||
+    (!isFreeTicket &&
+      getTotalTicketCount() === 0 &&
+      (getTotalFoodCount() === 0 || areAllTicketsSoldOut()))
+  }
           sx={{
             backgroundColor: "#19AEDC",
             "&:hover": { backgroundColor: "#148db1" },

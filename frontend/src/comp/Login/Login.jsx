@@ -69,54 +69,60 @@ const Login = ({ open, handleClose, handleSwitchToSignUp, onLoginSuccess }) => {
   }, [location]);
 
   const handleLogin = async () => {
-     if (isManual) return;
+    if (isManual) return;
     setIsManual(true);
+
     try {
-      const result = await signInWithEmailAndPassword(auth, email, password);
-
-      if (!result.user.emailVerified) {
-        setDialogMessage("Please verify your email before logging in.");
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+      
+      // Check if email is verified for email/password users
+      if (!user.emailVerified) {
+        await auth.signOut(); // Sign them out immediately
+        setDialogMessage("Please verify your email before logging in. Check your inbox for the verification link.");
         setDialogOpen(true);
-
         return;
       }
 
-      const userRef = doc(db, "users", result.user.uid);
+      // Check if user exists in Firestore and if they're suspended
+      const userRef = doc(db, "users", user.uid);
       const userSnap = await getDoc(userRef);
 
-      if (userSnap.exists() && userSnap.data().suspended === true) {
-        setShowSuspensionModal(true);
-        await auth.signOut();
-        return;
+      if (userSnap.exists()) {
+        if (userSnap.data().suspended === true) {
+          setShowSuspensionModal(true);
+          await auth.signOut();
+          return;
+        }
       }
-      localStorage.setItem("userEmail", result.user.email);
-      localStorage.setItem("loginType", "manual");
 
+      // If everything is good, proceed with login
       if (onLoginSuccess) {
         onLoginSuccess();
       }
 
       setDialogMessage("Logged in successfully!");
       setDialogOpen(true);
-
       handleClose();
       navigate("/");
+      
     } catch (error) {
       console.error("Login error:", error);
+      let errorMessage = "Login failed. Please try again.";
+      
       if (error.code === "auth/user-not-found") {
-        setDialogMessage("Email not registered. Please Sign Up first.");
-        setDialogOpen(true);
+        errorMessage = "No account found with this email.";
       } else if (error.code === "auth/wrong-password") {
-        setDialogMessage("Incorrect password. Please try again.");
-        setDialogOpen(true);
+        errorMessage = "Incorrect password.";
       } else if (error.code === "auth/invalid-email") {
-        setDialogMessage("Invalid email format.");
-        setDialogOpen(true);
-      } else {
-        setDialogMessage("User does not exist.  Please sign up");
-        setDialogOpen(true);
+        errorMessage = "Invalid email address.";
+      } else if (error.code === "auth/too-many-requests") {
+        errorMessage = "Too many failed attempts. Please try again later.";
       }
-    } finally{
+      
+      setDialogMessage(errorMessage);
+      setDialogOpen(true);
+    } finally {
       setIsManual(false);
     }
   };
@@ -152,6 +158,7 @@ const Login = ({ open, handleClose, handleSwitchToSignUp, onLoginSuccess }) => {
           lastName: lastName || "",
           email,
           suspended: false,
+          type: "google-signin",
         });
       }
 
@@ -166,7 +173,6 @@ const Login = ({ open, handleClose, handleSwitchToSignUp, onLoginSuccess }) => {
       navigate("/");
     } catch (error) {
       console.error("Google login error:", error);
-
       setDialogMessage("Google login failed");
       setDialogOpen(true);
     } finally {
@@ -181,7 +187,6 @@ const Login = ({ open, handleClose, handleSwitchToSignUp, onLoginSuccess }) => {
       navigate("/");
     } catch (error) {
       console.error("Logout error:", error);
-
       setDialogMessage("Failed to log out. Please try again.");
       setDialogOpen(true);
     }
@@ -271,34 +276,6 @@ const Login = ({ open, handleClose, handleSwitchToSignUp, onLoginSuccess }) => {
             backdropFilter: "blur(5px)",
           }}
         >
-          <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
-            <DialogTitle sx={{ fontFamily: "Albert Sans", fontWeight: "bold" }}>
-              Notice
-            </DialogTitle>
-            <DialogContent sx={{ fontFamily: "Albert Sans" }}>
-              <Typography sx={{ fontFamily: "Albert Sans" }}>
-                {dialogMessage}
-              </Typography>
-            </DialogContent>
-          </Dialog>
-
-          <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
-            <DialogTitle sx={{ fontFamily: "albert sans" }}>Error</DialogTitle>
-            <DialogContent>
-              <DialogContentText sx={{ fontFamily: "albert sans" }}>
-                {dialogMessage}
-              </DialogContentText>
-            </DialogContent>
-            <DialogActions>
-              <Button
-                onClick={() => setDialogOpen(false)}
-                color="primary"
-                sx={{ fontFamily: "albert sans" }}
-              >
-                Close
-              </Button>
-            </DialogActions>
-          </Dialog>
           <Box
             sx={{
               width: isMobile ? "70%" : "400px",
@@ -429,7 +406,7 @@ const Login = ({ open, handleClose, handleSwitchToSignUp, onLoginSuccess }) => {
               disabled={!isFormValid || isManual}
               onClick={handleLogin}
             >
-              {isManual ? "Please wait" : "Log In"}
+              {isManual ? "Please wait..." : "Log In"}
             </Button>
 
             <Typography
@@ -454,7 +431,7 @@ const Login = ({ open, handleClose, handleSwitchToSignUp, onLoginSuccess }) => {
               onClick={handleGoogleLogin}
               disabled={isLoggingIn}
             >
-              {isLoggingIn ? "Please wait" : "Google"}
+              {isLoggingIn ? "Please wait..." : "Google"}
             </Button>
 
             <Typography
@@ -477,6 +454,29 @@ const Login = ({ open, handleClose, handleSwitchToSignUp, onLoginSuccess }) => {
           </Box>
         </Box>
       </Modal>
+
+      {/* Dialog moved outside Modal for better performance */}
+      <Dialog 
+        open={dialogOpen} 
+        onClose={() => setDialogOpen(false)}
+        sx={{ zIndex: 9999 }}
+      >
+        <DialogTitle sx={{ fontFamily: "albert sans" }}>Notice</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ fontFamily: "albert sans" }}>
+            {dialogMessage}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => setDialogOpen(false)}
+            color="primary"
+            sx={{ fontFamily: "albert sans" }}
+          >
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Modal open={showSuspensionModal} onClose={() => {}}>
         <Box
@@ -639,7 +639,7 @@ const Login = ({ open, handleClose, handleSwitchToSignUp, onLoginSuccess }) => {
                 cursor: isResetEmailValid ? "pointer" : "not-allowed",
                 fontFamily: "albert sans",
               }}
-              disabled={!isResetEmailValid || resetMessage.includes("sent")} // Disable after sending
+              disabled={!isResetEmailValid || resetMessage.includes("sent")}
               onClick={handleForgotPassword}
             >
               Send Reset Link

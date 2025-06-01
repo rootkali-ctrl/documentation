@@ -457,6 +457,29 @@ const handleInlineBannerClick = () => {
   }
 };
 
+const debugEventData = async (eventId) => {
+  try {
+    const eventRef = doc(db, "events", eventId);
+    const eventSnap = await getDoc(eventRef);
+    
+    if (eventSnap.exists()) {
+      const data = eventSnap.data();
+      console.log('Direct event data fetch:', data);
+      console.log('Event date:', data.eventDate);
+      console.log('Event date type:', typeof data.eventDate);
+      console.log('Is active:', isEventActive(data.eventDate, data.endDate));
+      
+      // Check if it's a Firestore timestamp
+      if (data.eventDate && typeof data.eventDate === 'object' && data.eventDate.toDate) {
+        console.log('Firestore timestamp detected:', data.eventDate.toDate());
+      }
+    } else {
+      console.log('Event not found:', eventId);
+    }
+  } catch (error) {
+    console.error('Error debugging event:', error);
+  }
+};
   const debugDB = async () => {
     try {
       const eventsRef = collection(db, "events");
@@ -471,199 +494,234 @@ const handleInlineBannerClick = () => {
     debugDB();
   }, []);
 
-  const isEventActive = (eventDate, endDate) => {
-    if (!eventDate) return false;
+ const isEventActive = (eventDate, endDate) => {
+  if (!eventDate) return false;
 
-    try {
-      const currentDate = new Date();
-      const eventStartDate = new Date(eventDate);
+  try {
+    const currentDate = new Date();
+    const eventStartDate = new Date(eventDate);
+    
+    // Debug: Log the dates being compared
+    console.log('Current Date:', currentDate);
+    console.log('Event Start Date:', eventStartDate);
+    console.log('Event Date String:', eventDate);
 
-      if (endDate) {
-        const eventEndDate = new Date(endDate);
-        return currentDate <= eventEndDate;
-      }
-
-      const eventEndOfDay = new Date(eventStartDate);
-      eventEndOfDay.setHours(23, 59, 59, 999);
-
-      return currentDate <= eventEndOfDay;
-    } catch (error) {
-      console.error("Error checking if event is active:", error);
-      return false;
+    if (endDate) {
+      const eventEndDate = new Date(endDate);
+      console.log('Event End Date:', eventEndDate);
+      return currentDate <= eventEndDate;
     }
-  };
 
-  const processEvents = useCallback((querySnapshot) => {
-    const eventsData = [];
+    const eventEndOfDay = new Date(eventStartDate);
+    eventEndOfDay.setHours(23, 59, 59, 999);
+    
+    console.log('Event End of Day:', eventEndOfDay);
+    console.log('Is Active:', currentDate <= eventEndOfDay);
 
-    querySnapshot.forEach((doc) => {
-      const data = doc.data();
+    return currentDate <= eventEndOfDay;
+  } catch (error) {
+    console.error("Error checking if event is active:", error);
+    return false;
+  }
+};
 
-      let formattedDate = "Date not specified";
-      if (data.eventDate) {
-        try {
-          const dateObj = new Date(data.eventDate);
-          if (!isNaN(dateObj.getTime())) {
-            formattedDate = dateObj.toLocaleDateString("en-US", {
-              month: "short",
-              day: "numeric",
-              year: "numeric",
-            });
-          } else {
-            console.warn("Invalid date format in DB:", data.eventDate);
-          }
-        } catch (error) {
-          console.error("Error formatting date:", error);
-        }
-      }
+const processEvents = useCallback((querySnapshot) => {
+  const eventsData = [];
+  
+  console.log('Processing events, total docs:', querySnapshot.size);
 
-      let isFree = true;
-      let lowestPrice = 0;
+  querySnapshot.forEach((doc) => {
+    const data = doc.data();
+    console.log('Processing event:', doc.id, data.name);
 
-      if (data.pricing && data.pricing.length > 0) {
-        const pricingArray = Array.isArray(data.pricing)
-          ? data.pricing
-          : Object.values(data.pricing);
+    // Check if event is active BEFORE processing
+    const isActive = isEventActive(data.eventDate, data.endDate);
+    console.log(`Event ${doc.id} active status:`, isActive);
+    
+    if (!isActive) {
+      console.log(`Skipping inactive event: ${doc.id}`);
+      return; // Skip inactive events
+    }
 
-        const validPricing = pricingArray.filter(
-          (option) =>
-            option &&
-            typeof option === "object" &&
-            "free" in option &&
-            "price" in option
-        );
-
-        if (validPricing.length > 0) {
-          const paidOptions = validPricing.filter((option) => {
-            const isFreeOption =
-              option.free === true || option.free === "true";
-            return !isFreeOption && option.price;
+    // Rest of your event processing logic...
+    let formattedDate = "Date not specified";
+    if (data.eventDate) {
+      try {
+        const dateObj = new Date(data.eventDate);
+        if (!isNaN(dateObj.getTime())) {
+          formattedDate = dateObj.toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
           });
-
-          isFree = paidOptions.length === 0;
-
-          if (!isFree && paidOptions.length > 0) {
-            const prices = paidOptions
-              .map((option) => Number(option.price) || 0)
-              .filter((price) => price > 0);
-            lowestPrice = prices.length > 0 ? Math.min(...prices) : 0;
-          }
-        }
-      }
-
-      let locationStr = "Location not specified";
-      let isOnline = false;
-
-      if (data.venueDetails) {
-        const locationParts = [];
-
-        isOnline =
-          data.venueDetails.isOnline === true ||
-          data.venueDetails.isOnline === "true";
-
-        if (isOnline) {
-          locationStr = "Online Event";
         } else {
-          if (data.venueDetails.venueName)
-            locationParts.push(data.venueDetails.venueName);
-          if (data.venueDetails.city)
-            locationParts.push(data.venueDetails.city);
-          if (
-            data.venueDetails.state &&
-            data.venueDetails.city !== data.venueDetails.state
-          ) {
-            locationParts.push(data.venueDetails.state);
-          }
+          console.warn("Invalid date format in DB:", data.eventDate);
+        }
+      } catch (error) {
+        console.error("Error formatting date:", error);
+      }
+    }
 
-          locationStr =
-            locationParts.length > 0
-              ? locationParts.join(", ")
-              : "Location not specified";
+    // Image URL processing with debugging
+    let imageUrl = null;
+    console.log('Image processing for event:', doc.id);
+    console.log('bannerImage:', data.bannerImage);
+    console.log('bannerImages:', data.bannerImages);
+    console.log('mediaLink:', data.mediaLink);
+
+    if (
+      data.bannerImage &&
+      typeof data.bannerImage === "string" &&
+      data.bannerImage.trim() !== ""
+    ) {
+      imageUrl = data.bannerImage;
+    } else if (
+      data.bannerImages &&
+      Array.isArray(data.bannerImages) &&
+      data.bannerImages.length > 0
+    ) {
+      const validImages = data.bannerImages.filter(
+        (img) => img && typeof img === "string" && img.trim() !== ""
+      );
+      if (validImages.length > 0) {
+        imageUrl = validImages[0];
+      }
+    } else if (
+      data.mediaLink &&
+      typeof data.mediaLink === "string" &&
+      data.mediaLink.trim() !== ""
+    ) {
+      imageUrl = data.mediaLink;
+    }
+
+    console.log('Final imageUrl for event:', doc.id, imageUrl);
+
+    // Process pricing
+    let isFree = true;
+    let lowestPrice = 0;
+
+    if (data.pricing && data.pricing.length > 0) {
+      const pricingArray = Array.isArray(data.pricing)
+        ? data.pricing
+        : Object.values(data.pricing);
+
+      const validPricing = pricingArray.filter(
+        (option) =>
+          option &&
+          typeof option === "object" &&
+          "free" in option &&
+          "price" in option
+      );
+
+      if (validPricing.length > 0) {
+        const paidOptions = validPricing.filter((option) => {
+          const isFreeOption =
+            option.free === true || option.free === "true";
+          return !isFreeOption && option.price;
+        });
+
+        isFree = paidOptions.length === 0;
+
+        if (!isFree && paidOptions.length > 0) {
+          const prices = paidOptions
+            .map((option) => Number(option.price) || 0)
+            .filter((price) => price > 0);
+          lowestPrice = prices.length > 0 ? Math.min(...prices) : 0;
         }
       }
+    }
 
-      if (!isEventActive(data.eventDate, data.endDate)) {
-        return;
-      }
+    // Process location
+    let locationStr = "Location not specified";
+    let isOnline = false;
 
-      let imageUrl = null;
+    if (data.venueDetails) {
+      const locationParts = [];
 
-      if (
-        data.bannerImage &&
-        typeof data.bannerImage === "string" &&
-        data.bannerImage.trim() !== ""
-      ) {
-        imageUrl = data.bannerImage;
-      } else if (
-        data.bannerImages &&
-        Array.isArray(data.bannerImages) &&
-        data.bannerImages.length > 0
-      ) {
-        const validImages = data.bannerImages.filter(
-          (img) => img && typeof img === "string" && img.trim() !== ""
-        );
-        if (validImages.length > 0) {
-          imageUrl = validImages[0];
+      isOnline =
+        data.venueDetails.isOnline === true ||
+        data.venueDetails.isOnline === "true";
+
+      if (isOnline) {
+        locationStr = "Online Event";
+      } else {
+        if (data.venueDetails.venueName)
+          locationParts.push(data.venueDetails.venueName);
+        if (data.venueDetails.city)
+          locationParts.push(data.venueDetails.city);
+        if (
+          data.venueDetails.state &&
+          data.venueDetails.city !== data.venueDetails.state
+        ) {
+          locationParts.push(data.venueDetails.state);
         }
-      } else if (
-        data.mediaLink &&
-        typeof data.mediaLink === "string" &&
-        data.mediaLink.trim() !== ""
-      ) {
-        imageUrl = data.mediaLink;
+
+        locationStr =
+          locationParts.length > 0
+            ? locationParts.join(", ")
+            : "Location not specified";
       }
+    }
 
-      let categories = [];
-      if (data.category) {
-        if (Array.isArray(data.category)) {
-          categories = data.category;
-        } else if (typeof data.category === "object") {
-          categories = Object.values(data.category);
-        } else if (typeof data.category === "string") {
-          categories = [data.category];
-        }
+    // Process categories
+    let categories = [];
+    if (data.category) {
+      if (Array.isArray(data.category)) {
+        categories = data.category;
+      } else if (typeof data.category === "object") {
+        categories = Object.values(data.category);
+      } else if (typeof data.category === "string") {
+        categories = [data.category];
       }
+    }
 
-      eventsData.push({
-        id: doc.id,
-        name: data.name || "Event Title",
-        formattedDate: formattedDate,
-        eventDate: data.eventDate || "",
-        endDate: data.endDate || "",
-        location: locationStr,
-        imageUrl: imageUrl,
-        pricing: Array.isArray(data.pricing)
-          ? data.pricing
-          : typeof data.pricing === "object"
-          ? Object.values(data.pricing)
-          : [],
-        free: isFree,
-        price: lowestPrice,
-        description: data.description || "",
-        category: categories,
-        isOnline: isOnline,
-        venueDetails: data.venueDetails || {},
-        speaker: Array.isArray(data.speaker)
-          ? data.speaker
-          : typeof data.speaker === "object"
-          ? Object.values(data.speaker)
-          : [],
-        perks: Array.isArray(data.perks)
-          ? data.perks
-          : typeof data.perks === "object"
-          ? Object.values(data.perks)
-          : [],
-      });
-    });
+    const eventObj = {
+      id: doc.id,
+      name: data.name || "Event Title",
+      formattedDate: formattedDate,
+      eventDate: data.eventDate || "",
+      endDate: data.endDate || "",
+      location: locationStr,
+      imageUrl: imageUrl,
+      pricing: Array.isArray(data.pricing)
+        ? data.pricing
+        : typeof data.pricing === "object"
+        ? Object.values(data.pricing)
+        : [],
+      free: isFree,
+      price: lowestPrice,
+      description: data.description || "",
+      category: categories,
+      isOnline: isOnline,
+      venueDetails: data.venueDetails || {},
+      speaker: Array.isArray(data.speaker)
+        ? data.speaker
+        : typeof data.speaker === "object"
+        ? Object.values(data.speaker)
+        : [],
+      perks: Array.isArray(data.perks)
+        ? data.perks
+        : typeof data.perks === "object"
+        ? Object.values(data.perks)
+        : [],
+    };
 
-    eventsData.sort((a, b) => {
-      if (!a.eventDate) return 1;
-      if (!b.eventDate) return -1;
-      return new Date(a.eventDate) - new Date(b.eventDate);
-    });
+    console.log('Adding event to array:', eventObj);
+    eventsData.push(eventObj);
+  });
 
-    return eventsData;
-  }, []); // processEvents is memoized with useCallback, no dependencies needed
+  // Sort events by date
+  eventsData.sort((a, b) => {
+    if (!a.eventDate) return 1;
+    if (!b.eventDate) return -1;
+    return new Date(a.eventDate) - new Date(b.eventDate);
+  });
+
+  console.log('Final processed events:', eventsData.length);
+  console.log('Event IDs:', eventsData.map(e => e.id));
+
+  return eventsData;
+}, []);
 
   useEffect(() => {
     const fetchUnfilteredEvents = async () => {

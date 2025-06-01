@@ -45,65 +45,64 @@ const EditEventPage = () => {
   });
   const isMobile = useMediaQuery("(max-width:900px)");
   // Form state
- const [eventData, setEventData] = useState({
-  _id: eventId,
-  name: "",
-  description: "",
-  category: [],
-  tags: "",
-  eventDate: null,
-  eventHost: null,
-  mediaLink: "",
-  contact: "",
-  cancellationAvailable: false, // was string, now boolean
-  cancellationDays: 0,
-  deductionRate: 0,
-  deductionType: "",
-  bannerImages: [],
-  pricing: [
-    {
-      ticketType: "",
-      price: 0,
-      seats: 0,
-      tax: 0,
-      free: false,
-      features: "",
+  const [eventData, setEventData] = useState({
+    _id: eventId,
+    name: "",
+    description: "",
+    category: [],
+    tags: "",
+    eventDate: null,
+    eventHost: null,
+    mediaLink: "",
+    contact: "",
+    cancellationAvailable: false, // was string, now boolean
+    cancellationDays: 0,
+    deductionRate: 0,
+    deductionType: "",
+    bannerImages: [],
+    pricing: [
+      {
+        ticketType: "",
+        price: 0,
+        seats: 0,
+        tax: 0,
+        free: false,
+        features: "",
+      },
+    ],
+    speaker: [""],
+    perks: [
+      {
+        itemName: "",
+        price: 0,
+        limit: 0,
+      },
+    ],
+    FAQ: [
+      {
+        question: "",
+        answer: "",
+      },
+    ],
+    coupons: [
+      {
+        couponCode: "",
+        couponLimits: 0,
+        startTime: new Date(),
+        endTime: new Date(),
+        reducePert: 0,
+      },
+    ],
+    vendorId: vendorId,
+    venueDetails: {
+      venueName: "",
+      streetName: "",
+      area: "",
+      city: "",
+      state: "",
+      pincode: "",
     },
-  ],
-  speaker: [""], 
-  perks: [
-    {
-      itemName: "",
-      price: 0,
-      limit: 0,
-    },
-  ],
-  FAQ: [
-    {
-      question: "",
-      answer: "",
-    },
-  ],
-  coupons: [
-    {
-      couponCode: "",
-      couponLimits: 0,
-      startTime: new Date(),
-      endTime: new Date(),
-      reducePert: 0,
-    },
-  ],
-  vendorId: vendorId,
-  venueDetails: {
-    venueName: "",
-    streetName: "",
-    area: "",
-    city: "",
-    state: "",
-    pincode: "",
-  },
-});
-
+  });
 
   // File upload state
   const [newBannerImages, setNewBannerImages] = useState([]);
@@ -205,47 +204,49 @@ const EditEventPage = () => {
     }
   };
 
- const formatEventData = (data) => {
-  const toDate = (d) => (d ? new Date(d) : null);
+  const formatEventData = (data) => {
+    const toDate = (d) => (d ? new Date(d) : null);
 
-  setEventData({
-    ...data,
-    _id: data._id || eventId,
-    eventDate: toDate(data.eventDate),
-    eventHost: toDate(data.eventHost),
-    category: Array.isArray(data.category) ? data.category : [],
-    bannerImages: Array.isArray(data.bannerImages) ? data.bannerImages : [],
-    pricing: Array.isArray(data.pricing) ? data.pricing : [],
-    speaker: Array.isArray(data.speaker) ? data.speaker : [""],
-    perks: Array.isArray(data.perks) ? data.perks : [{ itemName: "", price: 0, limit: 0 }],
-    FAQ: Array.isArray(data.FAQ) ? data.FAQ : [{ question: "", answer: "" }],
-    coupons: Array.isArray(data.coupons)
-      ? data.coupons.map((c) => ({
-          ...c,
-          startTime: toDate(c.startTime),
-          endTime: toDate(c.endTime),
-        }))
-      : [
-          {
-            couponCode: "",
-            couponLimits: 0,
-            startTime: new Date(),
-            endTime: new Date(),
-            reducePert: 0,
-          },
-        ],
-    cancellationAvailable: !!data.cancellationAvailable,
-    vendorId,
-    venueDetails: data.venueDetails || {
-      venueName: "",
-      streetName: "",
-      area: "",
-      city: "",
-      state: "",
-      pincode: "",
-    },
-  });
-};
+    setEventData({
+      ...data,
+      _id: data._id || eventId,
+      eventDate: toDate(data.eventDate),
+      eventHost: toDate(data.eventHost),
+      category: Array.isArray(data.category) ? data.category : [],
+      bannerImages: Array.isArray(data.bannerImages) ? data.bannerImages : [],
+      pricing: Array.isArray(data.pricing) ? data.pricing : [],
+      speaker: Array.isArray(data.speaker) ? data.speaker : [""],
+      perks: Array.isArray(data.perks)
+        ? data.perks
+        : [{ itemName: "", price: 0, limit: 0 }],
+      FAQ: Array.isArray(data.FAQ) ? data.FAQ : [{ question: "", answer: "" }],
+      coupons: Array.isArray(data.coupons)
+        ? data.coupons.map((c) => ({
+            ...c,
+            startTime: toDate(c.startTime),
+            endTime: toDate(c.endTime),
+          }))
+        : [
+            {
+              couponCode: "",
+              couponLimits: 0,
+              startTime: new Date(),
+              endTime: new Date(),
+              reducePert: 0,
+            },
+          ],
+      cancellationAvailable: !!data.cancellationAvailable,
+      vendorId,
+      venueDetails: data.venueDetails || {
+        venueName: "",
+        streetName: "",
+        area: "",
+        city: "",
+        state: "",
+        pincode: "",
+      },
+    });
+  };
 
   // Handle input changes
   const handleChange = (e) => {
@@ -390,27 +391,58 @@ const EditEventPage = () => {
     });
   };
 
-  // Handle perk changes
-  const handlePerkChange = (index, value) => {
+  // Updated handlePerkChange function
+  const handlePerkChange = async (index, field, value) => {
     setEventData((prev) => {
       const updatedPerks = [...prev.perks];
-      updatedPerks[index] = value;
+      updatedPerks[index] = {
+        ...updatedPerks[index],
+        [field]: value,
+      };
       return {
         ...prev,
         perks: updatedPerks,
       };
     });
+
+    // If itemName is changed, fetch new image
+    if (field === "itemName" && value.trim()) {
+      try {
+        const imageUrl = await fetchUnsplashImage(value);
+        setEventData((prev) => {
+          const updatedPerks = [...prev.perks];
+          updatedPerks[index] = {
+            ...updatedPerks[index],
+            url: imageUrl,
+          };
+          return {
+            ...prev,
+            perks: updatedPerks,
+          };
+        });
+      } catch (error) {
+        console.error("Error updating image:", error);
+      }
+    }
   };
 
-  // Add a new perk
+  // Updated addPerk function
   const addPerk = () => {
     setEventData((prev) => ({
       ...prev,
-      perks: [...prev.perks, ""],
+      perks: [
+        ...prev.perks,
+        {
+          itemName: "",
+          price: 0,
+          limit: 0,
+          url: "https://images.unsplash.com/photo-1621939514649-280e2ee25f60?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NTgxODF8MHwxfHNlYXJjaHwxfHxzbmFja3N8ZW58MHwwfHx8MTc0ODY5OTI3OXww&ixlib=rb-4.1.0&q=80&w=400",
+        },
+      ],
     }));
   };
 
-  // Remove a perk
+  // Updated removePerk function (this one was correct)
   const removePerk = (index) => {
     setEventData((prev) => ({
       ...prev,
@@ -558,7 +590,29 @@ const EditEventPage = () => {
       });
     } finally {
       setSubmitting(false);
-      alert("Submitted successfully")
+      alert("Submitted successfully");
+    }
+  };
+
+  const fetchUnsplashImage = async (itemName) => {
+    try {
+      const response = await fetch(
+        `https://api.unsplash.com/search/photos?query=${encodeURIComponent(
+          itemName
+        )}&per_page=1&client_id=${process.env.REACT_APP_UNSPLASH_ACCESS_KEY}`
+      );
+      const data = await response.json();
+
+      if (data.results && data.results.length > 0) {
+        return data.results[0].urls.regular;
+      }
+
+      // Fallback image if no results found
+      return "https://images.unsplash.com/photo-1621939514649-280e2ee25f60?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NTgxODF8MHwxfHNlYXJjaHwxfHxzbmFja3N8ZW58MHwwfHx8MTc0ODY5OTI3OXww&ixlib=rb-4.1.0&q=80&w=400";
+    } catch (error) {
+      console.error("Error fetching Unsplash image:", error);
+      // Return fallback image on error
+      return "https://images.unsplash.com/photo-1621939514649-280e2ee25f60?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NTgxODF8MHwxfHNlYXJjaHwxfHxzbmFja3N8ZW58MHwwfHx8MTc0ODY5OTI3OXww&ixlib=rb-4.1.0&q=80&w=400";
     }
   };
 
@@ -1172,11 +1226,14 @@ const EditEventPage = () => {
                   gap: 2,
                   alignItems: "center",
                   mb: 2,
+                  p: 2,
+                  border: "1px solid #e0e0e0",
+                  borderRadius: 1,
                 }}
               >
                 <TextField
                   label="Item Name"
-                  value={perk.itemName}
+                  value={perk.itemName || ""}
                   onChange={(e) =>
                     handlePerkChange(index, "itemName", e.target.value)
                   }
@@ -1185,25 +1242,53 @@ const EditEventPage = () => {
                 <TextField
                   label="Price"
                   type="number"
-                  value={perk.price}
+                  value={perk.price || 0}
                   onChange={(e) =>
-                    handlePerkChange(index, "price", parseFloat(e.target.value))
+                    handlePerkChange(
+                      index,
+                      "price",
+                      parseFloat(e.target.value) || 0
+                    )
                   }
                   sx={{ width: isMobile ? "100%" : "20%" }}
                 />
                 <TextField
                   label="Limit"
                   type="number"
-                  value={perk.limit}
+                  value={perk.limit || 0}
                   onChange={(e) =>
                     handlePerkChange(
                       index,
                       "limit",
-                      parseInt(e.target.value, 10)
+                      parseInt(e.target.value, 10) || 0
                     )
                   }
                   sx={{ width: isMobile ? "100%" : "20%" }}
                 />
+
+                {/* Image preview */}
+                {perk.url && (
+                  <Box
+                    sx={{
+                      width: isMobile ? "100%" : "100px",
+                      height: "60px",
+                      overflow: "hidden",
+                      borderRadius: 1,
+                      border: "1px solid #e0e0e0",
+                    }}
+                  >
+                    <img
+                      src={perk.url}
+                      alt={perk.itemName}
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                      }}
+                    />
+                  </Box>
+                )}
+
                 <IconButton color="error" onClick={() => removePerk(index)}>
                   <DeleteIcon />
                 </IconButton>
