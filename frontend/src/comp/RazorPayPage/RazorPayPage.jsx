@@ -395,6 +395,11 @@ const RazorPayPage = () => {
         minHeight: "100vh",
       }}
     >
+<<<<<<< Updated upstream
+=======
+      {/* Header */}
+
+>>>>>>> Stashed changes
 
       <Typography
         variant="h6"

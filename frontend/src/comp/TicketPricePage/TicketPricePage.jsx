@@ -93,8 +93,8 @@ const TicketPricePage = ({ activeStep = 0 }) => {
           ? eventData.pricing.map((ticket, index) => ({
               ...ticket,
               id: ticket.id || `pricing-${index}`,
-              available: ticket.seats || 0,
-              limit: ticket.seats || 0,
+              available: ticket.available || 0, // Ensure available is set
+              seats: ticket.seats || 0, // Total seats for reference
             }))
           : [];
 
@@ -129,7 +129,7 @@ const TicketPricePage = ({ activeStep = 0 }) => {
           return {
             id: index + 1,
             name: perk.itemName,
-            description: `Delicious ${perk.itemName} for your movie enjoyment`,
+            description: `Delicious ${perk.itemName} for your event enjoyment`,
             image: perk.url || getDefaultImage(perk.itemName),
             price: perk.price || 0,
             category: category,
@@ -143,7 +143,7 @@ const TicketPricePage = ({ activeStep = 0 }) => {
           id: eventDoc.id,
           ...eventData,
           ticket: ticketsWithUniqueIds,
-          ticketCount: maxTicketCount, // Store parsed ticketCount
+          ticketCount: maxTicketCount,
           foodPerks: perks,
         });
 
@@ -174,19 +174,15 @@ const TicketPricePage = ({ activeStep = 0 }) => {
     const ticketType = event.ticket.find((t) => t.id === ticketId);
     if (!ticketType) return;
 
-    const available =
-      ticketType.available !== undefined
-        ? ticketType.available
-        : ticketType.limit || 0;
+    const available = ticketType.available || 0;
     const currentCount = selectedTickets[ticketId] || 0;
     const totalSelected = getTotalTicketCount();
-    const maxTicketCount = event.ticketCount || 10; // Use event.ticketCount
+    const maxTicketCount = event.ticketCount || 10;
 
-    // Prevent increment if it exceeds available seats or max ticket count
     if (
       currentCount < available &&
       totalSelected < maxTicketCount &&
-      !isFreeTicket // Disable increment if free ticket is selected
+      !isFreeTicket
     ) {
       setSelectedTickets((prev) => ({
         ...prev,
@@ -211,7 +207,6 @@ const TicketPricePage = ({ activeStep = 0 }) => {
       }
 
       setSelectedTickets(updatedSelectedTickets);
-      // Clear error if user reduces ticket count below the limit
       if (getTotalTicketCount() - 1 < event.ticketCount) {
         setError(null);
       }
@@ -525,10 +520,7 @@ const TicketPricePage = ({ activeStep = 0 }) => {
         {event?.ticket && event.ticket.length > 0 ? (
           event.ticket.map((ticket) => {
             const ticketId = String(ticket.id);
-            const available =
-              ticket.available !== undefined
-                ? ticket.available
-                : ticket.limit || 0;
+            const available = ticket.available || 0;
             const isSoldOut = available <= 0;
             const thisTicketCount = selectedTickets[ticketId] || 0;
 
@@ -580,7 +572,7 @@ const TicketPricePage = ({ activeStep = 0 }) => {
                       Sold Out
                     </Typography>
                   )}
-                  {!isSoldOut && available < 10 && (
+                  {!isSoldOut && available < 10 && available > 0 && (
                     <Typography variant="body2" sx={{ color: "warning.main" }}>
                       Only {available} left
                     </Typography>
@@ -696,7 +688,7 @@ const TicketPricePage = ({ activeStep = 0 }) => {
               onClick={() => {
                 setIsFreeTicket(!isFreeTicket);
                 if (!isFreeTicket) {
-                  setSelectedTickets({}); // Clear selected tickets when free ticket is selected
+                  setSelectedTickets({});
                 }
               }}
             >
