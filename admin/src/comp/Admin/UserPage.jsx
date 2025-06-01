@@ -369,7 +369,7 @@ const UserPage = () => {
               isUser ? "User" : "Vendor"
             },\n\nYour TicketB account has been successfully activated by the admin. You can now access your account.\n\nBest regards,\nTicketB Team`;
 
-      await axios.post(`${REACT_APP_API_BASE_URL}/api/send-email`, {
+      await axios.post(`${process.env.REACT_APP_API_BASE_URL}/api/send-email`, {
         to: email,
         subject,
         text,
