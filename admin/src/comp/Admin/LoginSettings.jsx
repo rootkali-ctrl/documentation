@@ -28,6 +28,9 @@ import SettingsIcon from "@mui/icons-material/Settings";
 import ContactPageIcon from "@mui/icons-material/ContactPage";
 import EventIcon from "@mui/icons-material/Event";
 import { useNavigate } from "react-router-dom";
+import { db, auth } from "../../firebase/firebase_config";
+import { onAuthStateChanged } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
 
 // Sidebar items
 const sidebarItems = [
@@ -99,14 +102,16 @@ const Loginsettings = () => {
   const [selectedRequest, setSelectedRequest] = useState(null);
   const requestsPerPage = 5;
   const navigate = useNavigate();
+  const [lastLogin, setLastLogin] = useState("");
 
   const fetchRequests = async () => {
     try {
       setLoading(true);
       setError(null);
 
-     
-      const res = await axios.get(`${process.env.REACT_APP_API_BASE_URL}/api/admin/allrequests`);
+      const res = await axios.get(
+        `${process.env.REACT_APP_API_BASE_URL}/api/admin/allrequests`
+      );
       console.log("API Response:", res.data);
 
       if (res.data && res.data.registration_requests) {
@@ -232,6 +237,48 @@ const Loginsettings = () => {
     }
   };
 
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        setError("Please log in to access this page.");
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const adminDocRef = doc(db, "admins", user.uid);
+        const adminDoc = await getDoc(adminDocRef);
+
+        if (!adminDoc.exists()) {
+          setError("Admin profile not found.");
+          setLoading(false);
+          return;
+        }
+
+        const data = adminDoc.data();
+        setLastLogin(data.lastlogin || "");
+      } catch (err) {
+        setError("Failed to load admin details: " + err.message);
+      } finally {
+        setLoading(false);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const formatLastLogin = (timestamp) => {
+    if (!timestamp) return "Never";
+    try {
+      const date = new Date(timestamp);
+      return `${date.toLocaleDateString()} ${date.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      })}`;
+    } catch (err) {
+      return "Invalid date";
+    }
+  };
+
   const renderStatusBadge = (status) => {
     const lowerStatus = status?.toLowerCase() || "pending";
     return (
@@ -282,12 +329,12 @@ const Loginsettings = () => {
             ticketb
           </Box>
           <Box component="span" fontWeight="bold" color="black">
-            {" "}
             admin
           </Box>
         </Typography>
         <Typography variant="body1" fontSize={18}>
-          Last login at 7th Oct 2025 13:00
+          Last login at{" "}
+          {lastLogin ? formatLastLogin(lastLogin) : "May 13, 2025 02:46 PM"}
         </Typography>
       </Box>
 

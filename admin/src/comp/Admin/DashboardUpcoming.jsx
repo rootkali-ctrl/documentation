@@ -19,7 +19,7 @@ import {
   IconButton,
   Chip,
   Tooltip,
-  CircularProgress
+  CircularProgress,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
@@ -32,17 +32,55 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import InfoIcon from "@mui/icons-material/Info";
 
-
-import { db, auth, storage } from '../../firebase_config';
-import { collection, getDocs, query, orderBy, deleteDoc, doc, where } from "firebase/firestore";
-
+import { db, auth, storage } from "../../firebase_config";
+import {
+  collection,
+  getDocs,
+  getDoc,
+  query,
+  orderBy,
+  deleteDoc,
+  doc,
+  where,
+} from "firebase/firestore";
+import { onAuthStateChanged } from "firebase/auth";
 const sidebarItems = [
-  { name: "Dashboard", icon: <TrendingUpIcon />, active: true, path: "/admin/dashboardupcoming" },
-  { name: "Users", icon: <GroupIcon />, active: false, path: "/admin/userpage" },
-  { name: "Posts", icon: <ArticleIcon />, active: false, path: "/admin/postpage" },
-  { name: "Login Settings", icon: <SettingsIcon />, active: false, path: "/admin/loginsettings" },
-  { name: "Contact", icon: <ContactPageIcon />, active: false, path: "/admin/contactpage" },
-  { name: "Events", icon: <EventIcon />, active: false, path: "/admin/eventmanagement" },
+  {
+    name: "Dashboard",
+    icon: <TrendingUpIcon />,
+    active: true,
+    path: "/admin/dashboardupcoming",
+  },
+  {
+    name: "Users",
+    icon: <GroupIcon />,
+    active: false,
+    path: "/admin/userpage",
+  },
+  {
+    name: "Posts",
+    icon: <ArticleIcon />,
+    active: false,
+    path: "/admin/postpage",
+  },
+  {
+    name: "Login Settings",
+    icon: <SettingsIcon />,
+    active: false,
+    path: "/admin/loginsettings",
+  },
+  {
+    name: "Contact",
+    icon: <ContactPageIcon />,
+    active: false,
+    path: "/admin/contactpage",
+  },
+  {
+    name: "Events",
+    icon: <EventIcon />,
+    active: false,
+    path: "/admin/eventmanagement",
+  },
 ];
 
 // Status color mapping
@@ -51,7 +89,7 @@ const statusColors = {
   "Almost Full": "#FEF3C7",
   "On Sale": "#E0E7FF",
   "Ticket Full": "#FECACA",
-  "Completed": "#D1D5DB"
+  Completed: "#D1D5DB",
 };
 
 const DashboardUpcoming = () => {
@@ -61,11 +99,53 @@ const DashboardUpcoming = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [error, setError] = useState(null);
+  const [lastLogin, setLastLogin] = useState("");
 
   useEffect(() => {
     fetchEvents(activeTab);
   }, [activeTab]);
 
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        setError("Please log in to access this page.");
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const adminDocRef = doc(db, "admins", user.uid);
+        const adminDoc = await getDoc(adminDocRef);
+
+        if (!adminDoc.exists()) {
+          setError("Admin profile not found.");
+          setLoading(false);
+          return;
+        }
+
+        const data = adminDoc.data();
+        setLastLogin(data.lastlogin || "");
+      } catch (err) {
+        setError("Failed to load admin details: " + err.message);
+      } finally {
+        setLoading(false);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const formatLastLogin = (timestamp) => {
+    if (!timestamp) return "Never";
+    try {
+      const date = new Date(timestamp);
+      return `${date.toLocaleDateString()} ${date.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      })}`;
+    } catch (err) {
+      return "Invalid date";
+    }
+  };
   const fetchEvents = async (tab) => {
     try {
       setLoading(true);
@@ -102,7 +182,7 @@ const DashboardUpcoming = () => {
       querySnapshot.forEach((doc) => {
         eventsList.push({
           id: doc.id,
-          ...doc.data()
+          ...doc.data(),
         });
       });
 
@@ -120,7 +200,11 @@ const DashboardUpcoming = () => {
     if (!dateString) return "N/A";
     try {
       const date = new Date(dateString);
-      return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+      return date.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
     } catch (error) {
       return dateString;
     }
@@ -132,7 +216,8 @@ const DashboardUpcoming = () => {
     const currentDate = new Date();
 
     // Check if the event has pricing with seats info
-    const totalSeats = event.pricing?.reduce((acc, tier) => acc + (tier.seats || 0), 0) || 0;
+    const totalSeats =
+      event.pricing?.reduce((acc, tier) => acc + (tier.seats || 0), 0) || 0;
 
     // In a real app, you would fetch booked seats from your database
     // For this example, we'll simulate booked seats
@@ -150,10 +235,13 @@ const DashboardUpcoming = () => {
   };
 
   // Filter events based on search term and status
-  const filteredEvents = events.filter(event => {
-    const matchesSearch = event.name?.toLowerCase().includes(searchTerm.toLowerCase());
+  const filteredEvents = events.filter((event) => {
+    const matchesSearch = event.name
+      ?.toLowerCase()
+      .includes(searchTerm.toLowerCase());
     const status = calculateStatus(event).text;
-    const matchesStatus = statusFilter === "All Status" || status === statusFilter;
+    const matchesStatus =
+      statusFilter === "All Status" || status === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
@@ -171,7 +259,7 @@ const DashboardUpcoming = () => {
         await deleteDoc(doc(db, "events", eventId));
 
         // Update the local state to reflect the deletion
-        setEvents(events.filter(event => event.id !== eventId));
+        setEvents(events.filter((event) => event.id !== eventId));
 
         alert("Event deleted successfully!");
       } catch (error) {
@@ -189,12 +277,28 @@ const DashboardUpcoming = () => {
 
   return (
     <Box height="100vh" display="flex" flexDirection="column" bgcolor="#faf9fb">
-      <Box height={89} display="flex" justifyContent="space-between" alignItems="center" px={5} py={2} borderBottom="1px solid #ddd" bgcolor="#f9fafb">
+      <Box
+        height={89}
+        display="flex"
+        justifyContent="space-between"
+        alignItems="center"
+        px={5}
+        py={2}
+        borderBottom="1px solid #ddd"
+        bgcolor="#f9fafb"
+      >
         <Typography variant="h4">
-          <Box component="span" fontWeight="bold" color="#19aedc">ticketb</Box>
-          <Box component="span" fontWeight="bold" color="black"> admin</Box>
+          <Box component="span" fontWeight="bold" color="#19aedc">
+            ticketb
+          </Box>
+          <Box component="span" fontWeight="bold" color="black">
+            admin
+          </Box>
         </Typography>
-        <Typography variant="body1" fontSize={18}>Last login at {new Date().toLocaleDateString()} {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Typography>
+        <Typography variant="body1" fontSize={18}>
+          Last login at{" "}
+          {lastLogin ? formatLastLogin(lastLogin) : "May 13, 2025 02:46 PM"}
+        </Typography>{" "}
       </Box>
 
       <Box display="flex" flex={1}>
@@ -213,7 +317,7 @@ const DashboardUpcoming = () => {
           {sidebarItems.map((item) => (
             <Button
               key={item.name}
-              onClick={() => window.location.href = item.path}
+              onClick={() => (window.location.href = item.path)}
               variant={item.active ? "contained" : "outlined"}
               fullWidth
               sx={{
@@ -236,20 +340,40 @@ const DashboardUpcoming = () => {
           ))}
         </Box>
 
-        <Box flex={1} px={5} py={4} overflow="auto" maxHeight="calc(100vh - 89px)">
-          <Typography variant="h5" fontWeight="bold" mb={4}>Events Dashboard</Typography>
+        <Box
+          flex={1}
+          px={5}
+          py={4}
+          overflow="auto"
+          maxHeight="calc(100vh - 89px)"
+        >
+          <Typography variant="h5" fontWeight="bold" mb={4}>
+            Events Dashboard
+          </Typography>
 
           <Box display="flex" mb={6} justifyContent="center" gap={10}>
             <Button
               variant={activeTab === "upcoming" ? "contained" : "outlined"}
-              sx={{ bgcolor: activeTab === "upcoming" ? "#19aedc" : "#D1D5DB", color: activeTab === "upcoming" ? "white" : "#4B5563", textTransform: "none", border: "none", padding: 1.5 }}
+              sx={{
+                bgcolor: activeTab === "upcoming" ? "#19aedc" : "#D1D5DB",
+                color: activeTab === "upcoming" ? "white" : "#4B5563",
+                textTransform: "none",
+                border: "none",
+                padding: 1.5,
+              }}
               onClick={() => setActiveTab("upcoming")}
             >
               Upcoming Events
             </Button>
             <Button
               variant={activeTab === "recent" ? "contained" : "outlined"}
-              sx={{ bgcolor: activeTab === "recent" ? "#19aedc" : "#D1D5DB", color: activeTab === "recent" ? "white" : "#4B5563", textTransform: "none", border: "none", padding: 1.5 }}
+              sx={{
+                bgcolor: activeTab === "recent" ? "#19aedc" : "#D1D5DB",
+                color: activeTab === "recent" ? "white" : "#4B5563",
+                textTransform: "none",
+                border: "none",
+                padding: 1.5,
+              }}
               onClick={() => setActiveTab("recent")}
             >
               Recent Events
@@ -258,8 +382,16 @@ const DashboardUpcoming = () => {
 
           <Card sx={{ height: "auto" }}>
             <CardContent>
-              <Box display="flex" justifyContent="space-between" alignItems="center" mb={2} sx={{ paddingX: 2 }}>
-                <Typography variant="h6" fontWeight="bold">Your Events</Typography>
+              <Box
+                display="flex"
+                justifyContent="space-between"
+                alignItems="center"
+                mb={2}
+                sx={{ paddingX: 2 }}
+              >
+                <Typography variant="h6" fontWeight="bold">
+                  Your Events
+                </Typography>
                 <Box display="flex" gap={2}>
                   <TextField
                     variant="outlined"
@@ -292,15 +424,30 @@ const DashboardUpcoming = () => {
               </Box>
 
               {loading ? (
-                <Box display="flex" justifyContent="center" alignItems="center" height="300px">
+                <Box
+                  display="flex"
+                  justifyContent="center"
+                  alignItems="center"
+                  height="300px"
+                >
                   <CircularProgress />
                 </Box>
               ) : error ? (
-                <Box display="flex" justifyContent="center" alignItems="center" height="300px">
+                <Box
+                  display="flex"
+                  justifyContent="center"
+                  alignItems="center"
+                  height="300px"
+                >
                   <Typography color="error">{error}</Typography>
                 </Box>
               ) : filteredEvents.length === 0 ? (
-                <Box display="flex" justifyContent="center" alignItems="center" height="300px">
+                <Box
+                  display="flex"
+                  justifyContent="center"
+                  alignItems="center"
+                  height="300px"
+                >
                   <Typography>No events found</Typography>
                 </Box>
               ) : (
@@ -308,36 +455,71 @@ const DashboardUpcoming = () => {
                   <Table stickyHeader>
                     <TableHead>
                       <TableRow>
-                        <TableCell sx={{ backgroundColor: "#f1f1f1" }}>Event Name</TableCell>
+                        <TableCell sx={{ backgroundColor: "#f1f1f1" }}>
+                          Event Name
+                        </TableCell>
                         {activeTab === "upcoming" ? (
                           <>
-                            <TableCell sx={{ backgroundColor: "#f1f1f1" }}>Event Date</TableCell>
-                            <TableCell sx={{ backgroundColor: "#f1f1f1" }}>Category</TableCell>
-                            <TableCell sx={{ backgroundColor: "#f1f1f1" }}>Venue</TableCell>
-                            <TableCell sx={{ backgroundColor: "#f1f1f1" }}>Capacity</TableCell>
+                            <TableCell sx={{ backgroundColor: "#f1f1f1" }}>
+                              Event Date
+                            </TableCell>
+                            <TableCell sx={{ backgroundColor: "#f1f1f1" }}>
+                              Category
+                            </TableCell>
+                            <TableCell sx={{ backgroundColor: "#f1f1f1" }}>
+                              Venue
+                            </TableCell>
+                            <TableCell sx={{ backgroundColor: "#f1f1f1" }}>
+                              Capacity
+                            </TableCell>
                           </>
                         ) : (
                           <>
-                            <TableCell sx={{ backgroundColor: "#f1f1f1" }}>Date</TableCell>
-                            <TableCell sx={{ backgroundColor: "#f1f1f1" }}>Host</TableCell>
-                            <TableCell sx={{ backgroundColor: "#f1f1f1" }}>Venue</TableCell>
-                            <TableCell sx={{ backgroundColor: "#f1f1f1" }}>Status</TableCell>
+                            <TableCell sx={{ backgroundColor: "#f1f1f1" }}>
+                              Date
+                            </TableCell>
+                            <TableCell sx={{ backgroundColor: "#f1f1f1" }}>
+                              Host
+                            </TableCell>
+                            <TableCell sx={{ backgroundColor: "#f1f1f1" }}>
+                              Venue
+                            </TableCell>
+                            <TableCell sx={{ backgroundColor: "#f1f1f1" }}>
+                              Status
+                            </TableCell>
                           </>
                         )}
-                        <TableCell sx={{ backgroundColor: "#f1f1f1" }}>Actions</TableCell>
+                        <TableCell sx={{ backgroundColor: "#f1f1f1" }}>
+                          Actions
+                        </TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
                       {filteredEvents.map((event) => {
                         const status = calculateStatus(event);
-                        const totalCapacity = event.pricing?.reduce((acc, tier) => acc + (tier.seats || 0), 0) || 0;
+                        const totalCapacity =
+                          event.pricing?.reduce(
+                            (acc, tier) => acc + (tier.seats || 0),
+                            0
+                          ) || 0;
 
                         return (
                           <TableRow key={event.id}>
                             <TableCell>
-                              <Typography fontWeight="bold">{event.name}</Typography>
+                              <Typography fontWeight="bold">
+                                {event.name}
+                              </Typography>
                               {event.description && (
-                                <Typography fontSize={12} color="textSecondary" sx={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '200px' }}>
+                                <Typography
+                                  fontSize={12}
+                                  color="textSecondary"
+                                  sx={{
+                                    textOverflow: "ellipsis",
+                                    overflow: "hidden",
+                                    whiteSpace: "nowrap",
+                                    maxWidth: "200px",
+                                  }}
+                                >
                                   {event.description}
                                 </Typography>
                               )}
@@ -362,11 +544,19 @@ const DashboardUpcoming = () => {
                               </>
                             ) : (
                               <>
-                                <TableCell>{event.eventHost ? formatDate(event.eventHost) : "N/A"}</TableCell>
+                                <TableCell>
+                                  {event.eventHost
+                                    ? formatDate(event.eventHost)
+                                    : "N/A"}
+                                </TableCell>
                                 <TableCell>
                                   {event.venueDetails?.venueName ? (
-                                    <Tooltip title={`${event.venueDetails.city}, ${event.venueDetails.state}`}>
-                                      <Typography>{event.venueDetails.venueName}</Typography>
+                                    <Tooltip
+                                      title={`${event.venueDetails.city}, ${event.venueDetails.state}`}
+                                    >
+                                      <Typography>
+                                        {event.venueDetails.venueName}
+                                      </Typography>
                                     </Tooltip>
                                   ) : (
                                     "N/A"
@@ -380,7 +570,9 @@ const DashboardUpcoming = () => {
                                     bgcolor={status.color}
                                     display="inline-block"
                                   >
-                                    <Typography fontSize={12}>{status.text}</Typography>
+                                    <Typography fontSize={12}>
+                                      {status.text}
+                                    </Typography>
                                   </Box>
                                 </TableCell>
                               </>
@@ -417,4 +609,3 @@ const DashboardUpcoming = () => {
 };
 
 export default DashboardUpcoming;
-

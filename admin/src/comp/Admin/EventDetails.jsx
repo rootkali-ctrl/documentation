@@ -1,6 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { doc, getDoc, collection, query, where, getDocs, updateDoc } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+  updateDoc,
+} from "firebase/firestore";
 import { db } from "../../firebase/firebase_config";
 import {
   Box,
@@ -48,6 +56,8 @@ import InfoIcon from "@mui/icons-material/Info";
 import QuestionAnswerIcon from "@mui/icons-material/QuestionAnswer";
 import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
 import PhoneIcon from "@mui/icons-material/Phone";
+import { auth } from "../../firebase/firebase_config";
+import { onAuthStateChanged } from "firebase/auth";
 
 // TabPanel component for the tabbed interface
 function TabPanel(props) {
@@ -126,6 +136,49 @@ const EventDetails = () => {
   });
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [savingChanges, setSavingChanges] = useState(false);
+  const [lastLogin, setLastLogin] = useState("");
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        setError("Please log in to access this page.");
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const adminDocRef = doc(db, "admins", user.uid);
+        const adminDoc = await getDoc(adminDocRef);
+
+        if (!adminDoc.exists()) {
+          setError("Admin profile not found.");
+          setLoading(false);
+          return;
+        }
+
+        const data = adminDoc.data();
+        setLastLogin(data.lastlogin || "");
+      } catch (err) {
+        setError("Failed to load admin details: " + err.message);
+      } finally {
+        setLoading(false);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const formatLastLogin = (timestamp) => {
+    if (!timestamp) return "Never";
+    try {
+      const date = new Date(timestamp);
+      return `${date.toLocaleDateString()} ${date.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      })}`;
+    } catch (err) {
+      return "Invalid date";
+    }
+  };
 
   // Handler for tab change
   const handleTabChange = (event, newValue) => {
@@ -180,7 +233,9 @@ const EventDetails = () => {
         }
       };
 
-      return `${day}${getOrdinalSuffix(day)} ${month} ${year} ${hours}:${minutes}`;
+      return `${day}${getOrdinalSuffix(
+        day
+      )} ${month} ${year} ${hours}:${minutes}`;
     } catch (error) {
       console.error("Login date formatting error:", error);
       return "Invalid Date";
@@ -307,8 +362,12 @@ const EventDetails = () => {
         }
 
         const currentDate = new Date();
-        const hostDate = eventData.eventHost ? new Date(eventData.eventHost) : null;
-        const eventDate = eventData.eventDate ? new Date(eventData.eventDate) : null;
+        const hostDate = eventData.eventHost
+          ? new Date(eventData.eventHost)
+          : null;
+        const eventDate = eventData.eventDate
+          ? new Date(eventData.eventDate)
+          : null;
 
         let status = "Unknown";
         if (hostDate && eventDate) {
@@ -336,7 +395,10 @@ const EventDetails = () => {
         };
 
         const ticketsCollection = collection(db, "tickets");
-        const eventTicketsQuery = query(ticketsCollection, where("eventId", "==", eventId));
+        const eventTicketsQuery = query(
+          ticketsCollection,
+          where("eventId", "==", eventId)
+        );
         const ticketsSnapshot = await getDocs(eventTicketsQuery);
 
         const ticketsWithUserDetails = await Promise.all(
@@ -360,7 +422,10 @@ const EventDetails = () => {
 
             let ticketGross = 0;
             let ticketQuantity = 0;
-            if (ticketData.ticketSummary && Array.isArray(ticketData.ticketSummary)) {
+            if (
+              ticketData.ticketSummary &&
+              Array.isArray(ticketData.ticketSummary)
+            ) {
               ticketData.ticketSummary.forEach((ticket) => {
                 const quantity = ticket.quantity || 0;
                 const price = ticket.price || 0;
@@ -397,7 +462,12 @@ const EventDetails = () => {
 
   if (loading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" height="100vh">
+      <Box
+        display="flex"
+        justifyContent="center"
+        alignItems="center"
+        height="100vh"
+      >
         <CircularProgress />
         <Typography ml={2}>Loading event details...</Typography>
       </Box>
@@ -406,7 +476,13 @@ const EventDetails = () => {
 
   if (error) {
     return (
-      <Box display="flex" flexDirection="column" justifyContent="center" alignItems="center" height="100vh">
+      <Box
+        display="flex"
+        flexDirection="column"
+        justifyContent="center"
+        alignItems="center"
+        height="100vh"
+      >
         <Typography color="error" variant="h6" mb={3}>
           {error}
         </Typography>
@@ -423,7 +499,13 @@ const EventDetails = () => {
 
   if (!event) {
     return (
-      <Box display="flex" flexDirection="column" justifyContent="center" alignItems="center" height="100vh">
+      <Box
+        display="flex"
+        flexDirection="column"
+        justifyContent="center"
+        alignItems="center"
+        height="100vh"
+      >
         <Typography variant="h6" mb={3}>
           Event not found
         </Typography>
@@ -438,7 +520,8 @@ const EventDetails = () => {
     );
   }
 
-  const { userTaxAmount, vendorTaxAmount, platformTaxAmount, profit } = calculateFinancials(event);
+  const { userTaxAmount, vendorTaxAmount, platformTaxAmount, profit } =
+    calculateFinancials(event);
 
   const lastLoginTimestamp = "2025-05-18T00:16:00+05:30";
 
@@ -471,12 +554,12 @@ const EventDetails = () => {
             ticketb
           </Box>
           <Box component="span" fontWeight="bold" color="black">
-            {" "}
             admin
           </Box>
         </Typography>
         <Typography variant="body1" fontSize={18}>
-          Last login at {formatLoginDate(lastLoginTimestamp)}
+          Last login at{" "}
+          {lastLogin ? formatLastLogin(lastLogin) : "May 13, 2025 02:46 PM"}
         </Typography>
       </Box>
 
@@ -540,15 +623,24 @@ const EventDetails = () => {
 
           <Card sx={{ mb: 4 }}>
             <CardContent>
-              <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+              <Box
+                display="flex"
+                justifyContent="space-between"
+                alignItems="center"
+                mb={2}
+              >
                 <Box>
                   <Typography variant="h5" fontWeight="bold">
                     {event.name}
                   </Typography>
                   <Box display="flex" alignItems="center" mt={1}>
-                    <LocationOnIcon fontSize="small" sx={{ mr: 1, color: "text.secondary" }} />
+                    <LocationOnIcon
+                      fontSize="small"
+                      sx={{ mr: 1, color: "text.secondary" }}
+                    />
                     <Typography variant="body2" color="text.secondary">
-                      {event.venueDetails?.venueName || "No venue specified"}, {event.venueDetails?.city || ""}
+                      {event.venueDetails?.venueName || "No venue specified"},{" "}
+                      {event.venueDetails?.city || ""}
                     </Typography>
                   </Box>
                 </Box>
@@ -583,7 +675,8 @@ const EventDetails = () => {
                   <Box display="flex" alignItems="center">
                     <CalendarTodayIcon sx={{ mr: 1, color: "primary.main" }} />
                     <Typography>
-                      {formatDate(event.eventHost)} to {formatDate(event.eventDate)}
+                      {formatDate(event.eventHost)} to{" "}
+                      {formatDate(event.eventDate)}
                     </Typography>
                   </Box>
                 </Grid>
@@ -606,7 +699,10 @@ const EventDetails = () => {
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
                     {event.capacity !== "Unlimited"
-                      ? `${((event.ticketsSold / parseInt(event.capacity)) * 100).toFixed(1)}% of capacity`
+                      ? `${(
+                          (event.ticketsSold / parseInt(event.capacity)) *
+                          100
+                        ).toFixed(1)}% of capacity`
                       : "Unlimited capacity"}
                   </Typography>
                 </CardContent>
@@ -724,7 +820,11 @@ const EventDetails = () => {
 
           <Card>
             <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
-              <Tabs value={tabValue} onChange={handleTabChange} aria-label="event details tabs">
+              <Tabs
+                value={tabValue}
+                onChange={handleTabChange}
+                aria-label="event details tabs"
+              >
                 <Tab label="Event Details" />
                 <Tab label="Ticket Information" />
                 <Tab label="Venue Details" />
@@ -739,7 +839,9 @@ const EventDetails = () => {
                 <Typography variant="h6" fontWeight="bold" mb={2}>
                   Description
                 </Typography>
-                <Typography paragraph>{event.description || "No description available"}</Typography>
+                <Typography paragraph>
+                  {event.description || "No description available"}
+                </Typography>
 
                 <Typography variant="h6" fontWeight="bold" mt={4} mb={2}>
                   Event Information
@@ -750,7 +852,9 @@ const EventDetails = () => {
                       <Typography variant="subtitle1" fontWeight="bold" mb={1}>
                         Event ID
                       </Typography>
-                      <Typography variant="body2">{event.id || event.eventId}</Typography>
+                      <Typography variant="body2">
+                        {event.id || event.eventId}
+                      </Typography>
                     </Paper>
                   </Grid>
                   <Grid item xs={12} md={6}>
@@ -758,7 +862,9 @@ const EventDetails = () => {
                       <Typography variant="subtitle1" fontWeight="bold" mb={1}>
                         Created On
                       </Typography>
-                      <Typography variant="body2">{formatDate(event.createdAt)}</Typography>
+                      <Typography variant="body2">
+                        {formatDate(event.createdAt)}
+                      </Typography>
                     </Paper>
                   </Grid>
                   <Grid item xs={12} md={6}>
@@ -766,7 +872,9 @@ const EventDetails = () => {
                       <Typography variant="subtitle1" fontWeight="bold" mb={1}>
                         Vendor ID
                       </Typography>
-                      <Typography variant="body2">{event.vendorId || "Not available"}</Typography>
+                      <Typography variant="body2">
+                        {event.vendorId || "Not available"}
+                      </Typography>
                     </Paper>
                   </Grid>
                   <Grid item xs={12} md={6}>
@@ -777,7 +885,13 @@ const EventDetails = () => {
                       <Box display="flex" gap={1} flexWrap="wrap">
                         {event.category && event.category.length > 0 ? (
                           event.category.map((cat, idx) => (
-                            <Chip key={idx} label={cat} size="small" color="primary" variant="outlined" />
+                            <Chip
+                              key={idx}
+                              label={cat}
+                              size="small"
+                              color="primary"
+                              variant="outlined"
+                            />
                           ))
                         ) : (
                           <Typography variant="body2">No categories</Typography>
@@ -792,7 +906,11 @@ const EventDetails = () => {
                     <Typography variant="h6" fontWeight="bold" mt={4} mb={2}>
                       Event Banners
                     </Typography>
-                    <Box display="flex" gap={2} sx={{ overflowX: "auto", pb: 2 }}>
+                    <Box
+                      display="flex"
+                      gap={2}
+                      sx={{ overflowX: "auto", pb: 2 }}
+                    >
                       {event.bannerImages.map((image, idx) => (
                         <Box
                           key={idx}
@@ -815,7 +933,12 @@ const EventDetails = () => {
             </TabPanel>
 
             <TabPanel value={tabValue} index={1}>
-              <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+              <Box
+                display="flex"
+                justifyContent="space-between"
+                alignItems="center"
+                mb={3}
+              >
                 <Typography variant="h6" fontWeight="bold">
                   Ticket Types and Pricing
                 </Typography>
@@ -869,21 +992,38 @@ const EventDetails = () => {
               </Box>
 
               <Alert severity="info" sx={{ mb: 3 }}>
-                Current settings: Vendor tax is set to {vendorTax}%. Platform tax is 2% plus 18% of that 2%.
+                Current settings: Vendor tax is set to {vendorTax}%. Platform
+                tax is 2% plus 18% of that 2%.
               </Alert>
 
               <TableContainer component={Paper} variant="outlined">
                 <Table>
                   <TableHead>
                     <TableRow>
-                      <TableCell sx={{ fontWeight: "bold" }}>Ticket Type</TableCell>
-                      <TableCell sx={{ fontWeight: "bold" }}>Price (₹)</TableCell>
-                      <TableCell sx={{ fontWeight: "bold" }}>Features</TableCell>
-                      <TableCell sx={{ fontWeight: "bold" }}>Capacity</TableCell>
-                      <TableCell sx={{ fontWeight: "bold" }}>Available</TableCell>
-                      <TableCell sx={{ fontWeight: "bold" }}>User Tax (%)</TableCell>
-                      <TableCell sx={{ fontWeight: "bold" }}>Vendor Tax (%)</TableCell>
-                      <TableCell sx={{ fontWeight: "bold" }}>Platform Tax (%)</TableCell>
+                      <TableCell sx={{ fontWeight: "bold" }}>
+                        Ticket Type
+                      </TableCell>
+                      <TableCell sx={{ fontWeight: "bold" }}>
+                        Price (₹)
+                      </TableCell>
+                      <TableCell sx={{ fontWeight: "bold" }}>
+                        Features
+                      </TableCell>
+                      <TableCell sx={{ fontWeight: "bold" }}>
+                        Capacity
+                      </TableCell>
+                      <TableCell sx={{ fontWeight: "bold" }}>
+                        Available
+                      </TableCell>
+                      <TableCell sx={{ fontWeight: "bold" }}>
+                        User Tax (%)
+                      </TableCell>
+                      <TableCell sx={{ fontWeight: "bold" }}>
+                        Vendor Tax (%)
+                      </TableCell>
+                      <TableCell sx={{ fontWeight: "bold" }}>
+                        Platform Tax (%)
+                      </TableCell>
                       <TableCell sx={{ fontWeight: "bold" }}>Free</TableCell>
                     </TableRow>
                   </TableHead>
@@ -895,7 +1035,10 @@ const EventDetails = () => {
                             const matchingTicket = t.ticketSummary.find(
                               (ts) => ts.ticketType === ticket.ticketType
                             );
-                            return total + (matchingTicket ? matchingTicket.quantity : 0);
+                            return (
+                              total +
+                              (matchingTicket ? matchingTicket.quantity : 0)
+                            );
                           }
                           return total;
                         }, 0);
@@ -910,7 +1053,11 @@ const EventDetails = () => {
                             </TableCell>
                             <TableCell>{ticket.features || "None"}</TableCell>
                             <TableCell>{ticket.seats || 0}</TableCell>
-                            <TableCell>{remainingTickets >= 0 ? remainingTickets : ticket.seats || 0}</TableCell>
+                            <TableCell>
+                              {remainingTickets >= 0
+                                ? remainingTickets
+                                : ticket.seats || 0}
+                            </TableCell>
                             <TableCell>{ticket.tax || 0}%</TableCell>
                             <TableCell>{vendorTax}%</TableCell>
                             <TableCell>2% + 18% of 2%</TableCell>
@@ -966,7 +1113,9 @@ const EventDetails = () => {
                               {formatDate(coupon.startTime).split(",")[0]} -{" "}
                               {formatDate(coupon.endTime).split(",")[0]}
                             </TableCell>
-                            <TableCell>{coupon.couponLimits || "Unlimited"}</TableCell>
+                            <TableCell>
+                              {coupon.couponLimits || "Unlimited"}
+                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -985,10 +1134,12 @@ const EventDetails = () => {
                 <Grid item xs={12} md={6}>
                   <Paper sx={{ padding: 3 }}>
                     <Box sx={{ p: 3 }}>
-                    <Typography variant="body1" fontWeight="bold" mb={1}>
-                      Venue Name
-                    </Typography>
-                    <Typography>{event.venueDetails?.title || "None available."}</Typography>
+                      <Typography variant="body1" fontWeight="bold" mb={1}>
+                        Venue Name
+                      </Typography>
+                      <Typography>
+                        {event.venueDetails?.title || "None available."}
+                      </Typography>
                     </Box>
                   </Paper>
                 </Grid>
@@ -998,10 +1149,17 @@ const EventDetails = () => {
                       Address
                     </Typography>
                     <Typography>
-                      {event.venueDetails?.streetName || ""}, {event.venueDetails?.area || ""},
-                      {event.venueDetails?.city ? ` ${event.venueDetails.city},` : ""}
-                      {event.venueDetails?.state ? ` ${event.venueDetails.state}` : ""}
-                      {event.venueDetails?.pincode ? ` - ${event.venueDetails.pincode}` : ""}
+                      {event.venueDetails?.streetName || ""},{" "}
+                      {event.venueDetails?.area || ""},
+                      {event.venueDetails?.city
+                        ? ` ${event.venueDetails.city},`
+                        : ""}
+                      {event.venueDetails?.state
+                        ? ` ${event.venueDetails.state}`
+                        : ""}
+                      {event.venueDetails?.pincode
+                        ? ` - ${event.venueDetails.pincode}`
+                        : ""}
                     </Typography>
                   </Paper>
                 </Grid>
@@ -1036,11 +1194,22 @@ const EventDetails = () => {
                     {event.perks.map((perk, index) => (
                       <Grid item xs={12} md={6} key={index}>
                         <Paper sx={{ p: 3, height: "100%" }}>
-                          <Typography variant="subtitle1" fontWeight="bold" mb={1}>
+                          <Typography
+                            variant="subtitle1"
+                            fontWeight="bold"
+                            mb={1}
+                          >
                             {perk.itemName || perk.name}
                           </Typography>
-                          <Typography variant="body2" color="text.secondary" paragraph>
-                            {perk.description || `Price: ${formatCurrency(perk.price)}, Limit: ${perk.limit}`}
+                          <Typography
+                            variant="body2"
+                            color="text.secondary"
+                            paragraph
+                          >
+                            {perk.description ||
+                              `Price: ${formatCurrency(perk.price)}, Limit: ${
+                                perk.limit
+                              }`}
                           </Typography>
                           {perk.availability && (
                             <Chip
@@ -1074,7 +1243,9 @@ const EventDetails = () => {
                       <Grid item xs={12} key={index}>
                         <Paper sx={{ p: 3 }}>
                           <Box display="flex" alignItems="center" mb={1}>
-                            <QuestionAnswerIcon sx={{ color: "#19aedc", mr: 1 }} />
+                            <QuestionAnswerIcon
+                              sx={{ color: "#19aedc", mr: 1 }}
+                            />
                             <Typography variant="subtitle1" fontWeight="bold">
                               {faq.question}
                             </Typography>
@@ -1101,23 +1272,44 @@ const EventDetails = () => {
 
               {event.tickets && event.tickets.length > 0 ? (
                 <>
-                  <TableContainer component={Paper} variant="outlined" sx={{ mb: 4 }}>
+                  <TableContainer
+                    component={Paper}
+                    variant="outlined"
+                    sx={{ mb: 4 }}
+                  >
                     <Table>
                       <TableHead>
                         <TableRow>
-                          <TableCell sx={{ fontWeight: "bold" }}>Ticket ID</TableCell>
-                          <TableCell sx={{ fontWeight: "bold" }}>Buyer</TableCell>
-                          <TableCell sx={{ fontWeight: "bold" }}>Booking Date</TableCell>
-                          <TableCell sx={{ fontWeight: "bold" }}>Phone Number</TableCell>
-                          <TableCell sx={{ fontWeight: "bold" }}>Ticket Type</TableCell>
-                          <TableCell sx={{ fontWeight: "bold" }}>Quantity</TableCell>
-                          <TableCell sx={{ fontWeight: "bold" }}>Total Amount</TableCell>
+                          <TableCell sx={{ fontWeight: "bold" }}>
+                            Ticket ID
+                          </TableCell>
+                          <TableCell sx={{ fontWeight: "bold" }}>
+                            Buyer
+                          </TableCell>
+                          <TableCell sx={{ fontWeight: "bold" }}>
+                            Booking Date
+                          </TableCell>
+                          <TableCell sx={{ fontWeight: "bold" }}>
+                            Phone Number
+                          </TableCell>
+                          <TableCell sx={{ fontWeight: "bold" }}>
+                            Ticket Type
+                          </TableCell>
+                          <TableCell sx={{ fontWeight: "bold" }}>
+                            Quantity
+                          </TableCell>
+                          <TableCell sx={{ fontWeight: "bold" }}>
+                            Total Amount
+                          </TableCell>
                         </TableRow>
                       </TableHead>
                       <TableBody>
                         {event.tickets.map((ticket, idx) => {
                           const totalQuantity = ticket.ticketSummary
-                            ? ticket.ticketSummary.reduce((sum, t) => sum + (t.quantity || 0), 0)
+                            ? ticket.ticketSummary.reduce(
+                                (sum, t) => sum + (t.quantity || 0),
+                                0
+                              )
                             : 0;
 
                           let totalAmount = 0;
@@ -1129,30 +1321,39 @@ const EventDetails = () => {
 
                           return (
                             <TableRow key={idx}>
-                              <TableCell>{ticket.ticketId || `TKT-${idx + 1000}`}</TableCell>
+                              <TableCell>
+                                {ticket.ticketId || `TKT-${idx + 1000}`}
+                              </TableCell>
                               <TableCell>
                                 {ticket.buyer?.name || "Anonymous"}
                                 {ticket.buyer?.email && (
-                                  <Typography variant="caption" display="block" color="text.secondary">
+                                  <Typography
+                                    variant="caption"
+                                    display="block"
+                                    color="text.secondary"
+                                  >
                                     {ticket.buyer.email}
                                   </Typography>
                                 )}
                               </TableCell>
-                              <TableCell>{ticket.bookingDate || "N/A"}</TableCell>
+                              <TableCell>
+                                {ticket.bookingDate || "N/A"}
+                              </TableCell>
                               <TableCell>{ticket.phone || "N/A"}</TableCell>
                               <TableCell>
-                                {ticket.ticketSummary && ticket.ticketSummary.length > 0 ? (
-                                  ticket.ticketSummary.map((t, i) => (
-                                    <Typography key={i} variant="body2">
-                                      {t.ticketType || t.type}
-                                    </Typography>
-                                  ))
-                                ) : (
-                                  "N/A"
-                                )}
+                                {ticket.ticketSummary &&
+                                ticket.ticketSummary.length > 0
+                                  ? ticket.ticketSummary.map((t, i) => (
+                                      <Typography key={i} variant="body2">
+                                        {t.ticketType || t.type}
+                                      </Typography>
+                                    ))
+                                  : "N/A"}
                               </TableCell>
                               <TableCell>{totalQuantity}</TableCell>
-                              <TableCell>{formatCurrency(totalAmount)}</TableCell>
+                              <TableCell>
+                                {formatCurrency(totalAmount)}
+                              </TableCell>
                             </TableRow>
                           );
                         })}
@@ -1160,7 +1361,12 @@ const EventDetails = () => {
                     </Table>
                   </TableContainer>
 
-                  <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                  <Box
+                    display="flex"
+                    justifyContent="space-between"
+                    alignItems="center"
+                    mb={2}
+                  >
                     <Typography variant="subtitle1" fontWeight="bold">
                       Financial Summary
                     </Typography>
@@ -1169,7 +1375,11 @@ const EventDetails = () => {
                   <Grid container spacing={3}>
                     <Grid item xs={12} md={3}>
                       <Paper sx={{ p: 3 }}>
-                        <Typography variant="body2" color="text.secondary" mb={1}>
+                        <Typography
+                          variant="body2"
+                          color="text.secondary"
+                          mb={1}
+                        >
                           Total Tickets Sold
                         </Typography>
                         <Typography variant="h5" fontWeight="bold">
@@ -1179,7 +1389,11 @@ const EventDetails = () => {
                     </Grid>
                     <Grid item xs={12} md={3}>
                       <Paper sx={{ p: 3 }}>
-                        <Typography variant="body2" color="text.secondary" mb={1}>
+                        <Typography
+                          variant="body2"
+                          color="text.secondary"
+                          mb={1}
+                        >
                           Average Ticket Price
                         </Typography>
                         <Typography variant="h5" fontWeight="bold">
@@ -1192,11 +1406,20 @@ const EventDetails = () => {
                   </Grid>
                 </>
               ) : (
-                <Box display="flex" flexDirection="column" alignItems="center" py={4}>
+                <Box
+                  display="flex"
+                  flexDirection="column"
+                  alignItems="center"
+                  py={4}
+                >
                   <Typography variant="body1" color="text.secondary" mb={2}>
                     No ticket sales have been recorded for this event yet.
                   </Typography>
-                  <Button variant="outlined" color="primary" onClick={() => setTabValue(1)}>
+                  <Button
+                    variant="outlined"
+                    color="primary"
+                    onClick={() => setTabValue(1)}
+                  >
                     View Ticket Information
                   </Button>
                 </Box>
@@ -1212,7 +1435,11 @@ const EventDetails = () => {
         onClose={handleCloseSnackbar}
         anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
       >
-        <Alert onClose={handleCloseSnackbar} severity={saveStatus.severity} sx={{ width: "100%" }}>
+        <Alert
+          onClose={handleCloseSnackbar}
+          severity={saveStatus.severity}
+          sx={{ width: "100%" }}
+        >
           {saveStatus.message}
         </Alert>
       </Snackbar>
@@ -1223,10 +1450,13 @@ const EventDetails = () => {
         aria-labelledby="alert-dialog-title"
         aria-describedby="alert-dialog-description"
       >
-        <DialogTitle id="alert-dialog-title">{"Confirm Vendor Tax Change"}</DialogTitle>
+        <DialogTitle id="alert-dialog-title">
+          {"Confirm Vendor Tax Change"}
+        </DialogTitle>
         <DialogContent>
           <DialogContentText id="alert-dialog-description">
-            Are you sure you want to set the vendor tax to {vendorTax}%? Platform tax is 2% plus 18% of that 2%.
+            Are you sure you want to set the vendor tax to {vendorTax}%?
+            Platform tax is 2% plus 18% of that 2%.
           </DialogContentText>
         </DialogContent>
         <DialogActions>

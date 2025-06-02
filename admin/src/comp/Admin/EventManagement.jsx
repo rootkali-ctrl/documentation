@@ -32,8 +32,18 @@ import EventIcon from "@mui/icons-material/Event";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import EditIcon from "@mui/icons-material/Edit";
 import { useNavigate } from "react-router-dom";
-import { collection, getDocs, query, where, doc, updateDoc, getDoc, setDoc } from "firebase/firestore";
-import { db } from '../../firebase/firebase_config';
+import {
+  collection,
+  getDocs,
+  query,
+  where,
+  doc,
+  updateDoc,
+  getDoc,
+  setDoc,
+} from "firebase/firestore";
+import { db, auth } from "../../firebase/firebase_config";
+import { onAuthStateChanged } from "firebase/auth";
 
 const sidebarItems = [
   {
@@ -89,8 +99,13 @@ const EventManagement = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [globalTaxPercentage, setGlobalTaxPercentage] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [editTaxDialog, setEditTaxDialog] = useState({ open: false, eventId: null, taxPercentage: 0 });
+  const [editTaxDialog, setEditTaxDialog] = useState({
+    open: false,
+    eventId: null,
+    taxPercentage: 0,
+  });
   const eventsPerPage = 5;
+  const [lastLogin, setLastLogin] = useState("");
 
   // Fetch global tax percentage from Firestore
   const fetchGlobalTax = async () => {
@@ -129,15 +144,19 @@ const EventManagement = () => {
         // Calculate total seats from pricing data
         let totalSeats = 0;
         if (eventData.pricing && Array.isArray(eventData.pricing)) {
-          eventData.pricing.forEach(price => {
+          eventData.pricing.forEach((price) => {
             totalSeats += price.seats || 0;
           });
         }
 
         // Calculate event status based on dates
         const currentDate = new Date();
-        const hostDate = eventData.eventHost ? new Date(eventData.eventHost) : null;
-        const eventDate = eventData.eventDate ? new Date(eventData.eventDate) : null;
+        const hostDate = eventData.eventHost
+          ? new Date(eventData.eventHost)
+          : null;
+        const eventDate = eventData.eventDate
+          ? new Date(eventData.eventDate)
+          : null;
 
         let status = "Unknown";
         if (hostDate && eventDate) {
@@ -155,7 +174,10 @@ const EventManagement = () => {
         }
 
         // Apply global tax if no taxPercentage is defined
-        const taxPercentage = eventData.taxPercentage !== undefined ? eventData.taxPercentage : globalTax;
+        const taxPercentage =
+          eventData.taxPercentage !== undefined
+            ? eventData.taxPercentage
+            : globalTax;
 
         // Add event to array with initial ticket counts as 0
         eventsData.push({
@@ -163,10 +185,10 @@ const EventManagement = () => {
           id: doc.id,
           status,
           ticketsSold: 0,
-          capacity: totalSeats > 0 ? totalSeats : 'Unlimited',
+          capacity: totalSeats > 0 ? totalSeats : "Unlimited",
           gross: 0,
           taxPercentage,
-          tickets: []
+          tickets: [],
         });
       });
 
@@ -180,15 +202,20 @@ const EventManagement = () => {
         const eventId = ticketData.eventId;
 
         // Find the event this ticket belongs to
-        const eventIndex = eventsData.findIndex(event => event.id === eventId);
+        const eventIndex = eventsData.findIndex(
+          (event) => event.id === eventId
+        );
 
         if (eventIndex !== -1) {
           // Add this ticket to the event's tickets array
           eventsData[eventIndex].tickets.push(ticketData);
 
           // Calculate ticket quantities and revenue
-          if (ticketData.ticketSummary && Array.isArray(ticketData.ticketSummary)) {
-            ticketData.ticketSummary.forEach(ticket => {
+          if (
+            ticketData.ticketSummary &&
+            Array.isArray(ticketData.ticketSummary)
+          ) {
+            ticketData.ticketSummary.forEach((ticket) => {
               const quantity = ticket.quantity || 0;
               const price = ticket.price || 0;
 
@@ -205,10 +232,10 @@ const EventManagement = () => {
       });
 
       // Format final numbers and set state
-      eventsData = eventsData.map(event => ({
+      eventsData = eventsData.map((event) => ({
         ...event,
         gross: event.gross || 0,
-        taxPercentage: event.taxPercentage || 0
+        taxPercentage: event.taxPercentage || 0,
       }));
 
       setEvents(eventsData);
@@ -228,11 +255,13 @@ const EventManagement = () => {
       await updateDoc(eventRef, { taxPercentage: Number(newTaxPercentage) });
 
       // Update local state
-      setEvents(events.map(event =>
-        event.id === eventId
-          ? { ...event, taxPercentage: Number(newTaxPercentage) }
-          : event
-      ));
+      setEvents(
+        events.map((event) =>
+          event.id === eventId
+            ? { ...event, taxPercentage: Number(newTaxPercentage) }
+            : event
+        )
+      );
 
       setEditTaxDialog({ open: false, eventId: null, taxPercentage: 0 });
     } catch (err) {
@@ -257,17 +286,19 @@ const EventManagement = () => {
       await setDoc(globalTaxRef, { taxPercentage: taxValue });
 
       // Update all events in Firestore
-      const updatePromises = events.map(event => {
+      const updatePromises = events.map((event) => {
         const eventRef = doc(db, "events", event.id);
         return updateDoc(eventRef, { taxPercentage: taxValue });
       });
       await Promise.all(updatePromises);
 
       // Update local state
-      setEvents(events.map(event => ({
-        ...event,
-        taxPercentage: taxValue
-      })));
+      setEvents(
+        events.map((event) => ({
+          ...event,
+          taxPercentage: taxValue,
+        }))
+      );
     } catch (err) {
       console.error("Error applying global tax percentage:", err);
       setError("Failed to apply global tax percentage. Please try again.");
@@ -281,11 +312,15 @@ const EventManagement = () => {
   }, []);
 
   // Filter events based on search term and status
-  const filteredEvents = events.filter(event => {
-    const statusMatch = statusFilter === "All Status" || event.status === statusFilter;
-    const searchMatch = searchTerm === "" ||
+  const filteredEvents = events.filter((event) => {
+    const statusMatch =
+      statusFilter === "All Status" || event.status === statusFilter;
+    const searchMatch =
+      searchTerm === "" ||
       event.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      event.venueDetails?.venueName?.toLowerCase().includes(searchTerm.toLowerCase());
+      event.venueDetails?.venueName
+        ?.toLowerCase()
+        .includes(searchTerm.toLowerCase());
 
     return statusMatch && searchMatch;
   });
@@ -293,7 +328,10 @@ const EventManagement = () => {
   // Pagination logic
   const indexOfLastEvent = currentPage * eventsPerPage;
   const indexOfFirstEvent = indexOfLastEvent - eventsPerPage;
-  const currentEvents = filteredEvents.slice(indexOfFirstEvent, indexOfLastEvent);
+  const currentEvents = filteredEvents.slice(
+    indexOfFirstEvent,
+    indexOfLastEvent
+  );
   const totalPages = Math.ceil(filteredEvents.length / eventsPerPage);
 
   const handlePrevPage = () => {
@@ -325,7 +363,7 @@ const EventManagement = () => {
     setEditTaxDialog({
       open: true,
       eventId,
-      taxPercentage: currentTaxPercentage
+      taxPercentage: currentTaxPercentage,
     });
   };
 
@@ -340,13 +378,13 @@ const EventManagement = () => {
       const date = new Date(dateStr);
       if (isNaN(date.getTime())) return "Invalid Date";
 
-      return new Intl.DateTimeFormat('en-GB', {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true
+      return new Intl.DateTimeFormat("en-GB", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
       }).format(date);
     } catch (error) {
       console.error("Date formatting error:", error);
@@ -356,15 +394,63 @@ const EventManagement = () => {
 
   const formatCurrency = (amount) => {
     if (amount === 0) return "₹0";
-    return `₹${Number(amount).toLocaleString('en-IN')}`;
+    return `₹${Number(amount).toLocaleString("en-IN")}`;
   };
 
-  if (loading) return (
-    <Box display="flex" justifyContent="center" alignItems="center" height="100vh">
-      <CircularProgress />
-      <Typography ml={2}>Loading events...</Typography>
-    </Box>
-  );
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        setError("Please log in to access this page.");
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const adminDocRef = doc(db, "admins", user.uid);
+        const adminDoc = await getDoc(adminDocRef);
+
+        if (!adminDoc.exists()) {
+          setError("Admin profile not found.");
+          setLoading(false);
+          return;
+        }
+
+        const data = adminDoc.data();
+        setLastLogin(data.lastlogin || "");
+      } catch (err) {
+        setError("Failed to load admin details: " + err.message);
+      } finally {
+        setLoading(false);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const formatLastLogin = (timestamp) => {
+    if (!timestamp) return "Never";
+    try {
+      const date = new Date(timestamp);
+      return `${date.toLocaleDateString()} ${date.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      })}`;
+    } catch (err) {
+      return "Invalid date";
+    }
+  };
+
+  if (loading)
+    return (
+      <Box
+        display="flex"
+        justifyContent="center"
+        alignItems="center"
+        height="100vh"
+      >
+        <CircularProgress />
+        <Typography ml={2}>Loading events...</Typography>
+      </Box>
+    );
 
   return (
     <Box height="100vh" display="flex" flexDirection="column" bgcolor="#faf9fb">
@@ -383,12 +469,12 @@ const EventManagement = () => {
             ticketb
           </Box>
           <Box component="span" fontWeight="bold" color="black">
-            {" "}
             admin
           </Box>
         </Typography>
         <Typography variant="body1" fontSize={18}>
-          Last login at 7th Oct 2025 13:00
+          Last login at{" "}
+          {lastLogin ? formatLastLogin(lastLogin) : "May 13, 2025 02:46 PM"}
         </Typography>
       </Box>
 
@@ -494,8 +580,15 @@ const EventManagement = () => {
                     value={globalTaxPercentage}
                     onChange={(e) => setGlobalTaxPercentage(e.target.value)}
                     InputProps={{
-                      endAdornment: <InputAdornment position="end">%</InputAdornment>,
-                      inputProps: { min: 0, max: 100, step: 0.1, type: "number" }
+                      endAdornment: (
+                        <InputAdornment position="end">%</InputAdornment>
+                      ),
+                      inputProps: {
+                        min: 0,
+                        max: 100,
+                        step: 0.1,
+                        type: "number",
+                      },
                     }}
                     sx={{ width: 120 }}
                   />
@@ -503,10 +596,14 @@ const EventManagement = () => {
                     variant="contained"
                     size="small"
                     onClick={applyGlobalTax}
-                    disabled={!globalTaxPercentage || globalTaxPercentage < 0 || globalTaxPercentage > 100}
+                    disabled={
+                      !globalTaxPercentage ||
+                      globalTaxPercentage < 0 ||
+                      globalTaxPercentage > 100
+                    }
                     sx={{
                       bgcolor: "#19aedc",
-                      "&:hover": { bgcolor: "#0d8cbf" }
+                      "&:hover": { bgcolor: "#0d8cbf" },
                     }}
                   >
                     Apply to All
@@ -589,7 +686,9 @@ const EventManagement = () => {
                                 {event.name}
                               </Typography>
                               <Typography fontSize={12} color="textSecondary">
-                                {event.venueDetails?.venueName || event.location || 'Venue not specified'}
+                                {event.venueDetails?.venueName ||
+                                  event.location ||
+                                  "Venue not specified"}
                               </Typography>
                             </TableCell>
 
@@ -606,7 +705,9 @@ const EventManagement = () => {
                             </TableCell>
 
                             <TableCell align="center">
-                              {`${event.ticketsSold || 0}/${event.capacity || 'Unlimited'}`}
+                              {`${event.ticketsSold || 0}/${
+                                event.capacity || "Unlimited"
+                              }`}
                             </TableCell>
 
                             <TableCell align="center">
@@ -614,13 +715,23 @@ const EventManagement = () => {
                             </TableCell>
 
                             <TableCell align="center">
-                              <Box display="flex" alignItems="center" justifyContent="center" gap={1}>
+                              <Box
+                                display="flex"
+                                alignItems="center"
+                                justifyContent="center"
+                                gap={1}
+                              >
                                 <Typography>{`${event.taxPercentage}%`}</Typography>
                                 <Button
                                   size="small"
                                   startIcon={<EditIcon />}
-                                  onClick={() => handleOpenTaxDialog(event.id, event.taxPercentage)}
-                                  sx={{ minWidth: 'auto', p: 0.5 }}
+                                  onClick={() =>
+                                    handleOpenTaxDialog(
+                                      event.id,
+                                      event.taxPercentage
+                                    )
+                                  }
+                                  sx={{ minWidth: "auto", p: 0.5 }}
                                 >
                                   Edit
                                 </Button>
@@ -635,7 +746,9 @@ const EventManagement = () => {
                                 bgcolor={statusColors[event.status]}
                                 display="inline-block"
                               >
-                                <Typography fontSize={12}>{event.status}</Typography>
+                                <Typography fontSize={12}>
+                                  {event.status}
+                                </Typography>
                               </Box>
                             </TableCell>
 
@@ -644,10 +757,14 @@ const EventManagement = () => {
                                 variant="contained"
                                 size="small"
                                 startIcon={<VisibilityIcon />}
-                                onClick={() => navigateToEventDetails(event.id || event.eventId)}
+                                onClick={() =>
+                                  navigateToEventDetails(
+                                    event.id || event.eventId
+                                  )
+                                }
                                 sx={{
                                   bgcolor: "#19aedc",
-                                  "&:hover": { bgcolor: "#0d8cbf" }
+                                  "&:hover": { bgcolor: "#0d8cbf" },
                                 }}
                               >
                                 View
@@ -675,9 +792,10 @@ const EventManagement = () => {
                 px={2}
               >
                 <Typography variant="body2">
-                  Showing {filteredEvents.length > 0 ? indexOfFirstEvent + 1 : 0} to{" "}
-                  {Math.min(indexOfLastEvent, filteredEvents.length)}{" "}
-                  of {filteredEvents.length}
+                  Showing{" "}
+                  {filteredEvents.length > 0 ? indexOfFirstEvent + 1 : 0} to{" "}
+                  {Math.min(indexOfLastEvent, filteredEvents.length)} of{" "}
+                  {filteredEvents.length}
                 </Typography>
                 <Box display="flex" gap={1}>
                   <Button
@@ -730,25 +848,34 @@ const EventManagement = () => {
                 type="number"
                 fullWidth
                 value={editTaxDialog.taxPercentage}
-                onChange={(e) => setEditTaxDialog({
-                  ...editTaxDialog,
-                  taxPercentage: e.target.value
-                })}
+                onChange={(e) =>
+                  setEditTaxDialog({
+                    ...editTaxDialog,
+                    taxPercentage: e.target.value,
+                  })
+                }
                 InputProps={{
-                  endAdornment: <InputAdornment position="end">%</InputAdornment>,
-                  inputProps: { min: 0, max: 100, step: 0.1 }
+                  endAdornment: (
+                    <InputAdornment position="end">%</InputAdornment>
+                  ),
+                  inputProps: { min: 0, max: 100, step: 0.1 },
                 }}
               />
             </DialogContent>
             <DialogActions>
               <Button onClick={handleCloseTaxDialog}>Cancel</Button>
               <Button
-                onClick={() => updateTaxPercentage(
-                  editTaxDialog.eventId,
-                  editTaxDialog.taxPercentage
-                )}
+                onClick={() =>
+                  updateTaxPercentage(
+                    editTaxDialog.eventId,
+                    editTaxDialog.taxPercentage
+                  )
+                }
                 variant="contained"
-                disabled={editTaxDialog.taxPercentage < 0 || editTaxDialog.taxPercentage > 100}
+                disabled={
+                  editTaxDialog.taxPercentage < 0 ||
+                  editTaxDialog.taxPercentage > 100
+                }
               >
                 Save
               </Button>

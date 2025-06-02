@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   Box,
   Typography,
@@ -28,29 +28,11 @@ import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
 import FastfoodIcon from "@mui/icons-material/Fastfood";
 import { useNavigate, useParams } from "react-router-dom";
 import Header from "../Header/MainHeaderWOS";
-import { doc, getDoc, onSnapshot, updateDoc } from "firebase/firestore";
+import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "../../firebase_config";
 import { getAuth } from "firebase/auth";
 
 const steps = ["Select Tickets", "Details", "Payment"];
-
-// Default images based on category
-const defaultFoodImages = {
-  Popcorn:
-    "https://recipeforperfection.com/wp-content/uploads/2017/11/Movie-Theater-Popcorn-in-a-popcorn-bucket.jpg",
-  Snacks:
-    "https://www.mashed.com/img/gallery/the-untold-truth-of-movie-theater-nachos/intro-1567530294.jpg",
-  Beverages:
-    "https://www.coca-cola.com/content/dam/journey/us/en/private/2019/03/coca-cola-media-1-1200x900.jpg",
-  Default: "https://static.toiimg.com/thumb/54659021.cms?width=1200&height=900",
-};
-
-const getDefaultImage = (itemName) => {
-  const category = Object.keys(defaultFoodImages).find((key) =>
-    itemName.toLowerCase().includes(key.toLowerCase())
-  );
-  return category ? defaultFoodImages[category] : defaultFoodImages["Default"];
-};
 
 const TicketPricePage = ({ activeStep = 0 }) => {
   const navigate = useNavigate();
@@ -71,97 +53,96 @@ const TicketPricePage = ({ activeStep = 0 }) => {
   const auth = getAuth();
   const userUID = auth.currentUser?.uid;
 
-useEffect(() => {
-  if (!eventId) return;
+  useEffect(() => {
+    if (!eventId) return;
 
-  const unsubscribe = onSnapshot(doc(db, "events", eventId), (eventDoc) => {
-    if (eventDoc.exists()) {
-      const eventData = eventDoc.data();
-      const maxTicketCount = parseInt(eventData.ticketCount) || 10;
+    const unsubscribe = onSnapshot(doc(db, "events", eventId), (eventDoc) => {
+      if (eventDoc.exists()) {
+        const eventData = eventDoc.data();
+        const maxTicketCount = parseInt(eventData.ticketCount) || 10;
 
-      const ticketsWithUniqueIds = eventData.pricing
-        ? eventData.pricing.map((ticket, index) => {
-            const availableTickets = calculateAvailableTickets(ticket);
+        const ticketsWithUniqueIds = eventData.pricing
+          ? eventData.pricing.map((ticket, index) => {
+              const availableTickets = calculateAvailableTickets(ticket);
+
+              return {
+                ...ticket,
+                id: ticket.id || `pricing-${index}`,
+                available: availableTickets,
+                seats: ticket.seats || 0,
+                booked: ticket.booked || 0,
+              };
+            })
+          : [];
+
+        const perks = Array.isArray(eventData.perks) ? eventData.perks : [];
+
+        const processedFoodItems = perks
+          .map((perk, index) => {
+            const itemName = perk?.itemName;
+
+            if (!itemName || typeof itemName !== "string") return null; // Skip invalid perks
+
+            let category = "Other";
+            const nameLower = itemName.toLowerCase();
+
+            if (nameLower.includes("popcorn")) {
+              category = "Popcorn";
+            } else if (
+              nameLower.includes("soda") ||
+              nameLower.includes("water") ||
+              nameLower.includes("drink") ||
+              nameLower.includes("juice") ||
+              nameLower.includes("coffee")
+            ) {
+              category = "Beverages";
+            } else if (
+              nameLower.includes("nachos") ||
+              nameLower.includes("fries") ||
+              nameLower.includes("nugget") ||
+              nameLower.includes("sandwich") ||
+              nameLower.includes("snack") ||
+              nameLower.includes("burger")
+            ) {
+              category = "Snacks";
+            }
 
             return {
-              ...ticket,
-              id: ticket.id || `pricing-${index}`,
-              available: availableTickets,
-              seats: ticket.seats || 0,
-              booked: ticket.booked || 0,
+              id: index + 1,
+              name: itemName,
+              description: `Delicious ${itemName} for your event enjoyment`,
+              image: perk.url, // Use directly from backend
+              price: perk.price || 0,
+              category,
+              limit: perk.limit || 100,
             };
           })
-        : [];
+          .filter(Boolean); // Remove nulls
 
-      const perks = Array.isArray(eventData.perks) ? eventData.perks : [];
+        setFoodItems(processedFoodItems);
+        setEvent({
+          id: eventDoc.id,
+          ...eventData,
+          ticket: ticketsWithUniqueIds,
+          ticketCount: maxTicketCount,
+          foodPerks: perks,
+        });
 
-      const processedFoodItems = perks
-  .map((perk, index) => {
-    const itemName = perk?.itemName;
-
-    if (!itemName || typeof itemName !== "string") return null; // Skip invalid perks
-
-    let category = "Other";
-    const nameLower = itemName.toLowerCase();
-
-    if (nameLower.includes("popcorn")) {
-      category = "Popcorn";
-    } else if (
-      nameLower.includes("soda") ||
-      nameLower.includes("water") ||
-      nameLower.includes("drink") ||
-      nameLower.includes("juice") ||
-      nameLower.includes("coffee")
-    ) {
-      category = "Beverages";
-    } else if (
-      nameLower.includes("nachos") ||
-      nameLower.includes("fries") ||
-      nameLower.includes("nugget") ||
-      nameLower.includes("sandwich") ||
-      nameLower.includes("snack") ||
-      nameLower.includes("burger")
-    ) {
-      category = "Snacks";
-    }
-
-    return {
-      id: index + 1,
-      name: itemName,
-      description: `Delicious ${itemName} for your event enjoyment`,
-      image: perk.url, // Use directly from backend
-      price: perk.price || 0,
-      category,
-      limit: perk.limit || 100,
-    };
-  })
-  .filter(Boolean); // Remove nulls
-
-
-      setFoodItems(processedFoodItems);
-      setEvent({
-        id: eventDoc.id,
-        ...eventData,
-        ticket: ticketsWithUniqueIds,
-        ticketCount: maxTicketCount,
-        foodPerks: perks,
-      });
-
-      if (
-        ticketsWithUniqueIds.length > 0 &&
-        ticketsWithUniqueIds.every((ticket) => ticket.free)
-      ) {
-        setIsFreeTicket(true);
+        if (
+          ticketsWithUniqueIds.length > 0 &&
+          ticketsWithUniqueIds.every((ticket) => ticket.free)
+        ) {
+          setIsFreeTicket(true);
+        }
+      } else {
+        setError("Event not found");
       }
-    } else {
-      setError("Event not found");
-    }
 
-    setLoading(false);
-  });
+      setLoading(false);
+    });
 
-  return () => unsubscribe();
-}, [eventId]);
+    return () => unsubscribe();
+  }, [eventId]);
 
   useEffect(() => {
     console.log(userUID);
@@ -320,14 +301,6 @@ useEffect(() => {
         );
       }
 
-      if (getTotalFoodCount() > 0) {
-        const selectedFoodPerks = prepareSelectedFoodPerks();
-        // Optional DB update
-        // await updateDoc(doc(db, "events", eventId), {
-        //   selectedPerks: selectedFoodPerks
-        // });
-      }
-
       const ticketSummary = Object.keys(selectedTickets).map((id) => {
         const ticket = event?.ticket?.find((t) => t.id === id);
         return {
@@ -356,9 +329,6 @@ useEffect(() => {
           subtotal: selectedFoodItems[id] * (item?.price || 0),
         };
       });
-
-      const subtotal = calculateSubtotal();
-      const totalAmount = calculateTotal();
 
       navigate(`/proceedtopay/${eventId}/${userUID}`, {
         state: {
@@ -396,9 +366,10 @@ useEffect(() => {
   };
 
   const areAllTicketsSoldOut = () => {
-  return event?.ticket?.every((ticket) => calculateAvailableTickets(ticket) === 0);
-};
-
+    return event?.ticket?.every(
+      (ticket) => calculateAvailableTickets(ticket) === 0
+    );
+  };
 
   if (loading) {
     return (
@@ -1023,11 +994,11 @@ useEffect(() => {
           startIcon={<ShoppingCartIcon />}
           onClick={handleProceed}
           disabled={
-    isProcessingBooking ||
-    (!isFreeTicket &&
-      getTotalTicketCount() === 0 &&
-      (getTotalFoodCount() === 0 || areAllTicketsSoldOut()))
-  }
+            isProcessingBooking ||
+            (!isFreeTicket &&
+              getTotalTicketCount() === 0 &&
+              (getTotalFoodCount() === 0 || areAllTicketsSoldOut()))
+          }
           sx={{
             backgroundColor: "#19AEDC",
             "&:hover": { backgroundColor: "#148db1" },

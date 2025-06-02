@@ -26,7 +26,9 @@ import { Delete, Description, AccountBalance } from "@mui/icons-material";
 import { useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { collection, query, where, getDocs } from "firebase/firestore";
-import { db } from "../../firebase/firebase_config";
+import { db, auth } from "../../firebase/firebase_config";
+import { onAuthStateChanged } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
 
 const events = [];
 
@@ -41,6 +43,51 @@ const VendorDetails = () => {
   const [pendingRequest, setPendingRequest] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [lastLogin, setLastLogin] = useState("");
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        setError("Please log in to access this page.");
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const adminDocRef = doc(db, "admins", user.uid);
+        const adminDoc = await getDoc(adminDocRef);
+
+        if (!adminDoc.exists()) {
+          setError("Admin profile not found.");
+          setLoading(false);
+          return;
+        }
+
+        const data = adminDoc.data();
+        setLastLogin(data.lastlogin || "");
+      } catch (err) {
+        setError("Failed to load admin details: " + err.message);
+      } finally {
+        setLoading(false);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const formatLastLogin = (timestamp) => {
+    if (!timestamp) return "Never";
+    try {
+      const date = new Date(timestamp);
+      return `${date.toLocaleDateString()} ${date.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      })}`;
+    } catch (err) {
+      return "Invalid date";
+    }
+  };
 
   useEffect(() => {
     const fetchVendorEvents = async () => {
@@ -162,7 +209,7 @@ const VendorDetails = () => {
   return (
     <Box height="auto" display="flex" flexDirection="column" bgcolor="#faf9fb">
       <Box
-        height={49}
+        height={89}
         display="flex"
         justifyContent="space-between"
         alignItems="center"
@@ -176,12 +223,12 @@ const VendorDetails = () => {
             ticketb
           </Box>
           <Box component="span" fontWeight="bold" color="black">
-            {" "}
             admin
           </Box>
         </Typography>
         <Typography variant="body1" fontSize={18}>
-          Last login at 7th Oct 2025 13:00
+          Last login at{" "}
+          {lastLogin ? formatLastLogin(lastLogin) : "May 13, 2025 02:46 PM"}
         </Typography>
       </Box>
 
@@ -463,7 +510,9 @@ const VendorDetails = () => {
 
             <Box width={{ xs: "100%", md: "30%" }} mb={3}>
               <Typography color="text.secondary">GSTIN</Typography>
-              <Typography fontWeight={500}>{request.GSTIN===""?"none":request.GSTIN}</Typography>
+              <Typography fontWeight={500}>
+                {request.GSTIN === "" ? "none" : request.GSTIN}
+              </Typography>
             </Box>
 
             <Box width={{ xs: "100%", md: "30%" }} mb={3}>

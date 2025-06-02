@@ -117,6 +117,7 @@ const UserPage = () => {
   });
   const [actionSuccess, setActionSuccess] = useState(null);
   const usersPerPage = 5;
+  const [lastLogin, setLastLogin] = useState("");
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -155,6 +156,48 @@ const UserPage = () => {
     } catch (error) {
       console.error("Error formatting date:", error);
       return "Date error";
+    }
+  };
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        setError("Please log in to access this page.");
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const adminDocRef = doc(db, "admins", user.uid);
+        const adminDoc = await getDoc(adminDocRef);
+
+        if (!adminDoc.exists()) {
+          setError("Admin profile not found.");
+          setLoading(false);
+          return;
+        }
+
+        const data = adminDoc.data();
+        setLastLogin(data.lastlogin || "");
+      } catch (err) {
+        setError("Failed to load admin details: " + err.message);
+      } finally {
+        setLoading(false);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const formatLastLogin = (timestamp) => {
+    if (!timestamp) return "Never";
+    try {
+      const date = new Date(timestamp);
+      return `${date.toLocaleDateString()} ${date.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      })}`;
+    } catch (err) {
+      return "Invalid date";
     }
   };
 
@@ -568,16 +611,12 @@ const UserPage = () => {
             ticketb
           </Box>
           <Box component="span" fontWeight="bold" color="black">
-            {" "}
             admin
           </Box>
         </Typography>
         <Typography variant="body1" fontSize={18}>
-          Last login at {new Date().toLocaleDateString()}{" "}
-          {new Date().toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          })}
+          Last login at{" "}
+          {lastLogin ? formatLastLogin(lastLogin) : "May 13, 2025 02:46 PM"}
         </Typography>
       </Box>
 

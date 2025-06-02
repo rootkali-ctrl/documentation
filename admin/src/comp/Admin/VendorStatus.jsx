@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Button,
@@ -17,6 +17,18 @@ import {
 import { CheckCircle, Cancel } from "@mui/icons-material";
 import { useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
+import { db, auth } from "../../firebase/firebase_config";
+import { onAuthStateChanged } from "firebase/auth";
+import {
+  collection,
+  getDocs,
+  query,
+  where,
+  doc,
+  updateDoc,
+  getDoc,
+  setDoc,
+} from "firebase/firestore";
 
 const VendorDetails = () => {
   const { state } = useLocation();
@@ -28,7 +40,51 @@ const VendorDetails = () => {
   const [pendingAction, setPendingAction] = useState(null);
   const [pendingRequest, setPendingRequest] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [lastLogin, setLastLogin] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        setError("Please log in to access this page.");
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const adminDocRef = doc(db, "admins", user.uid);
+        const adminDoc = await getDoc(adminDocRef);
+
+        if (!adminDoc.exists()) {
+          setError("Admin profile not found.");
+          setLoading(false);
+          return;
+        }
+
+        const data = adminDoc.data();
+        setLastLogin(data.lastlogin || "");
+      } catch (err) {
+        setError("Failed to load admin details: " + err.message);
+      } finally {
+        setLoading(false);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const formatLastLogin = (timestamp) => {
+    if (!timestamp) return "Never";
+    try {
+      const date = new Date(timestamp);
+      return `${date.toLocaleDateString()} ${date.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      })}`;
+    } catch (err) {
+      return "Invalid date";
+    }
+  };
 
   const viewDocument = (documentUrl) => {
     if (!documentUrl) {
@@ -39,7 +95,7 @@ const VendorDetails = () => {
 
     console.log("Opening document URL:", documentUrl);
 
-    if (documentUrl && typeof documentUrl === 'string') {
+    if (documentUrl && typeof documentUrl === "string") {
       window.open(documentUrl, "_blank");
     } else {
       setDialogContent("Invalid document URL format.");
@@ -56,74 +112,90 @@ const VendorDetails = () => {
         status: status,
       };
 
-      console.log("Sending email notification to:", `${baseUrl}/api/admin/send-email`, payload);
-      const response = await axios.post(`${baseUrl}/api/admin/send-email`, payload);
+      console.log(
+        "Sending email notification to:",
+        `${baseUrl}/api/admin/send-email`,
+        payload
+      );
+      const response = await axios.post(
+        `${baseUrl}/api/admin/send-email`,
+        payload
+      );
       console.log("Email notification response:", response.data);
       return response.data;
     } catch (err) {
       console.error("Error sending email notification:", err);
-      throw new Error(`Failed to send email notification: ${err.response?.data?.message || err.message}`);
+      throw new Error(
+        `Failed to send email notification: ${
+          err.response?.data?.message || err.message
+        }`
+      );
     }
   };
 
- const handleAction = async (action, request) => {
-  try {
-    setIsLoading(true);  // disable buttons
-    if (!request || !request.email) {
-      setDialogContent("Vendor data is missing or invalid.");
+  const handleAction = async (action, request) => {
+    try {
+      setIsLoading(true); // disable buttons
+      if (!request || !request.email) {
+        setDialogContent("Vendor data is missing or invalid.");
+        setDialogOpen(true);
+        return;
+      }
+
+      const payload = {
+        email: request.email,
+        vendorName: request.username || "Vendor",
+      };
+      console.log("Payload being sent for action:", payload);
+
+      const baseUrl = process.env.REACT_APP_API_BASE_URL;
+      console.log("Using API base URL:", baseUrl);
+
+      let response;
+
+      switch (action) {
+        case "accepted":
+          console.log(
+            "Sending approval request to:",
+            `${baseUrl}/api/admin/requests`
+          );
+          response = await axios.put(`${baseUrl}/api/admin/requests`, payload);
+          console.log("Approval response:", response.data);
+          await sendVendorEmail(request.email, request.username, "accepted");
+          break;
+
+        case "rejected":
+          console.log(
+            "Sending rejection request to:",
+            `${baseUrl}/api/admin/rejectvendor`
+          );
+          response = await axios.delete(`${baseUrl}/api/admin/rejectvendor`, {
+            data: payload,
+          });
+          console.log("Rejection response:", response.data);
+          await sendVendorEmail(request.email, request.username, "rejected");
+          break;
+
+        default:
+          throw new Error(`Unknown action type: ${action}`);
+      }
+
+      setDialogContent(`Vendor ${action} successfully.`);
       setDialogOpen(true);
-      return;
+    } catch (err) {
+      console.error(`Error during ${action}:`, err);
+      setDialogContent(
+        `Failed to ${action} vendor: ${
+          err.response?.data?.message || err.message
+        }. Please check if the vendor is already ${
+          action === "accepted" ? "approved" : "rejected"
+        } or contact support.`
+      );
+      setDialogOpen(true);
+    } finally {
+      setIsLoading(false); // re-enable buttons
     }
-
-    const payload = {
-      email: request.email,
-      vendorName: request.username || "Vendor"
-    };
-    console.log("Payload being sent for action:", payload);
-
-    const baseUrl = process.env.REACT_APP_API_BASE_URL;
-    console.log("Using API base URL:", baseUrl);
-
-    let response;
-
-    switch(action) {
-      case "accepted":
-        console.log("Sending approval request to:", `${baseUrl}/api/admin/requests`);
-        response = await axios.put(`${baseUrl}/api/admin/requests`, payload);
-        console.log("Approval response:", response.data);
-        await sendVendorEmail(request.email, request.username, "accepted");
-        break;
-
-      case "rejected":
-        console.log("Sending rejection request to:", `${baseUrl}/api/admin/rejectvendor`);
-        response = await axios.delete(`${baseUrl}/api/admin/rejectvendor`, {
-          data: payload 
-        });
-        console.log("Rejection response:", response.data);
-        await sendVendorEmail(request.email, request.username, "rejected");
-        break;
-
-      default:
-        throw new Error(`Unknown action type: ${action}`);
-    }
-
-    setDialogContent(`Vendor ${action} successfully.`);
-    setDialogOpen(true);
-  } catch (err) {
-    console.error(`Error during ${action}:`, err);
-    setDialogContent(
-      `Failed to ${action} vendor: ${
-        err.response?.data?.message || err.message
-      }. Please check if the vendor is already ${
-        action === "accepted" ? "approved" : "rejected"
-      } or contact support.`
-    );
-    setDialogOpen(true);
-  } finally {
-    setIsLoading(false); // re-enable buttons
-  }
-};
-
+  };
 
   const askForConfirmation = (action, request) => {
     setPendingAction(action);
@@ -160,12 +232,12 @@ const VendorDetails = () => {
             ticketb
           </Box>
           <Box component="span" fontWeight="bold" color="black">
-            {" "}
             admin
           </Box>
         </Typography>
         <Typography variant="body1" fontSize={18}>
-          Last login at 7th Oct 2025 13:00
+          Last login at{" "}
+          {lastLogin ? formatLastLogin(lastLogin) : "May 13, 2025 02:46 PM"}
         </Typography>
       </Box>
 
@@ -179,35 +251,35 @@ const VendorDetails = () => {
             <Typography variant="h4" fontWeight="bold">
               Vendor Details
             </Typography>
-            {request.status==="pending" ?
-            <Box display="flex" gap={2}>
-              <Button
-  variant="contained"
-  sx={{
-    backgroundColor: "green",
-    color: "white",
-    "&:hover": { backgroundColor: "#00BC01" },
-  }}
-  startIcon={<CheckCircle />}
-  onClick={() => askForConfirmation("accepted", request)}
-  disabled={isLoading}
->
-  Accept Vendor
-</Button>
+            {request.status === "pending" ? (
+              <Box display="flex" gap={2}>
+                <Button
+                  variant="contained"
+                  sx={{
+                    backgroundColor: "green",
+                    color: "white",
+                    "&:hover": { backgroundColor: "#00BC01" },
+                  }}
+                  startIcon={<CheckCircle />}
+                  onClick={() => askForConfirmation("accepted", request)}
+                  disabled={isLoading}
+                >
+                  Accept Vendor
+                </Button>
 
-<Button
-  variant="contained"
-  color="error"
-  startIcon={<Cancel />}
-  onClick={() => askForConfirmation("rejected", request)}
-  disabled={isLoading}
->
-  Reject Vendor
-</Button>
-
-            </Box>: <></>
-            }
-            
+                <Button
+                  variant="contained"
+                  color="error"
+                  startIcon={<Cancel />}
+                  onClick={() => askForConfirmation("rejected", request)}
+                  disabled={isLoading}
+                >
+                  Reject Vendor
+                </Button>
+              </Box>
+            ) : (
+              <></>
+            )}
           </Box>
           <Dialog
             open={confirmDialogOpen}
@@ -264,7 +336,9 @@ const VendorDetails = () => {
                     <Typography mt={2} color="text.secondary">
                       Phone Number
                     </Typography>
-                    <Typography>{request?.organisationContact || "N/A"}</Typography>
+                    <Typography>
+                      {request?.organisationContact || "N/A"}
+                    </Typography>
                   </Grid>
                 </Grid>
               </Box>
@@ -318,7 +392,9 @@ const VendorDetails = () => {
                     <Typography fontWeight="600">PAN Card</Typography>
                     <Box sx={{ color: "#19AEDC" }}>
                       <Typography
-                        onClick={() => viewDocument(request?.documents?.panUpload)}
+                        onClick={() =>
+                          viewDocument(request?.documents?.panUpload)
+                        }
                         sx={{
                           cursor: "pointer",
                           "&:hover": { textDecoration: "underline" },
@@ -359,7 +435,9 @@ const VendorDetails = () => {
                           cursor: "pointer",
                           "&:hover": { textDecoration: "underline" },
                         }}
-                        onClick={() => viewDocument(request?.documents?.aadharUpload)}
+                        onClick={() =>
+                          viewDocument(request?.documents?.aadharUpload)
+                        }
                       >
                         View pdf
                       </Typography>
@@ -396,7 +474,9 @@ const VendorDetails = () => {
                           cursor: "pointer",
                           "&:hover": { textDecoration: "underline" },
                         }}
-                        onClick={() => viewDocument(request?.documents?.bankUpload)}
+                        onClick={() =>
+                          viewDocument(request?.documents?.bankUpload)
+                        }
                       >
                         View pdf
                       </Typography>
@@ -449,7 +529,9 @@ const VendorDetails = () => {
 
             <Box width={{ xs: "100%", md: "30%" }} mb={3}>
               <Typography color="text.secondary">GSTIN</Typography>
-              <Typography fontWeight={500}>{request?.GSTIN || "N/A"}</Typography>
+              <Typography fontWeight={500}>
+                {request?.GSTIN || "N/A"}
+              </Typography>
             </Box>
 
             <Box width={{ xs: "100%", md: "30%" }} mb={3}>
@@ -465,8 +547,7 @@ const VendorDetails = () => {
                 {request?.organisationContact || "N/A"}
               </Typography>
             </Box>
-            <Box width={{ xs: "100%", md: "30%" }} mb={3}>
-            </Box>
+            <Box width={{ xs: "100%", md: "30%" }} mb={3}></Box>
           </Box>
         </Paper>
       </Container>

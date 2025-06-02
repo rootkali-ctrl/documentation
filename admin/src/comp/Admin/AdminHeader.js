@@ -1,10 +1,17 @@
-import React from 'react'
-import { Box, Typography, IconButton, Button, Menu, MenuItem } from "@mui/material";
+import React from "react";
+import {
+  Box,
+  Typography,
+  IconButton,
+  Button,
+  Menu,
+  MenuItem,
+} from "@mui/material";
 import AccountCircleOutlinedIcon from "@mui/icons-material/AccountCircleOutlined";
 import { useState } from "react";
 
 const AdminHeader = () => {
- const [anchorEl, setAnchorEl] = useState(null);
+  const [anchorEl, setAnchorEl] = useState(null);
   const [openMenu, setOpenMenu] = useState(false);
 
   const handleMenuClick = (event) => {
@@ -18,7 +25,7 @@ const AdminHeader = () => {
 
   return (
     <div>
-      <Box sx={{ margin: "1% 4%",   zIndex: 20,}}>
+      <Box sx={{ margin: "1% 4%", zIndex: 20 }}>
         <Box
           sx={{
             display: "flex",
@@ -26,11 +33,12 @@ const AdminHeader = () => {
             alignItems: "center",
             width: "100%",
             mt: "1%",
-         
           }}
         >
           {/* Left Section */}
-          <Box sx={{ display: "flex", alignItems: "center", gap: 2, width: "55%" }}>
+          <Box
+            sx={{ display: "flex", alignItems: "center", gap: 2, width: "55%" }}
+          >
             <Typography
               sx={{
                 fontFamily: "Albert Sans",
@@ -42,12 +50,13 @@ const AdminHeader = () => {
               ticketb
             </Typography>
             <Typography
-             sx={{
+              sx={{
                 fontFamily: "Albert Sans",
                 fontWeight: 900,
                 fontSize: 30,
-             }}>
-                admin
+              }}
+            >
+              admin
             </Typography>
           </Box>
 
@@ -61,10 +70,6 @@ const AdminHeader = () => {
               justifyContent: "flex-end",
             }}
           >
-
-            <Typography sx={{ fontFamily: "Albert Sans", fontSize: 16,}}>
-                Last login at 7th Oct 2025 13:00 
-            </Typography>
             {/* <Box sx={{ width: "25%" }}>
               <Button
                 sx={{
@@ -144,9 +149,16 @@ const AdminHeader = () => {
           </Box>
         </Box>
       </Box>
-      <Box sx={{ mt: "1%", height: "1px", width: "100%", backgroundColor: "rgb(238, 237, 242)" }}></Box>
+      <Box
+        sx={{
+          mt: "1%",
+          height: "1px",
+          width: "100%",
+          backgroundColor: "rgb(238, 237, 242)",
+        }}
+      ></Box>
     </div>
   );
 };
 
-export default AdminHeader
+export default AdminHeader;

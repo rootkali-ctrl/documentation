@@ -31,6 +31,9 @@ import {
 } from "@mui/icons-material";
 import { v4 as uuidv4 } from "uuid";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { db, auth } from "../../firebase/firebase_config";
+import { onAuthStateChanged } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
 
 const sidebarItems = [
   {
@@ -78,6 +81,8 @@ const PostPage = () => {
   const [startIndex, setStartIndex] = useState(0);
   const [loading, setLoading] = useState(false);
   const storage = getStorage();
+  const [error, setError] = useState(null);
+
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleteIndex, setDeleteIndex] = useState(null);
   const [deleteIndexInline, setDeleteIndexInline] = useState(null);
@@ -86,6 +91,48 @@ const PostPage = () => {
   const [currentInlineBannerIndex, setCurrentInlineBannerIndex] =
     useState(null);
   const [bannerUrl, setBannerUrl] = useState("");
+  const [lastLogin, setLastLogin] = useState("");
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        setError("Please log in to access this page.");
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const adminDocRef = doc(db, "admins", user.uid);
+        const adminDoc = await getDoc(adminDocRef);
+
+        if (!adminDoc.exists()) {
+          setError("Admin profile not found.");
+          setLoading(false);
+          return;
+        }
+
+        const data = adminDoc.data();
+        setLastLogin(data.lastlogin || "");
+      } catch (err) {
+        setError("Failed to load admin details: " + err.message);
+      } finally {
+        setLoading(false);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const formatLastLogin = (timestamp) => {
+    if (!timestamp) return "Never";
+    try {
+      const date = new Date(timestamp);
+      return `${date.toLocaleDateString()} ${date.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      })}`;
+    } catch (err) {
+      return "Invalid date";
+    }
+  };
 
   const handleDelete = async (indexToDelete) => {
     const banner = heroBanners[indexToDelete];
@@ -133,7 +180,6 @@ const PostPage = () => {
       setHeroBanners((prev) => [...prev, newBanner]);
     }
   };
-
 
   useEffect(() => {
     const fetchBanners = async () => {
@@ -251,50 +297,46 @@ const PostPage = () => {
       setCurrentInlineBannerIndex(0);
       setBannerUrl("");
       setOpenUrlDialog(true);
-      console.log(inlineBanners)
+      console.log(inlineBanners);
     }
   };
 
-
   const handleDeleteInline = async (indexToDelete) => {
-  const banner = inlineBanners[indexToDelete];
+    const banner = inlineBanners[indexToDelete];
 
-  // If banner is not uploaded yet, remove it locally and exit
-  if (!banner.isUploaded) {
-    setInlineBanners((prev) =>
-      prev.filter((_, idx) => idx !== indexToDelete)
-    );
-    return;
-  }
- console.log("Deleting inline banner with URL:", banner.url);
-  setLoading(true);
-  try {
-   
+    // If banner is not uploaded yet, remove it locally and exit
+    if (!banner.isUploaded) {
+      setInlineBanners((prev) =>
+        prev.filter((_, idx) => idx !== indexToDelete)
+      );
+      return;
+    }
+    console.log("Deleting inline banner with URL:", banner.url);
+    setLoading(true);
+    try {
+      // Banner was uploaded – delete from backend (includes storage)
+      const res = await fetch(
+        `${process.env.REACT_APP_API_BASE_URL}/api/admin/banners-delete-inline`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: banner.url }),
+        }
+      );
 
-    // Banner was uploaded – delete from backend (includes storage)
-    const res = await fetch(
-      `${process.env.REACT_APP_API_BASE_URL}/api/admin/banners-delete-inline`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: banner.url }),
-      }
-    );
+      if (!res.ok) throw new Error("Failed to delete from backend");
+    } catch (error) {
+      console.error("Delete failed", error);
+      alert("Error deleting banner from backend.");
+    } finally {
+      setLoading(false);
+      // Always remove from local state
+      setInlineBanners((prev) =>
+        prev.filter((_, idx) => idx !== indexToDelete)
+      );
+    }
+  };
 
-    if (!res.ok) throw new Error("Failed to delete from backend");
-  } catch (error) {
-    console.error("Delete failed", error);
-    alert("Error deleting banner from backend.");
-  } finally {
-    setLoading(false);
-    // Always remove from local state
-    setInlineBanners((prev) =>
-      prev.filter((_, idx) => idx !== indexToDelete)
-    );
-  }
-};
-
-  
   const handleEditUrl = (index) => {
     setCurrentInlineBannerIndex(index);
     setBannerUrl(inlineBanners[index].redirectUrl || "");
@@ -340,7 +382,6 @@ const PostPage = () => {
           if (!response.ok) throw new Error("Failed to update banner URLs");
 
           alert("Banner redirect URL updated successfully!");
-
         } catch (error) {
           console.error("Update error:", error);
           alert("Failed to update banner redirect URL.");
@@ -454,7 +495,8 @@ const PostPage = () => {
           </Box>
         </Typography>
         <Typography variant="body1" fontSize={18}>
-          Last login at 7th Oct 2025 13:00
+          Last login at{" "}
+          {lastLogin ? formatLastLogin(lastLogin) : "May 13, 2025 02:46 PM"}
         </Typography>
       </Box>
 
