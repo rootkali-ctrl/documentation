@@ -23,15 +23,22 @@ import ConfirmationNumberIcon from "@mui/icons-material/ConfirmationNumber";
 import CloseIcon from "@mui/icons-material/Close";
 import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
-import { db,auth } from "../../firebase_config";
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  doc,
+  getDoc,
+} from "firebase/firestore";
+import { db, auth } from "../../firebase_config";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 
 import axios from "axios";
 
 const EventDashboard = () => {
   const { state } = useLocation();
-  const { eventId,vendorId } = useParams();
+  const { eventId, vendorId } = useParams();
   const [eventData, setEventData] = useState(state?.eventData || {});
   const [loading, setLoading] = useState(true);
   const [ticketTypes, setTicketTypes] = useState([]);
@@ -53,7 +60,7 @@ const EventDashboard = () => {
   const [allOrders, setAllOrders] = useState([]);
   const isMobile = useMediaQuery("(max-width:900px)");
   const COLORS = ["#19AEDC", "#4FC3F7", "#2196F3", "#1565C0", "#0D47A1"];
- const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [passvendorId, passsetVendorId] = useState(null);
   const [username, setUsername] = useState("");
   const [csvData, setCsvData] = useState([]);
@@ -64,52 +71,55 @@ const EventDashboard = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [displayedOrders, setDisplayedOrders] = useState([]);
   const navigate = useNavigate();
-  
-    const [userProfile, setUserProfile] = useState(null);
-  
-    useEffect(() => {
-      const unsubscribe = onAuthStateChanged(auth, async (user) => {
-        if (user) {
-          setIsAuthenticated(true);
-          const derivedUsername = user.displayName || user.email.split("@")[0];
-          setUsername(derivedUsername);
-  
-          // Add this userProfile setting
-          setUserProfile({
-            photoURL: user.photoURL,
-            displayName: user.displayName,
-            email: user.email,
-            uid: user.uid,
-          });
-  
-          try {
-            const res = await fetch(`${process.env.REACT_APP_API_BASE_URL}/api/user/post-email`, {
+
+  const [userProfile, setUserProfile] = useState(null);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        setIsAuthenticated(true);
+        const derivedUsername = user.displayName || user.email.split("@")[0];
+        setUsername(derivedUsername);
+
+        // Add this userProfile setting
+        setUserProfile({
+          photoURL: user.photoURL,
+          displayName: user.displayName,
+          email: user.email,
+          uid: user.uid,
+        });
+
+        try {
+          const res = await fetch(
+            `${process.env.REACT_APP_API_BASE_URL}/api/user/post-email`,
+            {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ email: user.email }),
-            });
-  
-            const data = await res.json();
-            if (res.ok) {
-              localStorage.setItem("vendorId", data.vendorId);
-              passsetVendorId(data.vendorId); // Make sure you set this in state
-            } else {
-              console.error("Vendor not found:", data.message);
             }
-          } catch (error) {
-            console.error("Error fetching vendor data:", error);
+          );
+
+          const data = await res.json();
+          if (res.ok) {
+            localStorage.setItem("vendorId", data.vendorId);
+            passsetVendorId(data.vendorId); // Make sure you set this in state
+          } else {
+            console.error("Vendor not found:", data.message);
           }
-        } else {
-          setIsAuthenticated(false);
-          setUsername("");
-          setUserProfile(null); // Add this
-          passsetVendorId(null); // Add this
+        } catch (error) {
+          console.error("Error fetching vendor data:", error);
         }
-      });
-  
-      return () => unsubscribe();
-    }, []);
-     const handleLogout = async () => {
+      } else {
+        setIsAuthenticated(false);
+        setUsername("");
+        setUserProfile(null); // Add this
+        passsetVendorId(null); // Add this
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+  const handleLogout = async () => {
     try {
       await signOut(auth);
       localStorage.removeItem("vendorId"); // Add this line
@@ -124,7 +134,9 @@ const EventDashboard = () => {
     const fetchEventData = async () => {
       if (!state?.eventData && eventId) {
         try {
-          const response = await axios.get(`${process.env.REACT_APP_API_BASE_URL}/api/event/${eventId}`);
+          const response = await axios.get(
+            `${process.env.REACT_APP_API_BASE_URL}/api/event/${eventId}`
+          );
           setEventData(response.data);
         } catch (err) {
           console.error("Error fetching event data:", err);
@@ -142,7 +154,11 @@ const EventDashboard = () => {
       const userDoc = await getDoc(doc(db, "users", userId));
       if (userDoc.exists()) {
         const userData = userDoc.data();
-        const name = userData.displayName || userData.name || userData.username || "Unknown User";
+        const name =
+          userData.displayName ||
+          userData.name ||
+          userData.username ||
+          "Unknown User";
         setUsernames((prev) => ({ ...prev, [userId]: name }));
         return name;
       }
@@ -160,15 +176,16 @@ const EventDashboard = () => {
       setLoading(true);
 
       try {
-        const ticketTypeData = eventData.pricing?.map((ticket, index) => ({
-          type: ticket.ticketType || "Standard",
-          price: Number(ticket.price),
-          seats: Math.max(1, Number(ticket.seats) || 0),
-          sold: 0,
-          revenue: 0,
-          isFree: ticket.free || ticket.price === 0 || ticket.price === "0",
-          color: COLORS[index % COLORS.length],
-        })) || [];
+        const ticketTypeData =
+          eventData.pricing?.map((ticket, index) => ({
+            type: ticket.ticketType || "Standard",
+            price: Number(ticket.price),
+            seats: Math.max(1, Number(ticket.seats) || 0),
+            sold: 0,
+            revenue: 0,
+            isFree: ticket.free || ticket.price === 0 || ticket.price === "0",
+            color: COLORS[index % COLORS.length],
+          })) || [];
 
         if (ticketTypeData.length === 0) {
           ticketTypeData.push({
@@ -186,7 +203,10 @@ const EventDashboard = () => {
           setBannerImage(eventData.bannerImages[0]);
         }
 
-        const ticketsQuery = query(collection(db, "tickets"), where("eventId", "==", eventId));
+        const ticketsQuery = query(
+          collection(db, "tickets"),
+          where("eventId", "==", eventId)
+        );
 
         const ticketSnapshots = await getDocs(ticketsQuery);
 
@@ -203,7 +223,10 @@ const EventDashboard = () => {
         for (const docSnapshot of ticketSnapshots.docs) {
           const ticketData = docSnapshot.data();
 
-          if (ticketData.ticketSummary && Array.isArray(ticketData.ticketSummary)) {
+          if (
+            ticketData.ticketSummary &&
+            Array.isArray(ticketData.ticketSummary)
+          ) {
             let customerName = ticketData.userName || "Guest User";
 
             if (ticketData.userId) {
@@ -214,17 +237,25 @@ const EventDashboard = () => {
 
             let ticketType = "Standard";
             if (ticketData.ticketSummary[0]) {
-              ticketType = ticketData.ticketSummary[0].type || ticketData.ticketSummary[0].name || "Standard";
+              ticketType =
+                ticketData.ticketSummary[0].type ||
+                ticketData.ticketSummary[0].name ||
+                "Standard";
             }
 
-            const purchaseDate = new Date(ticketData.purchaseDate?.toDate() || ticketData.createdAt || Date.now());
+            const purchaseDate = new Date(
+              ticketData.purchaseDate?.toDate() ||
+                ticketData.createdAt ||
+                Date.now()
+            );
             const formattedDate = purchaseDate.toLocaleDateString("en-US", {
               year: "numeric",
               month: "long",
               day: "numeric",
             });
 
-            const amount = ticketData.financial?.totalAmount || ticketData.totalAmount || 0;
+            const amount =
+              ticketData.financial?.totalAmount || ticketData.totalAmount || 0;
 
             const orderObj = {
               id: docSnapshot.id,
@@ -265,7 +296,9 @@ const EventDashboard = () => {
                 typeSales[type].sold += quantity;
                 typeSales[type].revenue += revenue;
               } else {
-                const existingTypeIndex = ticketTypeData.findIndex((t) => t.type === type);
+                const existingTypeIndex = ticketTypeData.findIndex(
+                  (t) => t.type === type
+                );
                 if (existingTypeIndex !== -1) {
                   typeSales[type] = { sold: quantity, revenue };
                 } else {
@@ -315,14 +348,26 @@ const EventDashboard = () => {
         const vendorTaxAmount = totalRevenue * (vendorTaxRate / 100);
         const userTaxAmount = totalRevenue * (userTaxRate / 100);
         const basePlatformTaxPercent = 2; // Base platform tax of 2%
-        const basePlatformTaxAmount = (basePlatformTaxPercent / 100) * totalRevenue;
+        const basePlatformTaxAmount =
+          (basePlatformTaxPercent / 100) * totalRevenue;
         const additionalPlatformTax = basePlatformTaxAmount * (18 / 100); // 18% of the 2% tax
         const platformTaxAmount = basePlatformTaxAmount + additionalPlatformTax;
-        const combinedVendorTaxAmount = vendorTaxAmount + userTaxAmount + platformTaxAmount;
-        const profits = totalRevenue - vendorTaxAmount - userTaxAmount - platformTaxAmount;
+        const combinedVendorTaxAmount =
+          vendorTaxAmount + userTaxAmount + platformTaxAmount;
+        const profits =
+          totalRevenue - vendorTaxAmount - userTaxAmount - platformTaxAmount;
 
         setCsvData([
-          ["Order ID", "Customer Name", "Email", "Phone", "Ticket Type", "Purchase Date", "Amount", "Vendor Tax"],
+          [
+            "Order ID",
+            "Customer Name",
+            "Email",
+            "Phone",
+            "Ticket Type",
+            "Purchase Date",
+            "Amount",
+            "Vendor Tax",
+          ],
           ...csvDataArray.map((item) => [
             item.Order_ID,
             item.Customer_Name,
@@ -331,7 +376,13 @@ const EventDashboard = () => {
             item.Ticket_Type,
             item.Purchase_Date,
             item.Amount,
-            (Number(item.Amount) * (vendorTaxRate / 100 + userTaxRate / 100 + (basePlatformTaxPercent + basePlatformTaxPercent * (18 / 100)) / 100)).toFixed(2),
+            (
+              Number(item.Amount) *
+              (vendorTaxRate / 100 +
+                userTaxRate / 100 +
+                (basePlatformTaxPercent + basePlatformTaxPercent * (18 / 100)) /
+                  100)
+            ).toFixed(2),
           ]),
         ]);
 
@@ -383,7 +434,9 @@ const EventDashboard = () => {
         const filterDate = new Date();
         filterDate.setDate(currentDate.getDate() - daysToFilter);
 
-        filteredOrders = allOrders.filter((order) => order.purchaseDate >= filterDate);
+        filteredOrders = allOrders.filter(
+          (order) => order.purchaseDate >= filterDate
+        );
       }
 
       setRecentOrders(filteredOrders);
@@ -433,7 +486,6 @@ const EventDashboard = () => {
     csvLink.current.link.click();
   };
 
-
   const formatEventDate = () => {
     if (!eventData.eventDate) return "Date not set";
 
@@ -445,28 +497,40 @@ const EventDashboard = () => {
     });
   };
 
-  const calculateProgress = (ticket) => {
-    const seats = ticket.seats && ticket.seats > 0 ? ticket.seats : 1;
-    const percentage = (ticket.sold / seats) * 100;
-    return Math.min(100, Math.max(0, percentage));
-  };
+ const calculateProgress = (ticket) => {
+  const sold = Number(ticket.sold ?? 0);
+  const seats = Number(ticket.seats ?? 0);
+
+  if (seats <= 0) return 0;
+
+  const percentage = (sold / seats) * 100;
+  return Math.min(100, Math.max(0, percentage));
+};
+
 
   if (loading) {
     return (
-      <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}>
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "100vh",
+        }}
+      >
         <CircularProgress sx={{ color: "#19AEDC" }} />
       </Box>
     );
   }
 
   const handleanalytics = () => {
-  navigate(`/eventanalytics/${eventId}`, { 
-    state: { 
-      eventId: eventId,
-      eventData: eventData 
-    } 
-  });
-};
+    navigate(`/eventanalytics/${eventId}`, {
+      state: {
+        eventId: eventId,
+        eventData: eventData,
+      },
+    });
+  };
 
   const CustomTooltip = ({ active, payload }) => {
     if (active && payload && payload.length) {
@@ -479,8 +543,12 @@ const EventDashboard = () => {
             borderRadius: "4px",
           }}
         >
-          <Typography sx={{ fontFamily: "Albert Sans", fontWeight: 600 }}>{payload[0].name}</Typography>
-          <Typography sx={{ fontFamily: "Albert Sans" }}>Tickets Sold: {payload[0].value}</Typography>
+          <Typography sx={{ fontFamily: "Albert Sans", fontWeight: 600 }}>
+            {payload[0].name}
+          </Typography>
+          <Typography sx={{ fontFamily: "Albert Sans" }}>
+            Tickets Sold: {payload[0].value}
+          </Typography>
         </Box>
       );
     }
@@ -489,10 +557,11 @@ const EventDashboard = () => {
 
   return (
     <div sx={{ overflowX: "hidden" }}>
-      <HeaderVendorLogged 
-       vendorId={vendorId}
+      <HeaderVendorLogged
+        vendorId={vendorId}
         userProfile={userProfile}
-        onLogout={handleLogout}/>
+        onLogout={handleLogout}
+      />
       <Box
         sx={{
           display: "flex",
@@ -522,7 +591,14 @@ const EventDashboard = () => {
             >
               {eventData.name}
             </Typography>
-            <Box sx={{ display: "flex", gap: "12px", marginLeft: "auto", mt: isMobile ? "16px" : "0" }}>
+            <Box
+              sx={{
+                display: "flex",
+                gap: "12px",
+                marginLeft: "auto",
+                mt: isMobile ? "16px" : "0",
+              }}
+            >
               <Button
                 variant="contained"
                 sx={{
@@ -554,7 +630,9 @@ const EventDashboard = () => {
                   },
                   p: isMobile ? "1% 2%" : null,
                 }}
-                onClick={()=> {handleanalytics()}}
+                onClick={() => {
+                  handleanalytics();
+                }}
               >
                 <InsertChartIcon sx={{ fontSize: "18px", mr: "8px" }} />
                 View Analytics
@@ -564,7 +642,14 @@ const EventDashboard = () => {
 
           <Grid container spacing={3} sx={{ mt: 2, mb: 4 }}>
             <Grid item xs={12} sm={6} md={3}>
-              <Card elevation={0} sx={{ border: "1px solid #e0e0e0", borderRadius: "8px", height: "100%" }}>
+              <Card
+                elevation={0}
+                sx={{
+                  border: "1px solid #e0e0e0",
+                  borderRadius: "8px",
+                  height: "100%",
+                }}
+              >
                 <CardContent>
                   <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
                     <Box
@@ -581,11 +666,23 @@ const EventDashboard = () => {
                     >
                       <CurrencyRupeeOutlinedIcon sx={{ color: "#19AEDC" }} />
                     </Box>
-                    <Typography sx={{ fontFamily: "Albert Sans", fontSize: "14px", color: "#666" }}>
+                    <Typography
+                      sx={{
+                        fontFamily: "Albert Sans",
+                        fontSize: "14px",
+                        color: "#666",
+                      }}
+                    >
                       Gross Sales
                     </Typography>
                   </Box>
-                  <Typography sx={{ fontFamily: "Albert Sans", fontSize: "28px", fontWeight: "700" }}>
+                  <Typography
+                    sx={{
+                      fontFamily: "Albert Sans",
+                      fontSize: "28px",
+                      fontWeight: "700",
+                    }}
+                  >
                     ₹{eventStats.grossSales.toLocaleString()}
                   </Typography>
                 </CardContent>
@@ -593,7 +690,14 @@ const EventDashboard = () => {
             </Grid>
 
             <Grid item xs={12} sm={6} md={3}>
-              <Card elevation={0} sx={{ border: "1px solid #e0e0e0", borderRadius: "8px", height: "100%" }}>
+              <Card
+                elevation={0}
+                sx={{
+                  border: "1px solid #e0e0e0",
+                  borderRadius: "8px",
+                  height: "100%",
+                }}
+              >
                 <CardContent>
                   <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
                     <Box
@@ -610,11 +714,23 @@ const EventDashboard = () => {
                     >
                       <CurrencyRupeeOutlinedIcon sx={{ color: "#19AEDC" }} />
                     </Box>
-                    <Typography sx={{ fontFamily: "Albert Sans", fontSize: "14px", color: "#666" }}>
+                    <Typography
+                      sx={{
+                        fontFamily: "Albert Sans",
+                        fontSize: "14px",
+                        color: "#666",
+                      }}
+                    >
                       Vendor Tax
                     </Typography>
                   </Box>
-                  <Typography sx={{ fontFamily: "Albert Sans", fontSize: "28px", fontWeight: "700" }}>
+                  <Typography
+                    sx={{
+                      fontFamily: "Albert Sans",
+                      fontSize: "28px",
+                      fontWeight: "700",
+                    }}
+                  >
                     ₹{eventStats.vendorTaxAmount.toLocaleString()}
                   </Typography>
                 </CardContent>
@@ -622,7 +738,14 @@ const EventDashboard = () => {
             </Grid>
 
             <Grid item xs={12} sm={6} md={3}>
-              <Card elevation={0} sx={{ border: "1px solid #e0e0e0", borderRadius: "8px", height: "100%" }}>
+              <Card
+                elevation={0}
+                sx={{
+                  border: "1px solid #e0e0e0",
+                  borderRadius: "8px",
+                  height: "100%",
+                }}
+              >
                 <CardContent>
                   <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
                     <Box
@@ -639,11 +762,23 @@ const EventDashboard = () => {
                     >
                       <CurrencyRupeeOutlinedIcon sx={{ color: "#19AEDC" }} />
                     </Box>
-                    <Typography sx={{ fontFamily: "Albert Sans", fontSize: "14px", color: "#666" }}>
+                    <Typography
+                      sx={{
+                        fontFamily: "Albert Sans",
+                        fontSize: "14px",
+                        color: "#666",
+                      }}
+                    >
                       Profits
                     </Typography>
                   </Box>
-                  <Typography sx={{ fontFamily: "Albert Sans", fontSize: "28px", fontWeight: "700" }}>
+                  <Typography
+                    sx={{
+                      fontFamily: "Albert Sans",
+                      fontSize: "28px",
+                      fontWeight: "700",
+                    }}
+                  >
                     ₹{eventStats.profits.toLocaleString()}
                   </Typography>
                 </CardContent>
@@ -651,7 +786,14 @@ const EventDashboard = () => {
             </Grid>
 
             <Grid item xs={12} sm={6} md={3}>
-              <Card elevation={0} sx={{ border: "1px solid #e0e0e0", borderRadius: "8px", height: "100%" }}>
+              <Card
+                elevation={0}
+                sx={{
+                  border: "1px solid #e0e0e0",
+                  borderRadius: "8px",
+                  height: "100%",
+                }}
+              >
                 <CardContent>
                   <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
                     <Box
@@ -668,11 +810,23 @@ const EventDashboard = () => {
                     >
                       <ConfirmationNumberIcon sx={{ color: "#19AEDC" }} />
                     </Box>
-                    <Typography sx={{ fontFamily: "Albert Sans", fontSize: "14px", color: "#666" }}>
+                    <Typography
+                      sx={{
+                        fontFamily: "Albert Sans",
+                        fontSize: "14px",
+                        color: "#666",
+                      }}
+                    >
                       Tickets Sold
                     </Typography>
                   </Box>
-                  <Typography sx={{ fontFamily: "Albert Sans", fontSize: "28px", fontWeight: "700" }}>
+                  <Typography
+                    sx={{
+                      fontFamily: "Albert Sans",
+                      fontSize: "28px",
+                      fontWeight: "700",
+                    }}
+                  >
                     {eventStats.ticketsSold}
                   </Typography>
                 </CardContent>
@@ -680,7 +834,14 @@ const EventDashboard = () => {
             </Grid>
 
             <Grid item xs={12} sm={6} md={3}>
-              <Card elevation={0} sx={{ border: "1px solid #e0e0e0", borderRadius: "8px", height: "100%" }}>
+              <Card
+                elevation={0}
+                sx={{
+                  border: "1px solid #e0e0e0",
+                  borderRadius: "8px",
+                  height: "100%",
+                }}
+              >
                 <CardContent>
                   <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
                     <Box
@@ -697,11 +858,23 @@ const EventDashboard = () => {
                     >
                       <EventIcon sx={{ color: "#19AEDC" }} />
                     </Box>
-                    <Typography sx={{ fontFamily: "Albert Sans", fontSize: "14px", color: "#666" }}>
+                    <Typography
+                      sx={{
+                        fontFamily: "Albert Sans",
+                        fontSize: "14px",
+                        color: "#666",
+                      }}
+                    >
                       Event Date
                     </Typography>
                   </Box>
-                  <Typography sx={{ fontFamily: "Albert Sans", fontSize: "20px", fontWeight: "600" }}>
+                  <Typography
+                    sx={{
+                      fontFamily: "Albert Sans",
+                      fontSize: "20px",
+                      fontWeight: "600",
+                    }}
+                  >
                     {formatEventDate()}
                   </Typography>
                 </CardContent>
@@ -710,17 +883,38 @@ const EventDashboard = () => {
           </Grid>
 
           <Box sx={{ mb: 4 }}>
-            <Typography sx={{ fontFamily: "Albert Sans", fontSize: "20px", fontWeight: "700", mb: 2 }}>
+            <Typography
+              sx={{
+                fontFamily: "Albert Sans",
+                fontSize: "20px",
+                fontWeight: "700",
+                mb: 2,
+              }}
+            >
               Ticket Sales Overview
             </Typography>
-
-            <Grid container spacing={3}>
+            <Grid container spacing={3} >
               {ticketTypes.map((ticket, idx) => (
-                <Grid item xs={12} md={6} key={idx}>
-                  <Card sx={{ border: "1px solid #e0e0e0", borderRadius: "8px" }}>
+                <Grid item xs={12} md={6} key={idx} sx={{width:isMobile ? '80%' : '20%'}}>
+                  <Card
+                    sx={{ border: "1px solid #e0e0e0", borderRadius: "8px",width:'100%' }}
+                  >
                     <CardContent>
-                      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
-                        <Typography sx={{ fontFamily: "Albert Sans", fontSize: "18px", fontWeight: "600" }}>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          mb: 2,
+                        }}
+                      >
+                        <Typography
+                          sx={{
+                            fontFamily: "Albert Sans",
+                            fontSize: "18px",
+                            fontWeight: "600",
+                          }}
+                        >
                           {ticket.type}
                         </Typography>
                         <Typography
@@ -735,13 +929,27 @@ const EventDashboard = () => {
                         </Typography>
                       </Box>
 
+                      {/* Fixed Progress Bar Section */}
                       <Box sx={{ mb: 1 }}>
-                        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
-                          <Typography sx={{ fontFamily: "Albert Sans", fontSize: "14px", color: "#666" }}>
-                            {ticket.sold} sold{ticket.seats > 0 ? ` out of ${Math.floor(ticket.seats)}` : ""}
-                          </Typography>
-                          <Typography sx={{ fontFamily: "Albert Sans", fontSize: "14px", color: "#666" }}>
-                            {calculateProgress(ticket).toFixed(0)}%
+                        <Box
+                          sx={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            mb: 1,
+                          }}
+                        >
+                          <Typography
+                            sx={{
+                              fontFamily: "Albert Sans",
+                              fontSize: "14px",
+                              color: "#666",
+                            }}
+                          >
+                            {ticket.sold || 0} sold
+                            {ticket.seats > 0
+                              ? ` out of ${ticket.seats}`
+                              : ""}
                           </Typography>
                         </Box>
                         <LinearProgress
@@ -759,11 +967,30 @@ const EventDashboard = () => {
                         />
                       </Box>
 
-                      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mt: 2 }}>
-                        <Typography sx={{ fontFamily: "Albert Sans", fontSize: "14px", color: "#666" }}>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          mt: 2,
+                        }}
+                      >
+                        <Typography
+                          sx={{
+                            fontFamily: "Albert Sans",
+                            fontSize: "14px",
+                            color: "#666",
+                          }}
+                        >
                           Revenue
                         </Typography>
-                        <Typography sx={{ fontFamily: "Albert Sans", fontSize: "16px", fontWeight: "600" }}>
+                        <Typography
+                          sx={{
+                            fontFamily: "Albert Sans",
+                            fontSize: "16px",
+                            fontWeight: "600",
+                          }}
+                        >
                           ₹{ticket.revenue.toLocaleString()}
                         </Typography>
                       </Box>
@@ -775,11 +1002,25 @@ const EventDashboard = () => {
           </Box>
 
           <Box sx={{ mb: 4 }}>
-            <Typography sx={{ fontFamily: "Albert Sans", fontSize: "20px", fontWeight: "700", mb: 2 }}>
+            <Typography
+              sx={{
+                fontFamily: "Albert Sans",
+                fontSize: "20px",
+                fontWeight: "700",
+                mb: 2,
+              }}
+            >
               Recent Orders
             </Typography>
 
-            <Card elevation={0} sx={{ border: "1px solid #e0e0e0", borderRadius: "8px", overflow: "hidden" }}>
+            <Card
+              elevation={0}
+              sx={{
+                border: "1px solid #e0e0e0",
+                borderRadius: "8px",
+                overflow: "hidden",
+              }}
+            >
               <Box sx={{ overflowX: "auto" }}>
                 <Box
                   sx={{
@@ -815,7 +1056,13 @@ const EventDashboard = () => {
                       </Select>
                     </FormControl>
 
-                    <Typography sx={{ fontFamily: "Albert Sans", fontSize: "14px", color: "#666" }}>
+                    <Typography
+                      sx={{
+                        fontFamily: "Albert Sans",
+                        fontSize: "14px",
+                        color: "#666",
+                      }}
+                    >
                       {recentOrders.length} orders found
                     </Typography>
                   </Box>
@@ -829,16 +1076,44 @@ const EventDashboard = () => {
                       borderBottom: "1px solid #e0e0e0",
                     }}
                   >
-                    <Typography sx={{ fontFamily: "Albert Sans", fontSize: "14px", fontWeight: "600", color: "#666" }}>
+                    <Typography
+                      sx={{
+                        fontFamily: "Albert Sans",
+                        fontSize: "14px",
+                        fontWeight: "600",
+                        color: "#666",
+                      }}
+                    >
                       Order ID
                     </Typography>
-                    <Typography sx={{ fontFamily: "Albert Sans", fontSize: "14px", fontWeight: "600", color: "#666" }}>
+                    <Typography
+                      sx={{
+                        fontFamily: "Albert Sans",
+                        fontSize: "14px",
+                        fontWeight: "600",
+                        color: "#666",
+                      }}
+                    >
                       Customer
                     </Typography>
-                    <Typography sx={{ fontFamily: "Albert Sans", fontSize: "14px", fontWeight: "600", color: "#666" }}>
+                    <Typography
+                      sx={{
+                        fontFamily: "Albert Sans",
+                        fontSize: "14px",
+                        fontWeight: "600",
+                        color: "#666",
+                      }}
+                    >
                       Ticket Type
                     </Typography>
-                    <Typography sx={{ fontFamily: "Albert Sans", fontSize: "14px", fontWeight: "600", color: "#666" }}>
+                    <Typography
+                      sx={{
+                        fontFamily: "Albert Sans",
+                        fontSize: "14px",
+                        fontWeight: "600",
+                        color: "#666",
+                      }}
+                    >
                       Date
                     </Typography>
                     <Typography
@@ -887,10 +1162,16 @@ const EventDashboard = () => {
                         >
                           {order.custName}
                         </Typography>
-                        <Typography sx={{ fontFamily: "Albert Sans", fontSize: "14px" }}>
+                        <Typography
+                          sx={{ fontFamily: "Albert Sans", fontSize: "14px" }}
+                        >
                           {order.ticketType}
                         </Typography>
-                        <Typography sx={{ fontFamily: "Albert Sans", fontSize: "14px" }}>{order.date}</Typography>
+                        <Typography
+                          sx={{ fontFamily: "Albert Sans", fontSize: "14px" }}
+                        >
+                          {order.date}
+                        </Typography>
                         <Typography
                           sx={{
                             fontFamily: "Albert Sans",
@@ -909,7 +1190,13 @@ const EventDashboard = () => {
                     ))
                   ) : (
                     <Box sx={{ padding: "30px", textAlign: "center" }}>
-                      <Typography sx={{ fontFamily: "Albert Sans", fontSize: "16px", color: "#666" }}>
+                      <Typography
+                        sx={{
+                          fontFamily: "Albert Sans",
+                          fontSize: "16px",
+                          color: "#666",
+                        }}
+                      >
                         No orders found for the selected period
                       </Typography>
                     </Box>
@@ -951,14 +1238,27 @@ const EventDashboard = () => {
                               minWidth: "32px",
                               height: "32px",
                               padding: 0,
-                              backgroundColor: currentPage === page + 1 ? "#19AEDC" : "transparent",
+                              backgroundColor:
+                                currentPage === page + 1
+                                  ? "#19AEDC"
+                                  : "transparent",
                               color: currentPage === page + 1 ? "#fff" : "#666",
-                              border: currentPage === page + 1 ? "none" : "1px solid #e0e0e0",
+                              border:
+                                currentPage === page + 1
+                                  ? "none"
+                                  : "1px solid #e0e0e0",
                               "&:hover": {
-                                backgroundColor: currentPage === page + 1 ? "#1793B8" : "#f5f5f5",
+                                backgroundColor:
+                                  currentPage === page + 1
+                                    ? "#1793B8"
+                                    : "#f5f5f5",
                               },
                             }}
-                            variant={currentPage === page + 1 ? "contained" : "outlined"}
+                            variant={
+                              currentPage === page + 1
+                                ? "contained"
+                                : "outlined"
+                            }
                           >
                             {page + 1}
                           </Button>
@@ -991,7 +1291,13 @@ const EventDashboard = () => {
         </Box>
 
         {bannerImage && (
-          <Box sx={{ width: "300px", display: { xs: "none", md: "block" }, mt: "24px" }}>
+          <Box
+            sx={{
+              width: "300px",
+              display: { xs: "none", md: "block" },
+              mt: "24px",
+            }}
+          >
             <Box
               sx={{
                 width: "100%",

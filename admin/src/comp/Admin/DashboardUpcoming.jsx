@@ -20,6 +20,11 @@ import {
   Chip,
   Tooltip,
   CircularProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
@@ -28,11 +33,10 @@ import ArticleIcon from "@mui/icons-material/Article";
 import SettingsIcon from "@mui/icons-material/Settings";
 import ContactPageIcon from "@mui/icons-material/ContactPage";
 import EventIcon from "@mui/icons-material/Event";
-import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import InfoIcon from "@mui/icons-material/Info";
 
-import { db, auth, storage } from "../../firebase_config";
+import { db, auth } from "../../firebase_config";
 import {
   collection,
   getDocs,
@@ -100,6 +104,10 @@ const DashboardUpcoming = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [error, setError] = useState(null);
   const [lastLogin, setLastLogin] = useState("");
+const [dialogOpen, setDialogOpen] = useState(false);
+const [dialogContent, setDialogContent] = useState("");
+const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
+const [selectedEventId, setSelectedEventId] = useState(null);
 
   useEffect(() => {
     fetchEvents(activeTab);
@@ -251,23 +259,44 @@ const DashboardUpcoming = () => {
     window.location.href = `/admin/edit-event/${eventId}`;
   };
 
-  // Handler for delete event
-  const handleDeleteEvent = async (eventId) => {
-    if (window.confirm("Are you sure you want to delete this event?")) {
-      try {
-        // Delete the event document from Firestore
-        await deleteDoc(doc(db, "events", eventId));
+  const handleDeleteClick = (eventId) => {
+  setSelectedEventId(eventId);
+  setOpenDeleteDialog(true);
+};
+const handleDeleteEvent = async () => {
+  if (!selectedEventId) return;
 
-        // Update the local state to reflect the deletion
-        setEvents(events.filter((event) => event.id !== eventId));
+  try {
+    await deleteDoc(doc(db, "events", selectedEventId));
+    setEvents(events.filter((event) => event.id !== selectedEventId));
+    setDialogContent("Event deleted successfully!");
+  } catch (error) {
+    console.error("Error deleting event:", error);
+    setDialogContent("Failed to delete event. Please try again.");
+  } finally {
+    setDialogOpen(true);
+    setOpenDeleteDialog(false);
+    setSelectedEventId(null);
+  }
+};
 
-        alert("Event deleted successfully!");
-      } catch (error) {
-        console.error("Error deleting event:", error);
-        alert("Failed to delete event. Please try again.");
-      }
-    }
-  };
+const handleDeleteConfirmed = async (eventId) => {
+  if (!eventId) return;
+
+  try {
+    await deleteDoc(doc(db, "events", eventId));
+    setEvents((prevEvents) => prevEvents.filter((event) => event.id !== eventId));
+
+    setDialogContent("Event deleted successfully!");
+  } catch (error) {
+    console.error("Error deleting event:", error);
+    setDialogContent("Failed to delete event. Please try again.");
+  } finally {
+    setDialogOpen(true); // Show feedback dialog
+    setSelectedEventId(null); // Clear selected event
+  }
+};
+
 
   // Handler for view event details
   const handleViewEventDetails = (eventId) => {
@@ -287,6 +316,31 @@ const DashboardUpcoming = () => {
         borderBottom="1px solid #ddd"
         bgcolor="#f9fafb"
       >
+      <Dialog open={openDeleteDialog} onClose={() => setOpenDeleteDialog(false)}>
+  <DialogTitle>Confirm Delete</DialogTitle>
+  <DialogContent>
+    <DialogContentText>
+      Are you sure you want to delete this event? This action cannot be undone.
+    </DialogContentText>
+  </DialogContent>
+  <DialogActions>
+    <Button onClick={() => setOpenDeleteDialog(false)} color="inherit">
+      Cancel
+    </Button>
+    <Button
+      onClick={() => {
+        handleDeleteConfirmed(selectedEventId);
+        setOpenDeleteDialog(false);
+      }}
+      color="error"
+    >
+      Delete
+    </Button>
+  </DialogActions>
+</Dialog>
+
+
+        
         <Typography variant="h4">
           <Box component="span" fontWeight="bold" color="#19aedc">
             ticketb
@@ -528,14 +582,15 @@ const DashboardUpcoming = () => {
                             {activeTab === "upcoming" ? (
                               <>
                                 <TableCell>
-                                  {event.category?.map((cat, idx) => (
-                                    <Chip
-                                      key={idx}
-                                      label={cat}
-                                      size="small"
-                                      sx={{ mr: 0.5, mb: 0.5 }}
-                                    />
-                                  ))}
+                                  {event.category?.slice(0, 2).map((cat, idx) => (
+  <Chip
+    key={idx}
+    label={cat}
+    size="small"
+    sx={{ mr: 0.5, mb: 0.5 }}
+  />
+))}
+
                                 </TableCell>
                                 <TableCell>
                                   {event.venueDetails?.venueName || "N/A"}
@@ -581,7 +636,7 @@ const DashboardUpcoming = () => {
                               <IconButton
                                 size="small"
                                 title="Delete"
-                                onClick={() => handleDeleteEvent(event.id)}
+                               onClick={() => handleDeleteClick(event.id)}
                               >
                                 <DeleteIcon fontSize="small" color="error" />
                               </IconButton>

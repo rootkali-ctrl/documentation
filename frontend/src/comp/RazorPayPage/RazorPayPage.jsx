@@ -1,7 +1,13 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useNavigate, useLocation, useParams } from "react-router-dom";
-import { Box, Typography, Button, CircularProgress, Alert, Divider } from "@mui/material";
-import Header from "../Header/MainHeaderWOS";
+import {
+  Box,
+  Typography,
+  Button,
+  CircularProgress,
+  Alert,
+  Divider,
+} from "@mui/material";
 import axios from "axios";
 
 const RazorPayPage = () => {
@@ -50,7 +56,6 @@ const RazorPayPage = () => {
         razorpayInstanceRef.current.close();
         razorpayInstanceRef.current = null;
       } catch (error) {
-        console.log("Error closing Razorpay modal:", error);
       }
     }
   };
@@ -79,7 +84,9 @@ const RazorPayPage = () => {
       }
     } catch (err) {
       console.error("Error fetching payment details:", err);
-      setError("Failed to load payment details. Please try returning to the payment portal.");
+      setError(
+        "Failed to load payment details. Please try returning to the payment portal."
+      );
     } finally {
       setFetchingData(false);
     }
@@ -93,8 +100,12 @@ const RazorPayPage = () => {
     } else if (orderIdFromUrl) {
       fetchPaymentDetails(orderIdFromUrl);
     } else {
-      console.error("Missing payment data. Redirecting back to payment portal.");
-      setError("Payment information is missing. Redirecting back to payment portal.");
+      console.error(
+        "Missing payment data. Redirecting back to payment portal."
+      );
+      setError(
+        "Payment information is missing. Redirecting back to payment portal."
+      );
 
       redirectTimerRef.current = setTimeout(() => {
         navigate(`/paymentportalpage/${eventId}/${userUID}`, { replace: true });
@@ -143,21 +154,21 @@ const RazorPayPage = () => {
   } = paymentData || {};
 
   // Format date for display
-const formattedDate = event?.date
-  ? new Date(event.date).toLocaleDateString("en-US", {
-      month: "long",
-      day: "numeric",
-      year: "numeric",
-    })
-  : "Date not available";
+  const formattedDate = event?.date
+    ? new Date(event.date).toLocaleDateString("en-US", {
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      })
+    : "Date not available";
 
-const formattedTime = event?.date
-  ? new Date(event.date).toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    })
-  : "Time not available";
+  const formattedTime = event?.date
+    ? new Date(event.date).toLocaleTimeString("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      })
+    : "Time not available";
   // Calculate total amount in paise (Razorpay requires amount in smallest currency unit)
   const amountInPaise = Math.round((financial?.totalAmount || 0) * 100);
 
@@ -170,7 +181,6 @@ const formattedTime = event?.date
   const savePaymentRecord = async (paymentRecord) => {
     try {
       await axios.post("/api/payment-records", paymentRecord);
-      console.log("Payment record saved successfully");
     } catch (err) {
       console.error("Error saving payment record:", err);
     }
@@ -184,13 +194,17 @@ const formattedTime = event?.date
     try {
       // Make sure data is available before proceeding
       if (!financial?.totalAmount) {
-        setError("Payment information is missing. Please go back and try again.");
+        setError(
+          "Payment information is missing. Please go back and try again."
+        );
         setLoading(false);
         return;
       }
 
       if (!window.Razorpay) {
-        setError("Payment gateway not loaded properly. Please refresh the page.");
+        setError(
+          "Payment gateway not loaded properly. Please refresh the page."
+        );
         setLoading(false);
         return;
       }
@@ -217,14 +231,14 @@ const formattedTime = event?.date
           eventTime: event?.time,
           eventLocation: event?.location,
           ticketQuantity:
-            ticketSummary?.reduce((sum, ticket) => sum + ticket.quantity, 0) || 0,
+            ticketSummary?.reduce((sum, ticket) => sum + ticket.quantity, 0) ||
+            0,
         },
         theme: {
           color: "#19AEDC",
         },
         handler: function (response) {
           // Payment successful
-          console.log("Payment successful:", response);
 
           // Clear all timers since payment is successful
           clearAllTimers();
@@ -247,7 +261,7 @@ const formattedTime = event?.date
           // Navigate to success page with all payment details
           navigate(`/ticketbookedpage/${eventId}/${userUID}`, {
             state: paymentRecord,
-            replace: true
+            replace: true,
           });
         },
         modal: {
@@ -255,22 +269,23 @@ const formattedTime = event?.date
             // Modal dismissed without payment
             setLoading(false);
             razorpayInstanceRef.current = null;
-            console.log("Payment modal closed without completing payment");
           },
           onhidden: function () {
             // Modal completely hidden
             razorpayInstanceRef.current = null;
-          }
-        }
+          },
+        },
       };
 
       // Create and store Razorpay instance
       razorpayInstanceRef.current = new window.Razorpay(options);
 
       // Add error handler for Razorpay instance
-      razorpayInstanceRef.current.on('payment.failed', function (response) {
-        console.error('Payment failed:', response.error);
-        setError(`Payment failed: ${response.error.description || 'Unknown error'}`);
+      razorpayInstanceRef.current.on("payment.failed", function (response) {
+        console.error("Payment failed:", response.error);
+        setError(
+          `Payment failed: ${response.error.description || "Unknown error"}`
+        );
         setLoading(false);
         razorpayInstanceRef.current = null;
       });
@@ -278,7 +293,6 @@ const formattedTime = event?.date
       // Open the payment modal
       razorpayInstanceRef.current.open();
       setLoading(false);
-
     } catch (err) {
       console.error("Error initializing Razorpay:", err);
       setError("Failed to initialize payment gateway. Please try again.");
@@ -291,7 +305,6 @@ const formattedTime = event?.date
   useEffect(() => {
     // Check if script is already loaded
     if (window.Razorpay) {
-      console.log("Razorpay SDK already loaded");
       return;
     }
 
@@ -327,12 +340,12 @@ const formattedTime = event?.date
       closeRazorpayModal();
     };
 
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    window.addEventListener('popstate', handlePopState);
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    window.addEventListener("popstate", handlePopState);
 
     return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-      window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      window.removeEventListener("popstate", handlePopState);
     };
   }, []);
 
@@ -390,7 +403,7 @@ const formattedTime = event?.date
     closeRazorpayModal();
     navigate(`/paymentportalpage/${eventId}/${userUID}`, {
       state: paymentData,
-      replace: true
+      replace: true,
     });
   };
 
@@ -401,18 +414,23 @@ const formattedTime = event?.date
         minHeight: "100vh",
       }}
     >
-      {/* Header */}
-      <Header />
 
       <Typography
+        fontFamily="albert sans"
         variant="h6"
-        sx={{ textAlign: "center", marginTop: "20px", fontWeight: "bold", fontSize: "30px" }}
+        sx={{
+          textAlign: "center",
+          marginTop: "20px",
+          fontWeight: "bold",
+          fontSize: "30px",
+        }}
       >
         Complete Your Payment
       </Typography>
 
       {/* Countdown Timer Display */}
       <Typography
+        fontFamily="albert sans"
         variant="body2"
         sx={{
           textAlign: "center",
@@ -436,7 +454,10 @@ const formattedTime = event?.date
         {error && (
           <Alert
             severity="error"
-            sx={{ width: { xs: "90%", sm: "70%", md: "50%", lg: "30%" }, mb: 2 }}
+            sx={{
+              width: { xs: "90%", sm: "70%", md: "50%", lg: "30%" },
+              mb: 2,
+            }}
           >
             {error}
           </Alert>
@@ -452,7 +473,7 @@ const formattedTime = event?.date
           }}
         >
           {/* Event Summary */}
-          <Typography variant="h6" fontWeight="bold">
+          <Typography fontFamily="albert sans" variant="h6" fontWeight="bold">
             Payment Summary
           </Typography>
 
@@ -465,13 +486,25 @@ const formattedTime = event?.date
               marginBottom: "15px",
             }}
           >
-            <Typography fontWeight="bold" sx={{ color: "#19AEDC" }}>
+            <Typography
+              fontFamily="albert sans"
+              fontWeight="bold"
+              sx={{ color: "#19AEDC" }}
+            >
               {event?.name || "Event Information Not Available"}
             </Typography>
-            <Typography variant="body2" sx={{ color: "#4B5563", marginTop: "5px" }}>
+            <Typography
+              fontFamily="albert sans"
+              variant="body2"
+              sx={{ color: "#4B5563", marginTop: "5px" }}
+            >
               {formattedDate} at {formattedTime || "Time not available"}
             </Typography>
-            <Typography variant="body2" sx={{ color: "#4B5563" }}>
+            <Typography
+              fontFamily="albert sans"
+              variant="body2"
+              sx={{ color: "#4B5563" }}
+            >
               {event?.location || "Location not available"}
             </Typography>
 
@@ -480,18 +513,26 @@ const formattedTime = event?.date
             {/* Ticket Summary */}
             {ticketSummary && ticketSummary.length > 0 ? (
               <>
-                <Typography variant="body2" fontWeight="bold">
+                <Typography
+                  fontFamily="albert sans"
+                  variant="body2"
+                  fontWeight="bold"
+                >
                   Tickets:
                 </Typography>
                 {ticketSummary.map((ticket, index) => (
                   <Box
                     key={index}
-                    sx={{ display: "flex", justifyContent: "space-between", mt: 1 }}
+                    sx={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      mt: 1,
+                    }}
                   >
-                    <Typography variant="body2">
+                    <Typography fontFamily="albert sans" variant="body2">
                       {ticket.quantity}x {ticket.type}
                     </Typography>
-                    <Typography variant="body2">
+                    <Typography fontFamily="albert sans" variant="body2">
                       {formatINR(ticket.price * ticket.quantity)}
                     </Typography>
                   </Box>
@@ -503,18 +544,27 @@ const formattedTime = event?.date
             {foodSummary && foodSummary.length > 0 ? (
               <>
                 <Divider sx={{ my: 1 }} />
-                <Typography variant="body2" fontWeight="bold" sx={{ mt: 1 }}>
+                <Typography
+                  fontFamily="albert sans"
+                  variant="body2"
+                  fontWeight="bold"
+                  sx={{ mt: 1 }}
+                >
                   Food & Beverages:
                 </Typography>
                 {foodSummary.map((food, index) => (
                   <Box
                     key={index}
-                    sx={{ display: "flex", justifyContent: "space-between", mt: 1 }}
+                    sx={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      mt: 1,
+                    }}
                   >
-                    <Typography variant="body2">
+                    <Typography fontFamily="albert sans" variant="body2">
                       {food.quantity}x {food.name}
                     </Typography>
-                    <Typography variant="body2">
+                    <Typography fontFamily="albert sans" variant="body2">
                       {formatINR(food.price * food.quantity)}
                     </Typography>
                   </Box>
@@ -525,37 +575,76 @@ const formattedTime = event?.date
             <Divider sx={{ my: 2 }} />
 
             {/* Price Breakdown */}
-            <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.5 }}>
-              <Typography variant="body2">Subtotal</Typography>
-              <Typography variant="body2">{formatINR(financial?.subtotal)}</Typography>
+            <Box
+              sx={{ display: "flex", justifyContent: "space-between", mb: 0.5 }}
+            >
+              <Typography fontFamily="albert sans" variant="body2">
+                Subtotal
+              </Typography>
+              <Typography fontFamily="albert sans" variant="body2">
+                {formatINR(financial?.subtotal)}
+              </Typography>
             </Box>
 
-            <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.5 }}>
-              <Typography variant="body2">Booking Fee</Typography>
-              <Typography variant="body2">{formatINR(financial?.convenienceFee)}</Typography>
+            <Box
+              sx={{ display: "flex", justifyContent: "space-between", mb: 0.5 }}
+            >
+              <Typography fontFamily="albert sans" variant="body2">
+                Booking Fee
+              </Typography>
+              <Typography fontFamily="albert sans" variant="body2">
+                {formatINR(financial?.convenienceFee)}
+              </Typography>
             </Box>
 
             {financial?.discount > 0 && (
-              <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.5 }}>
-                <Typography variant="body2" sx={{ color: "#19AEDC" }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  mb: 0.5,
+                }}
+              >
+                <Typography
+                  fontFamily="albert sans"
+                  variant="body2"
+                  sx={{ color: "#19AEDC" }}
+                >
                   Discount
                 </Typography>
-                <Typography variant="body2" sx={{ color: "#19AEDC" }}>
+                <Typography
+                  fontFamily="albert sans"
+                  variant="body2"
+                  sx={{ color: "#19AEDC" }}
+                >
                   -{formatINR(financial.discount)}
                 </Typography>
               </Box>
             )}
 
-            <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.5 }}>
-              <Typography variant="body2">GST (18%)</Typography>
-              <Typography variant="body2">{formatINR(financial?.gst)}</Typography>
+            <Box
+              sx={{ display: "flex", justifyContent: "space-between", mb: 0.5 }}
+            >
+              <Typography fontFamily="albert sans" variant="body2">
+                GST (18%)
+              </Typography>
+              <Typography fontFamily="albert sans" variant="body2">
+                {formatINR(financial?.gst)}
+              </Typography>
             </Box>
 
-            <Box sx={{ display: "flex", justifyContent: "space-between", mt: 1 }}>
-              <Typography variant="body1" fontWeight="bold">
+            <Box
+              sx={{ display: "flex", justifyContent: "space-between", mt: 1 }}
+            >
+              <Typography
+                fontFamily="albert sans"
+                variant="body1"
+                fontWeight="bold"
+              >
                 Amount to Pay
               </Typography>
               <Typography
+                fontFamily="albert sans"
                 variant="body1"
                 fontWeight="bold"
                 sx={{ color: "#19AEDC" }}
@@ -577,10 +666,15 @@ const formattedTime = event?.date
               padding: "12px",
               fontSize: "16px",
               "&:hover": { backgroundColor: "#1496C0" },
+              fontFamily: "albert sans",
             }}
             onClick={initiatePayment}
           >
-            {loading ? <CircularProgress size={24} color="inherit" /> : "Pay Now"}
+            {loading ? (
+              <CircularProgress size={24} color="inherit" />
+            ) : (
+              "Pay Now"
+            )}
           </Button>
 
           {/* Cancel Button */}
@@ -594,6 +688,7 @@ const formattedTime = event?.date
               padding: "12px",
               fontSize: "16px",
               marginTop: "10px",
+              fontFamily: "albert sans",
             }}
             onClick={handleCancel}
           >

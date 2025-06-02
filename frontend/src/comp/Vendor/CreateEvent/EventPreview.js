@@ -183,7 +183,7 @@ const EventPage = () => {
 
   const perksWithImages = await Promise.all(
     (pricing.addons || []).map(async (addon) => {
-      const itemName = addon.itemName || "snacks";
+      const itemName = addon.itemName || "";
       let imageUrl = "";
 
       try {

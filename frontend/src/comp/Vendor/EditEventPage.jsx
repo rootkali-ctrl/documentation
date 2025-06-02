@@ -359,37 +359,40 @@ const EditEventPage = () => {
     }));
   };
 
-  // Handle change in speaker field
-  const handleSpeakerChange = (index, value) => {
-    setEventData((prev) => {
-      const updatedSpeakers = [...prev.speaker];
-      updatedSpeakers[index] = value;
-      return {
-        ...prev,
-        speaker: updatedSpeakers,
-      };
-    });
-  };
-
-  // Add new speaker
-  const addSpeaker = () => {
-    setEventData((prev) => ({
+ // Handle change in speaker name or role
+const handleSpeakerChange = (index, field, value) => {
+  setEventData((prev) => {
+    const updatedSpeakers = [...prev.speaker];
+    updatedSpeakers[index] = {
+      ...updatedSpeakers[index],
+      [field]: value,
+    };
+    return {
       ...prev,
-      speaker: [...prev.speaker, ""],
-    }));
-  };
+      speaker: updatedSpeakers,
+    };
+  });
+};
 
-  // Remove speaker
-  const removeSpeaker = (index) => {
-    setEventData((prev) => {
-      const updatedSpeakers = [...prev.speaker];
-      updatedSpeakers.splice(index, 1);
-      return {
-        ...prev,
-        speaker: updatedSpeakers,
-      };
-    });
-  };
+// Add new speaker object
+const addSpeaker = () => {
+  setEventData((prev) => ({
+    ...prev,
+    speaker: [...(prev.speaker || []), { name: "", role: "" }],
+  }));
+};
+
+// Remove speaker
+const removeSpeaker = (index) => {
+  setEventData((prev) => {
+    const updatedSpeakers = [...prev.speaker];
+    updatedSpeakers.splice(index, 1);
+    return {
+      ...prev,
+      speaker: updatedSpeakers,
+    };
+  });
+};
 
   // Updated handlePerkChange function
   const handlePerkChange = async (index, field, value) => {
@@ -682,7 +685,18 @@ const EditEventPage = () => {
                 value={eventData.name}
                 onChange={handleChange}
                 required
-                sx={{ width: isMobile ? "80%" : "50%" }}
+                sx={{ width: isMobile ? "80%" : "50%" , "& .MuiInputBase-root": {
+      fontFamily: "Albert Sans",
+    },
+    "& .MuiInputLabel-root": {
+      fontFamily: "Albert Sans",
+    },
+    "& .MuiFormHelperText-root": {
+      fontFamily: "Albert Sans",
+    },
+    "& input::placeholder": {
+      fontFamily: "Albert Sans",
+    },}}
               />
               <TextField
                 fullWidth
@@ -692,7 +706,18 @@ const EditEventPage = () => {
                 onChange={handleChange}
                 multiline
                 rows={4}
-                sx={{ width: isMobile ? "80%" : "50%" }}
+                sx={{ width: isMobile ? "80%" : "50%", "& .MuiInputBase-root": {
+      fontFamily: "Albert Sans",
+    },
+    "& .MuiInputLabel-root": {
+      fontFamily: "Albert Sans",
+    },
+    "& .MuiFormHelperText-root": {
+      fontFamily: "Albert Sans",
+    },
+    "& input::placeholder": {
+      fontFamily: "Albert Sans",
+    }, }}
                 required
               />
 
@@ -730,7 +755,18 @@ const EditEventPage = () => {
                   name="tags"
                   value={eventData.tags}
                   onChange={handleChange}
-                  sx={{ width: isMobile ? "80%" : "24%" }}
+                  sx={{ width: isMobile ? "80%" : "24%", "& .MuiInputBase-root": {
+      fontFamily: "Albert Sans",
+    },
+    "& .MuiInputLabel-root": {
+      fontFamily: "Albert Sans",
+    },
+    "& .MuiFormHelperText-root": {
+      fontFamily: "Albert Sans",
+    },
+    "& input::placeholder": {
+      fontFamily: "Albert Sans",
+    }, }}
                 />
               </Box>
 
@@ -742,7 +778,18 @@ const EditEventPage = () => {
                     value={eventData.eventDate}
                     onChange={(date) => handleDateChange("eventDate", date)}
                     renderInput={(params) => (
-                      <TextField {...params} fullWidth required />
+                      <TextField {...params} fullWidth required sx={{ "& .MuiInputBase-root": {
+      fontFamily: "Albert Sans",
+    },
+    "& .MuiInputLabel-root": {
+      fontFamily: "Albert Sans",
+    },
+    "& .MuiFormHelperText-root": {
+      fontFamily: "Albert Sans",
+    },
+    "& input::placeholder": {
+      fontFamily: "Albert Sans",
+    },}} />
                     )}
                   />
                 </LocalizationProvider>
@@ -754,6 +801,18 @@ const EditEventPage = () => {
                   value={eventData.mediaLink}
                   onChange={handleChange}
                   sx={{
+                    "& .MuiInputBase-root": {
+      fontFamily: "Albert Sans",
+    },
+    "& .MuiInputLabel-root": {
+      fontFamily: "Albert Sans",
+    },
+    "& .MuiFormHelperText-root": {
+      fontFamily: "Albert Sans",
+    },
+    "& input::placeholder": {
+      fontFamily: "Albert Sans",
+    },
                     width: isMobile ? "80%" : "24%",
                     mt: isMobile ? 1 : null,
                   }}
@@ -768,7 +827,18 @@ const EditEventPage = () => {
                 value={eventData.contact}
                 onChange={handleChange}
                 required
-                sx={{ width: isMobile ? "80%" : "25%" }}
+                sx={{ width: isMobile ? "80%" : "25%", "& .MuiInputBase-root": {
+      fontFamily: "Albert Sans",
+    },
+    "& .MuiInputLabel-root": {
+      fontFamily: "Albert Sans",
+    },
+    "& .MuiFormHelperText-root": {
+      fontFamily: "Albert Sans",
+    },
+    "& input::placeholder": {
+      fontFamily: "Albert Sans",
+    }, }}
               />
             </Box>
           </Box>
@@ -822,7 +892,18 @@ const EditEventPage = () => {
                   value={eventData.venueDetails[field.name.split(".")[1]]}
                   onChange={handleChange}
                   required={field.required}
-                  sx={{ width: isMobile ? "90%" : "45%" }}
+                  sx={{ width: isMobile ? "90%" : "45%", "& .MuiInputBase-root": {
+      fontFamily: "Albert Sans",
+    },
+    "& .MuiInputLabel-root": {
+      fontFamily: "Albert Sans",
+    },
+    "& .MuiFormHelperText-root": {
+      fontFamily: "Albert Sans",
+    },
+    "& input::placeholder": {
+      fontFamily: "Albert Sans",
+    },}}
                 />
               ))}
             </Box>
@@ -859,14 +940,14 @@ const EditEventPage = () => {
                   variant="outlined"
                   component="span"
                   startIcon={<AddIcon />}
-                  sx={{ mb: 2, color: "#19AEDC" }}
+                  sx={{ mb: 2, color: "#19AEDC",fontFamily:'albert sans' }}
                 >
                   Add Images
                 </Button>
               </label>
             </Box>
 
-            <Typography variant="subtitle2" sx={{ mb: 1 }}>
+            <Typography variant="subtitle2" sx={{ mb: 1,fontFamily:'albert sans' }}>
               Current Images:
             </Typography>
 
@@ -979,6 +1060,18 @@ const EditEventPage = () => {
                     onChange={(e) =>
                       handlePricingChange(index, "ticketType", e.target.value)
                     }
+                    sx={{"& .MuiInputBase-root": {
+      fontFamily: "Albert Sans",
+    },
+    "& .MuiInputLabel-root": {
+      fontFamily: "Albert Sans",
+    },
+    "& .MuiFormHelperText-root": {
+      fontFamily: "Albert Sans",
+    },
+    "& input::placeholder": {
+      fontFamily: "Albert Sans",
+    },}}
                     required
                   />
                   <TextField
@@ -993,13 +1086,37 @@ const EditEventPage = () => {
                         Number(e.target.value)
                       )
                     }
+                    sx={{ "& .MuiInputBase-root": {
+      fontFamily: "Albert Sans",
+    },
+    "& .MuiInputLabel-root": {
+      fontFamily: "Albert Sans",
+    },
+    "& .MuiFormHelperText-root": {
+      fontFamily: "Albert Sans",
+    },
+    "& input::placeholder": {
+      fontFamily: "Albert Sans",
+    },}}
                     disabled={tier.free}
                     InputProps={{
-                      startAdornment: <Typography sx={{ mr: 1 }}>₹</Typography>,
+                      startAdornment: <Typography sx={{ mr: 1,fontFamily:'albert sans' }}>₹</Typography>,
                     }}
                   />
                   <TextField
                     fullWidth
+                    sx={{ "& .MuiInputBase-root": {
+      fontFamily: "Albert Sans",
+    },
+    "& .MuiInputLabel-root": {
+      fontFamily: "Albert Sans",
+    },
+    "& .MuiFormHelperText-root": {
+      fontFamily: "Albert Sans",
+    },
+    "& input::placeholder": {
+      fontFamily: "Albert Sans",
+    },}}
                     label="Seats"
                     type="number"
                     value={tier.seats}
@@ -1017,6 +1134,18 @@ const EditEventPage = () => {
                     label="Tax %"
                     type="number"
                     value={tier.tax}
+                    sx={{"& .MuiInputBase-root": {
+      fontFamily: "Albert Sans",
+    },
+    "& .MuiInputLabel-root": {
+      fontFamily: "Albert Sans",
+    },
+    "& .MuiFormHelperText-root": {
+      fontFamily: "Albert Sans",
+    },
+    "& input::placeholder": {
+      fontFamily: "Albert Sans",
+    },}}
                     onChange={(e) =>
                       handlePricingChange(index, "tax", Number(e.target.value))
                     }
@@ -1037,7 +1166,7 @@ const EditEventPage = () => {
               variant="outlined"
               onClick={addPricingTier}
               startIcon={<AddIcon />}
-              sx={{ color: "#19AEDC" }}
+              sx={{ color: "#19AEDC",fontFamily:'albert sans'}}
             >
               Add Tier
             </Button>
@@ -1097,7 +1226,18 @@ const EditEventPage = () => {
                       InputProps={{
                         inputProps: { min: 0 },
                       }}
-                      sx={{ mb: 2 }}
+                      sx={{ mb: 2, "& .MuiInputBase-root": {
+      fontFamily: "Albert Sans",
+    },
+    "& .MuiInputLabel-root": {
+      fontFamily: "Albert Sans",
+    },
+    "& .MuiFormHelperText-root": {
+      fontFamily: "Albert Sans",
+    },
+    "& input::placeholder": {
+      fontFamily: "Albert Sans",
+    }, }}
                     />
                   </Grid>
 
@@ -1121,6 +1261,7 @@ const EditEventPage = () => {
 
                   <Grid item xs={12} md={4}>
                     <TextField
+                    
                       fullWidth
                       label={
                         eventData.deductionType === "percentage"
@@ -1135,14 +1276,25 @@ const EditEventPage = () => {
                         inputProps: { min: 0 },
                         startAdornment:
                           eventData.deductionType === "fixed" ? (
-                            <Typography sx={{ mr: 1 }}>₹</Typography>
+                            <Typography sx={{ mr: 1,fontFamily:'albert sans' }}>₹</Typography>
                           ) : null,
                         endAdornment:
                           eventData.deductionType === "percentage" ? (
-                            <Typography sx={{ ml: 1 }}>%</Typography>
+                            <Typography sx={{ ml: 1 ,fontFamily:'albert sans' }}>%</Typography>
                           ) : null,
                       }}
-                      sx={{ mb: 2 }}
+                      sx={{ mb: 2 , "& .MuiInputBase-root": {
+      fontFamily: "Albert Sans",
+    },
+    "& .MuiInputLabel-root": {
+      fontFamily: "Albert Sans",
+    },
+    "& .MuiFormHelperText-root": {
+      fontFamily: "Albert Sans",
+    },
+    "& input::placeholder": {
+      fontFamily: "Albert Sans",
+    },}}
                     />
                   </Grid>
                 </>
@@ -1151,54 +1303,85 @@ const EditEventPage = () => {
           </Box>
 
           {/* Speakers */}
-          <Box
-            sx={{
-              backgroundColor: "white",
-              borderRadius: 2,
-              boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.1)",
-              p: 3,
-              mb: 3,
-            }}
-          >
-            <Typography
-              variant="h6"
-              sx={{ fontFamily: "Albert Sans", fontWeight: 600, mb: 2 }}
-            >
-              Speakers
-            </Typography>
+         <Box
+  sx={{
+    backgroundColor: "white",
+    borderRadius: 2,
+    boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.1)",
+    p: 3,
+    mb: 3,
+  }}
+>
+  <Typography
+    variant="h6"
+    sx={{ fontFamily: "Albert Sans", fontWeight: 600, mb: 2 }}
+  >
+    Speakers
+  </Typography>
 
-            {eventData.speaker.map((speaker, index) => (
-              <Box
-                key={index}
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  mb: 2,
-                  width: isMobile ? "90%" : "60%",
-                }}
-              >
-                <TextField
-                  fullWidth
-                  label={`Speaker ${index + 1}`}
-                  value={speaker}
-                  onChange={(e) => handleSpeakerChange(index, e.target.value)}
-                  sx={{ mr: 2 }}
-                />
-                <IconButton color="error" onClick={() => removeSpeaker(index)}>
-                  <DeleteIcon />
-                </IconButton>
-              </Box>
-            ))}
+  {eventData.speaker?.map((speaker, index) => (
+    <Box
+      key={index}
+      sx={{
+        display: "flex",
+        flexDirection: isMobile ? "column" : "row",
+        alignItems: "center",
+        gap: 2,
+        mb: 2,
+        width: isMobile ? "100%" : "80%",
+      }}
+    >
+      <TextField
+        fullWidth
+        label={`Speaker ${index + 1} Name`}
+        value={speaker.name}
+        onChange={(e) => handleSpeakerChange(index, "name", e.target.value)}
+        sx={{ "& .MuiInputBase-root": {
+      fontFamily: "Albert Sans",
+    },
+    "& .MuiInputLabel-root": {
+      fontFamily: "Albert Sans",
+    },
+    "& .MuiFormHelperText-root": {
+      fontFamily: "Albert Sans",
+    },
+    "& input::placeholder": {
+      fontFamily: "Albert Sans",
+    },}}
+      />
+      <TextField
+        fullWidth
+        label={`Speaker ${index + 1} Role/Designation`}
+        value={speaker.role}
+        onChange={(e) => handleSpeakerChange(index, "role", e.target.value)}
+        sx={{ "& .MuiInputBase-root": {
+      fontFamily: "Albert Sans",
+    },
+    "& .MuiInputLabel-root": {
+      fontFamily: "Albert Sans",
+    },
+    "& .MuiFormHelperText-root": {
+      fontFamily: "Albert Sans",
+    },
+    "& input::placeholder": {
+      fontFamily: "Albert Sans",
+    },}}
+      />
+      <IconButton color="error" onClick={() => removeSpeaker(index)}>
+        <DeleteIcon />
+      </IconButton>
+    </Box>
+  ))}
 
-            <Button
-              variant="outlined"
-              startIcon={<AddIcon />}
-              onClick={addSpeaker}
-              sx={{ mb: 2, color: "#19AEDC", borderColor: "#19AEDC" }}
-            >
-              Add Speaker
-            </Button>
-          </Box>
+  <Button
+    variant="outlined"
+    startIcon={<AddIcon />}
+    onClick={addSpeaker}
+    sx={{ mb: 2, color: "#19AEDC", borderColor: "#19AEDC",fontFamily:'albert sans' }}
+  >
+    Add Speaker
+  </Button>
+</Box>
 
           {/* Perks */}
           <Box
@@ -1237,7 +1420,18 @@ const EditEventPage = () => {
                   onChange={(e) =>
                     handlePerkChange(index, "itemName", e.target.value)
                   }
-                  sx={{ width: isMobile ? "100%" : "25%" }}
+                  sx={{ width: isMobile ? "100%" : "25%", "& .MuiInputBase-root": {
+      fontFamily: "Albert Sans",
+    },
+    "& .MuiInputLabel-root": {
+      fontFamily: "Albert Sans",
+    },
+    "& .MuiFormHelperText-root": {
+      fontFamily: "Albert Sans",
+    },
+    "& input::placeholder": {
+      fontFamily: "Albert Sans",
+    }, }}
                 />
                 <TextField
                   label="Price"
@@ -1250,7 +1444,18 @@ const EditEventPage = () => {
                       parseFloat(e.target.value) || 0
                     )
                   }
-                  sx={{ width: isMobile ? "100%" : "20%" }}
+                  sx={{ width: isMobile ? "100%" : "20%" , "& .MuiInputBase-root": {
+      fontFamily: "Albert Sans",
+    },
+    "& .MuiInputLabel-root": {
+      fontFamily: "Albert Sans",
+    },
+    "& .MuiFormHelperText-root": {
+      fontFamily: "Albert Sans",
+    },
+    "& input::placeholder": {
+      fontFamily: "Albert Sans",
+    },}}
                 />
                 <TextField
                   label="Limit"
@@ -1263,7 +1468,18 @@ const EditEventPage = () => {
                       parseInt(e.target.value, 10) || 0
                     )
                   }
-                  sx={{ width: isMobile ? "100%" : "20%" }}
+                  sx={{ width: isMobile ? "100%" : "20%", "& .MuiInputBase-root": {
+      fontFamily: "Albert Sans",
+    },
+    "& .MuiInputLabel-root": {
+      fontFamily: "Albert Sans",
+    },
+    "& .MuiFormHelperText-root": {
+      fontFamily: "Albert Sans",
+    },
+    "& input::placeholder": {
+      fontFamily: "Albert Sans",
+    }, }}
                 />
 
                 {/* Image preview */}
@@ -1299,7 +1515,7 @@ const EditEventPage = () => {
               variant="outlined"
               startIcon={<AddIcon />}
               onClick={addPerk}
-              sx={{ mb: 2, color: "#19AEDC" }}
+              sx={{ mb: 2, color: "#19AEDC",fontFamily:'albert sans' }}
             >
               Add Perk
             </Button>
@@ -1334,14 +1550,30 @@ const EditEventPage = () => {
                 }}
               >
                 <TextField
-                  fullWidth
-                  label="Question"
-                  value={faq.question || ""}
-                  onChange={(e) =>
-                    handleFAQChange(index, "question", e.target.value)
-                  }
-                  sx={{ mb: 2 }}
-                />
+  fullWidth
+  label="Question"
+  value={faq.question || ""}
+  onChange={(e) =>
+    handleFAQChange(index, "question", e.target.value)
+  }
+  placeholder="Enter your question"
+  sx={{
+    mb: 2,
+    "& .MuiInputBase-root": {
+      fontFamily: "Albert Sans",
+    },
+    "& .MuiInputLabel-root": {
+      fontFamily: "Albert Sans",
+    },
+    "& .MuiFormHelperText-root": {
+      fontFamily: "Albert Sans",
+    },
+    "& input::placeholder": {
+      fontFamily: "Albert Sans",
+    },
+  }}
+/>
+
                 <TextField
                   fullWidth
                   label="Answer"
@@ -1351,7 +1583,18 @@ const EditEventPage = () => {
                   }
                   multiline
                   rows={2}
-                  sx={{ mb: 2 }}
+                  sx={{ mb: 2, "& .MuiInputBase-root": {
+      fontFamily: "Albert Sans",
+    },
+    "& .MuiInputLabel-root": {
+      fontFamily: "Albert Sans",
+    },
+    "& .MuiFormHelperText-root": {
+      fontFamily: "Albert Sans",
+    },
+    "& input::placeholder": {
+      fontFamily: "Albert Sans",
+    }, }}
                 />
                 <IconButton color="error" onClick={() => removeFAQ(index)}>
                   <DeleteIcon />
@@ -1363,7 +1606,7 @@ const EditEventPage = () => {
               variant="outlined"
               startIcon={<AddIcon />}
               onClick={addFAQ}
-              sx={{ mb: 2, color: "#19AEDC", borderColor: "#19AEDC" }}
+              sx={{ mb: 2, color: "#19AEDC", borderColor: "#19AEDC",fontFamily:'albert sans' }}
             >
               Add FAQ
             </Button>
@@ -1374,7 +1617,7 @@ const EditEventPage = () => {
               variant="outlined"
               color="error"
               onClick={() => navigate(`/vendor/${vendorId}`)}
-              sx={{ fontWeight: 600 }}
+              sx={{ fontWeight: 600,fontFamily:'albert sans' }}
             >
               Cancel
             </Button>
@@ -1385,6 +1628,7 @@ const EditEventPage = () => {
                 backgroundColor: "#19AEDC",
                 color: "white",
                 fontWeight: 600,
+                fontFamily:'albert sans',
                 "&:hover": { backgroundColor: "#0E91B9" },
               }}
               disabled={submitting}

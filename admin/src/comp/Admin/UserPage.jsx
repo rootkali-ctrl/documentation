@@ -732,7 +732,7 @@ const UserPage = () => {
                       ),
                     }}
                   />
-                  <Button
+                  {/* <Button
                     variant="contained"
                     sx={{ bgcolor: "#19aedc", textTransform: "none" }}
                     onClick={() => {
@@ -744,7 +744,7 @@ const UserPage = () => {
                     }}
                   >
                     + Add {activeTab === "recuser" ? "User" : "Vendor"}
-                  </Button>
+                  </Button> */}
                 </Box>
               </Box>
 
@@ -758,15 +758,23 @@ const UserPage = () => {
                       <TableCell sx={{ backgroundColor: "#f1f1f1" }}>
                         Email
                       </TableCell>
-                      <TableCell sx={{ backgroundColor: "#f1f1f1" }}>
-                        Phone
-                      </TableCell>
+
+                      {activeTab === "recvendor" && (
+                        <TableCell sx={{ backgroundColor: "#f1f1f1" }}>
+                          Phone
+                        </TableCell>
+                      )}
+
                       <TableCell sx={{ backgroundColor: "#f1f1f1" }}>
                         Account Created
                       </TableCell>
-                      <TableCell sx={{ backgroundColor: "#f1f1f1" }}>
-                        Last Login
-                      </TableCell>
+
+                      {activeTab === "recvendor" && (
+                        <TableCell sx={{ backgroundColor: "#f1f1f1" }}>
+                          Last Login
+                        </TableCell>
+                      )}
+
                       <TableCell sx={{ backgroundColor: "#f1f1f1" }}>
                         Status
                       </TableCell>
@@ -775,10 +783,15 @@ const UserPage = () => {
                       </TableCell>
                     </TableRow>
                   </TableHead>
+
                   <TableBody>
                     {loading ? (
                       <TableRow>
-                        <TableCell colSpan={7} align="center" sx={{ py: 3 }}>
+                        <TableCell
+                          colSpan={activeTab === "recvendor" ? 7 : 5}
+                          align="center"
+                          sx={{ py: 3 }}
+                        >
                           <CircularProgress
                             size={40}
                             sx={{ color: "#19aedc" }}
@@ -787,7 +800,11 @@ const UserPage = () => {
                       </TableRow>
                     ) : currentData.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={7} align="center" sx={{ py: 3 }}>
+                        <TableCell
+                          colSpan={activeTab === "recvendor" ? 7 : 5}
+                          align="center"
+                          sx={{ py: 3 }}
+                        >
                           No {activeTab === "recuser" ? "users" : "vendors"}{" "}
                           found
                         </TableCell>
@@ -796,13 +813,20 @@ const UserPage = () => {
                       currentData.map((item) => (
                         <TableRow key={item.id}>
                           <TableCell>{item.username}</TableCell>
-
                           <TableCell>{item.email}</TableCell>
-                          <TableCell>{item.phone}</TableCell>
+
+                          {activeTab === "recvendor" && (
+                            <TableCell>{item.organisationContact}</TableCell>
+                          )}
+
                           <TableCell>
                             {formatDate(item.accountcreated)}
                           </TableCell>
-                          <TableCell>{formatDate(item.lastLogin)}</TableCell>
+
+                          {activeTab === "recvendor" && (
+                            <TableCell>{formatDate(item.lastLogin)}</TableCell>
+                          )}
+
                           <TableCell>
                             <Box
                               bgcolor={statusColors[item.status] || "#E5E7EB"}
@@ -828,6 +852,7 @@ const UserPage = () => {
                               {item.status}
                             </Box>
                           </TableCell>
+
                           <TableCell>
                             <Tooltip
                               title={
@@ -955,6 +980,7 @@ const UserPage = () => {
           </Button>
         </DialogActions>
       </Dialog>
+      
     </Box>
   );
 };

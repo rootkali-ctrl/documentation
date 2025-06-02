@@ -81,6 +81,21 @@ const FinalSetup = () => {
     ]);
   };
 
+  const isFormValid = () => {
+  const faqs =
+    FAQ.length > 0 &&
+    FAQ.every(
+      (t) =>
+        t.ques.trim() !== "" &&
+        t.ans.trim() !== ""
+    );
+    const tags = 
+    localData.tags.length>0
+
+  return faqs && tags;
+};
+
+
   const [ticketCount, setTicketCount] = useState(10);
   const maxLimit = 10; 
   const minLimit = 1;
@@ -534,6 +549,7 @@ const handleBlur = () => {
         >
           <Button
             onClick={handleFinal}
+            disabled={!isFormValid()}
             variant="contained"
             sx={{
               textTransform: "none",

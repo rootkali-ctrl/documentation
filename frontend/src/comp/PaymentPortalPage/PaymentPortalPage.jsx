@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Box, Typography, Button, Divider ,useMediaQuery} from "@mui/material";
+import { Box, Typography, Button, Divider, useMediaQuery } from "@mui/material";
 import { useNavigate, useLocation, useParams } from "react-router-dom";
 import Header from "../Header/MainHeaderWOS";
 import { Stepper, Step, StepLabel } from "@mui/material";
@@ -12,9 +12,8 @@ import { db } from "../../firebase/firebase_config";
 const steps = ["Select Tickets", "Details", "Payment"];
 
 const PaymentPortalPage = () => {
-  
   const navigate = useNavigate();
-  const {eventId, userUID} = useParams();
+  const { eventId, userUID } = useParams();
   const location = useLocation();
   const [taxPercentage, setTaxPercentage] = useState(18);
   const {
@@ -60,7 +59,7 @@ const PaymentPortalPage = () => {
       }
     };
     fetchTaxData();
-     let lastScrollY = window.scrollY;
+    let lastScrollY = window.scrollY;
 
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
@@ -160,7 +159,6 @@ const PaymentPortalPage = () => {
 
   const { ticketDetails, foodDetails, subtotal, totalTax } =
     calculateSubtotalAndTax();
-  console.log(ticketDetails);
   // Calculating the total amount...
   const bookingFee = isFreeEvent ? 0 : financial.convenienceFee || 40.0;
   const discount = financial.discount || 0;
@@ -204,9 +202,17 @@ const PaymentPortalPage = () => {
   };
 
   return (
-    <Box sx={{ backgroundColor: "#FFFFFF", minHeight: "100vh",overflowX: "hidden", overflowY: "hidden",mb:isMobile?9:0 }}>
+    <Box
+      sx={{
+        backgroundColor: "#FFFFFF",
+        minHeight: "100vh",
+        overflowX: "hidden",
+        overflowY: "hidden",
+        mb: isMobile ? 9 : 0,
+      }}
+    >
       <Header />
-  
+
       <Stepper
         activeStep={2}
         alternativeLabel
@@ -220,14 +226,14 @@ const PaymentPortalPage = () => {
         {steps.map((label, index) => (
           <Step key={index}>
             <StepLabel
-              sx={{
+              sx={{    fontFamily:'albert sans',
                 "& .MuiStepLabel-label": {
-                  color: index === 2 ? "#19AEDC" : "#ccc",
+                  color: index === 2 ? "#19AEDC" : "#ccc",   fontFamily:'albert sans',
                   fontWeight: index === 2 ? "bold" : "normal",
                   fontSize: { xs: "12px", sm: "14px", md: "16px" },
                 },
                 "& .MuiStepIcon-root": {
-                  color: index === 2 ? "rgb(25, 174, 220)" : "#ccc",
+                  color: index === 2 ? "rgb(25, 174, 220)" : "#ccc",    fontFamily:'albert sans',
                 },
               }}
             >
@@ -236,8 +242,9 @@ const PaymentPortalPage = () => {
           </Step>
         ))}
       </Stepper>
-  
+
       <Typography
+        fontFamily="albert sans"
         variant="h6"
         sx={{
           textAlign: "center",
@@ -248,7 +255,7 @@ const PaymentPortalPage = () => {
       >
         Payment Details
       </Typography>
-  
+
       <Box
         sx={{
           display: "flex",
@@ -277,36 +284,52 @@ const PaymentPortalPage = () => {
             }}
           >
             <Box sx={{ display: "flex", justifyContent: "space-between" }}>
-              <Typography fontWeight="bold" sx={{ color: "#19AEDC" }}>
+              <Typography
+                fontFamily="albert sans"
+                fontWeight="bold"
+                sx={{ color: "#19AEDC" }}
+              >
                 {event.name || "Summer Music Festival 2025"}
               </Typography>
             </Box>
-  
+
             <Divider sx={{ my: 1 }} />
-  
+
             <Box mt={1} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               <EventIcon color="#19AEDC" />
-              <Typography variant="body2" sx={{ color: "#4B5563" }}>
+              <Typography
+                fontFamily="albert sans"
+                variant="body2"
+                sx={{ color: "#4B5563" }}
+              >
                 {formattedDate}
               </Typography>
             </Box>
-  
+
             <Box mt={1} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               <AccessTimeIcon color="#19AEDC" />
-              <Typography variant="body2" sx={{ color: "#4B5563" }}>
+              <Typography
+                fontFamily="albert sans"
+                variant="body2"
+                sx={{ color: "#4B5563" }}
+              >
                 {eventTime}
               </Typography>
             </Box>
-  
+
             <Box mt={1} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               <LocationOnIcon color="#19AEDC" />
-              <Typography variant="body2" sx={{ color: "#4B5563" }}>
+              <Typography
+                fontFamily="albert sans"
+                variant="body2"
+                sx={{ color: "#4B5563" }}
+              >
                 {event.location || "Convention Center, Mumbai"}
               </Typography>
             </Box>
-  
+
             <Divider sx={{ my: 1 }} />
-  
+
             {ticketDetails && ticketDetails.length > 0 ? (
               ticketDetails.map((ticket, index) => (
                 <React.Fragment key={index}>
@@ -318,8 +341,14 @@ const PaymentPortalPage = () => {
                       paddingTop: "3%",
                     }}
                   >
-                    <Typography variant="body2">Ticket Type</Typography>
-                    <Typography variant="body2" fontWeight="bold">
+                    <Typography fontFamily="albert sans" variant="body2">
+                      Ticket Type
+                    </Typography>
+                    <Typography
+                      fontFamily="albert sans"
+                      variant="body2"
+                      fontWeight="bold"
+                    >
                       {ticket.type || "VIP Pass"}
                     </Typography>
                   </Box>
@@ -331,8 +360,14 @@ const PaymentPortalPage = () => {
                       paddingTop: "3%",
                     }}
                   >
-                    <Typography variant="body2">Number of Tickets</Typography>
-                    <Typography variant="body2" fontWeight="bold">
+                    <Typography fontFamily="albert sans" variant="body2">
+                      Number of Tickets
+                    </Typography>
+                    <Typography
+                      fontFamily="albert sans"
+                      variant="body2"
+                      fontWeight="bold"
+                    >
                       {ticket.quantity || 2}
                     </Typography>
                   </Box>
@@ -344,10 +379,14 @@ const PaymentPortalPage = () => {
                       paddingTop: "3%",
                     }}
                   >
-                    <Typography variant="body2">
+                    <Typography fontFamily="albert sans" variant="body2">
                       Price per Ticket {ticket.taxIncluded ? "(Incl. Tax)" : ""}
                     </Typography>
-                    <Typography variant="body2" fontWeight="bold">
+                    <Typography
+                      fontFamily="albert sans"
+                      variant="body2"
+                      fontWeight="bold"
+                    >
                       ₹
                       {(ticket.taxIncluded
                         ? ticket.base_price
@@ -363,14 +402,18 @@ const PaymentPortalPage = () => {
                       paddingTop: "3%",
                     }}
                   >
-                    <Typography variant="body2">
+                    <Typography fontFamily="albert sans" variant="body2">
                       Tax per Ticket ({taxPercentage}%)
                     </Typography>
-                    <Typography variant="body2" fontWeight="bold">
+                    <Typography
+                      fontFamily="albert sans"
+                      variant="body2"
+                      fontWeight="bold"
+                    >
                       ₹{ticket.tax_per_ticket.toFixed(2)}
                     </Typography>
                   </Box>
-  
+
                   {index < ticketDetails.length - 1 && (
                     <Divider sx={{ my: 1 }} />
                   )}
@@ -386,8 +429,14 @@ const PaymentPortalPage = () => {
                     paddingTop: "3%",
                   }}
                 >
-                  <Typography variant="body2">Ticket Type</Typography>
-                  <Typography variant="body2" fontWeight="bold">
+                  <Typography fontFamily="albert sans" variant="body2">
+                    Ticket Type
+                  </Typography>
+                  <Typography
+                    fontFamily="albert sans"
+                    variant="body2"
+                    fontWeight="bold"
+                  >
                     Free Admission
                   </Typography>
                 </Box>
@@ -399,8 +448,14 @@ const PaymentPortalPage = () => {
                     paddingTop: "3%",
                   }}
                 >
-                  <Typography variant="body2">Number of Tickets</Typography>
-                  <Typography variant="body2" fontWeight="bold">
+                  <Typography fontFamily="albert sans" variant="body2">
+                    Number of Tickets
+                  </Typography>
+                  <Typography
+                    fontFamily="albert sans"
+                    variant="body2"
+                    fontWeight="bold"
+                  >
                     1
                   </Typography>
                 </Box>
@@ -412,18 +467,25 @@ const PaymentPortalPage = () => {
                     paddingTop: "3%",
                   }}
                 >
-                  <Typography variant="body2">Price per Ticket</Typography>
-                  <Typography variant="body2" fontWeight="bold">
+                  <Typography fontFamily="albert sans" variant="body2">
+                    Price per Ticket
+                  </Typography>
+                  <Typography
+                    fontFamily="albert sans"
+                    variant="body2"
+                    fontWeight="bold"
+                  >
                     ₹0.00
                   </Typography>
                 </Box>
               </>
             )}
-  
+
             {foodDetails && foodDetails.length > 0 && (
               <>
                 <Divider sx={{ my: 1 }} />
                 <Typography
+                  fontFamily="albert sans"
                   variant="body2"
                   sx={{ fontWeight: "bold", paddingTop: "3%" }}
                 >
@@ -438,8 +500,10 @@ const PaymentPortalPage = () => {
                         paddingTop: "3%",
                       }}
                     >
-                      <Typography variant="body2">{food.name}</Typography>
-                      <Typography variant="body2">
+                      <Typography fontFamily="albert sans" variant="body2">
+                        {food.name}
+                      </Typography>
+                      <Typography fontFamily="albert sans" variant="body2">
                         {food.quantity}x ₹{food.price.toFixed(2)}
                       </Typography>
                     </Box>
@@ -450,10 +514,10 @@ const PaymentPortalPage = () => {
                         paddingTop: "3%",
                       }}
                     >
-                      <Typography variant="body2">
+                      <Typography fontFamily="albert sans" variant="body2">
                         Tax ({taxPercentage}%)
                       </Typography>
-                      <Typography variant="body2">
+                      <Typography fontFamily="albert sans" variant="body2">
                         {food.quantity}x ₹{food.tax_per_food.toFixed(2)}
                       </Typography>
                     </Box>
@@ -462,7 +526,7 @@ const PaymentPortalPage = () => {
               </>
             )}
           </Box>
-  
+
           <Box
             sx={{
               display: "flex",
@@ -470,12 +534,18 @@ const PaymentPortalPage = () => {
               mb: "5px",
             }}
           >
-            <Typography variant="body2">Sub-total</Typography>
-            <Typography variant="body2" fontWeight="bold">
+            <Typography fontFamily="albert sans" variant="body2">
+              Sub-total
+            </Typography>
+            <Typography
+              fontFamily="albert sans"
+              variant="body2"
+              fontWeight="bold"
+            >
               ₹{subtotal.toFixed(2)}
             </Typography>
           </Box>
-  
+
           <Box
             sx={{
               display: "flex",
@@ -483,12 +553,18 @@ const PaymentPortalPage = () => {
               mb: "5px",
             }}
           >
-            <Typography variant="body2">Booking Fee</Typography>
-            <Typography variant="body2" fontWeight="bold">
+            <Typography fontFamily="albert sans" variant="body2">
+              Booking Fee
+            </Typography>
+            <Typography
+              fontFamily="albert sans"
+              variant="body2"
+              fontWeight="bold"
+            >
               ₹{bookingFee.toFixed(2)}
             </Typography>
           </Box>
-  
+
           <Box
             sx={{
               display: "flex",
@@ -496,10 +572,15 @@ const PaymentPortalPage = () => {
               mb: "5px",
             }}
           >
-            <Typography variant="body2" sx={{ color: "#19AEDC" }}>
+            <Typography
+              fontFamily="albert sans"
+              variant="body2"
+              sx={{ color: "#19AEDC" }}
+            >
               Discount
             </Typography>
             <Typography
+              fontFamily="albert sans"
               variant="body2"
               fontWeight="bold"
               sx={{ color: "#19AEDC" }}
@@ -507,7 +588,7 @@ const PaymentPortalPage = () => {
               -₹{discount.toFixed(2)}
             </Typography>
           </Box>
-  
+
           {totalTax > 0 && (
             <Box
               sx={{
@@ -516,17 +597,21 @@ const PaymentPortalPage = () => {
                 mb: "5px",
               }}
             >
-              <Typography variant="body2">
+              <Typography fontFamily="albert sans" variant="body2">
                 Total Tax ({taxPercentage}%)
               </Typography>
-              <Typography variant="body2" fontWeight="bold">
+              <Typography
+                fontFamily="albert sans"
+                variant="body2"
+                fontWeight="bold"
+              >
                 ₹{totalTax.toFixed(2)}
               </Typography>
             </Box>
           )}
-  
+
           <Divider sx={{ my: 1 }} />
-  
+
           <Box
             sx={{
               display: "flex",
@@ -534,69 +619,74 @@ const PaymentPortalPage = () => {
               mb: "10px",
             }}
           >
-            <Typography variant="h6" fontWeight="bold">
+            <Typography fontFamily="albert sans" variant="h6" fontWeight="bold">
               Total Amount
             </Typography>
-            <Typography variant="h6" fontWeight="bold" sx={{ color: "#19AEDC" }}>
+            <Typography
+              fontFamily="albert sans"
+              variant="h6"
+              fontWeight="bold"
+              sx={{ color: "#19AEDC" }}
+            >
               {totalAmount === 0 ? "FREE" : `₹${totalAmount.toFixed(2)}`}
             </Typography>
           </Box>
-          {!isMobile && 
-          <Button
-            fullWidth
-            variant="contained"
-            sx={{
-              backgroundColor: "#4AA8E4",
-              color: "#fff",
-              borderRadius: "5px",
-              padding: "10px",
-              fontSize: { xs: "14px", md: "16px" },
-              "&:hover": { backgroundColor: "#3995D1" },
-            }}
-            onClick={handleProceedToPayment}
-          >
-            {totalAmount === 0 ? "Complete Registration" : "Proceed to Pay"}
-          </Button>
-}
+          {!isMobile && (
+            <Button
+              fullWidth
+              variant="contained"
+              sx={{
+                backgroundColor: "#4AA8E4",
+                color: "#fff",
+                borderRadius: "5px",
+                padding: "10px",
+                fontSize: { xs: "14px", md: "16px" },
+                "&:hover": { backgroundColor: "#3995D1" },
+                fontFamily:'albert sans'
+              }}
+              onClick={handleProceedToPayment}
+            >
+              {totalAmount === 0 ? "Complete Registration" : "Proceed to Pay"}
+            </Button>
+          )}
         </Box>
         {isMobile && (
-                  <Box
-                    sx={{
-                      position: "fixed",
-                      bottom: 0,
-                      left: 0,
-                      width: "100%",
-                      backgroundColor: "#ffffff",
-                      boxShadow: "0 -2px 6px rgba(0,0,0,0.1)",
-                       padding: `10px 0 ${paddingBottom}px 0`,
-                    transition: "padding 0.5s ease-in-out",
-                      zIndex: 1000,
-                      display: "flex",
-                      justifyContent: "center",
-                    }}
-                   >
-                   
-                   <Button
-            fullWidth
-            variant="contained"
+          <Box
             sx={{
-              backgroundColor: "rgb(25, 174, 220)",
-              color: "#fff",
-              borderRadius: "25px",
-              padding: "10px",
-              width: "60%",
-              fontSize: { xs: "14px", md: "20px" },
-              "&:hover": { backgroundColor: "#3995D1" },
+              position: "fixed",
+              bottom: 0,
+              left: 0,
+              width: "100%",
+              backgroundColor: "#ffffff",
+              boxShadow: "0 -2px 6px rgba(0,0,0,0.1)",
+              padding: `10px 0 ${paddingBottom}px 0`,
+              transition: "padding 0.5s ease-in-out",
+              zIndex: 1000,
+              display: "flex",
+              justifyContent: "center",
             }}
-            onClick={handleProceedToPayment}
           >
-            {totalAmount === 0 ? "Complete Registration" : "Proceed to Pay"}
-          </Button> 
-          </Box>)}
+            <Button
+              fullWidth
+              variant="contained"
+              sx={{
+                backgroundColor: "rgb(25, 174, 220)",
+                color: "#fff",
+                borderRadius: "15px",
+                padding: "10px",
+                width: "60%",   fontFamily:'albert sans',
+                fontSize: { xs: "14px", md: "20px" },
+                "&:hover": { backgroundColor: "#3995D1" },
+              }}
+              onClick={handleProceedToPayment}
+            >
+              {totalAmount === 0 ? "Complete Registration" : "Proceed to Pay"}
+            </Button>
+          </Box>
+        )}
       </Box>
     </Box>
   );
-  
 };
 
 export default PaymentPortalPage;

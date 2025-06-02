@@ -219,12 +219,11 @@ const ProceedToPayPage = () => {
             const images = eventData.images || eventData.bannerImages || [];
 
             if (images.length > 0) {
-              setEventImage(images[4] || images[0]); // Show 5th image, fallback to 1st
+              setEventImage(images[1] || images[0]); // Show 5th image, fallback to 1st
             } else {
               setEventImage(DEFAULT_EVENT_IMAGE);
             }
           } else {
-            console.log("No event document found");
             setEventImage(DEFAULT_EVENT_IMAGE);
           }
         }
@@ -244,7 +243,6 @@ const ProceedToPayPage = () => {
   // Log vendor ID for debugging
   useEffect(() => {
     if (event) {
-      console.log("Vendor ID:", event);
     }
   }, [event]);
 
@@ -495,12 +493,13 @@ const ProceedToPayPage = () => {
           <Step key={index}>
             <StepLabel
               sx={{
+                   fontFamily:"albert sans",
                 "& .MuiStepLabel-label": {
-                  color: index === 1 ? "#19AEDC" : "#ccc",
+                  color: index === 1 ? "#19AEDC" : "#ccc",   fontFamily:"albert sans",
                   fontWeight: index === 1 ? "bold" : "normal",
                   fontSize: isMobile ? "12px" : "inherit",
                 },
-                "& .MuiStepIcon-root": {
+                "& .MuiStepIcon-root": {   fontFamily:"albert sans",
                   color: index === 1 ? "rgb(25, 174, 220)" : "#ccc",
                 },
               }}
@@ -593,7 +592,7 @@ const ProceedToPayPage = () => {
             <Typography
               variant="h6"
               fontWeight="bold"
-              sx={{ fontSize: "30px" }}
+              sx={{ fontSize: "30px", fontFamily:'albert sans', }}
             >
               {event?.name || "Event Name"}
             </Typography>
@@ -602,7 +601,7 @@ const ProceedToPayPage = () => {
               sx={{ display: "flex", alignItems: "center", gap: 1 }}
             >
               <EventIcon sx={{ color: "#19AEDC" }} />
-              <Typography variant="body2" sx={{ color: "#4B5563" }}>
+              <Typography variant="body2" sx={{ color: "#4B5563" , fontFamily:'albert sans',}}>
                 {event?.date
                   ? new Date(event.date).toLocaleDateString("en-US", {
                       month: "long",
@@ -617,12 +616,13 @@ const ProceedToPayPage = () => {
               sx={{ display: "flex", alignItems: "center", gap: 1 }}
             >
               <LocationOnIcon sx={{ color: "#19AEDC" }} />
-              <Typography variant="body2" sx={{ color: "#4B5563" }}>
+              <Typography variant="body2" sx={{ color: "#4B5563", fontFamily:'albert sans', }}>
                 {event?.location || "Location not specified"}
               </Typography>
             </Box>
             <Box mt={isMobile ? 1 : 2}>
               <Typography
+              fontFamily="albert sans"
                 variant="body2"
                 sx={{ marginTop: "8px", color: "#555" }}
               >
@@ -633,7 +633,7 @@ const ProceedToPayPage = () => {
             {/* Coupon FAQ Section */}
             {!isMobile && (
               <Box mt={isMobile ? 2 : 4}>
-                <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>
+                <Typography variant="h6" fontWeight="bold" sx={{ mb: 2, fontFamily:'albert sans', }}>
                   Coupon & Discount FAQs
                 </Typography>
 
@@ -649,12 +649,12 @@ const ProceedToPayPage = () => {
                         "&:hover": { backgroundColor: "#f0f4f8" },
                       }}
                     >
-                      <Typography fontWeight="medium">
+                      <Typography fontWeight="medium" sx={{ fontFamily:'albert sans',}}>
                         {faq.question}
                       </Typography>
                     </AccordionSummary>
                     <AccordionDetails>
-                      <Typography variant="body2" color="text.secondary">
+                      <Typography variant="body2" color="text.secondary" sx={{ fontFamily:'albert sans',}}>
                         {faq.answer}
                       </Typography>
                     </AccordionDetails>
@@ -664,7 +664,7 @@ const ProceedToPayPage = () => {
                 {/* Available Coupons Section */}
                 {eventCoupons.length > 0 && (
                   <Box mt={3}>
-                    <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>
+                    <Typography variant="h6" fontWeight="bold" sx={{ mb: 2,fontFamily:'albert sans' }}>
                       Available Coupons
                     </Typography>
                     {eventCoupons.map((coupon, index) => {
@@ -707,7 +707,7 @@ const ProceedToPayPage = () => {
                               borderBottomLeftRadius: "8px",
                             }}
                           >
-                            <Typography variant="caption" fontWeight="bold">
+                            <Typography variant="caption" fontWeight="bold" fontFamily="albert sans">
                               {isValid && remainingUses > 0 ? "ACTIVE" : "INACTIVE"}
                             </Typography>
                           </Box>
@@ -715,31 +715,33 @@ const ProceedToPayPage = () => {
                           <Typography
                             variant="h6"
                             fontWeight="bold"
-                            sx={{ color: "#19AEDC" }}
+                            sx={{ color: "#19AEDC",fontFamily:'albert sans' }}
                           >
                             {coupon.couponCode}
                           </Typography>
 
                           <Box sx={{ mt: 1 }}>
-                            <Typography variant="body2" fontWeight="medium">
+                            <Typography variant="body2" fontWeight="medium" fontFamily="albert sans">
                               ₹{coupon.reducePert} off
                             </Typography>
                             <Typography
                               variant="body2"
                               color="text.secondary"
-                              sx={{ mt: 0.5 }}
+                              sx={{ mt: 0.5 ,fontFamily:'albert sans'}}
                             >
                               Valid: {startDate} - {endDate}
                             </Typography>
                             <Typography
                               variant="body2"
                               color="text.secondary"
+                               fontFamily="albert sans"
                             >
                               Uses remaining: {remainingUses}/{coupon.couponLimits}
                             </Typography>
                             <Typography
                               variant="caption"
                               color="text.secondary"
+                               fontFamily="albert sans"
                             >
                               *Applies to ticket prices only
                             </Typography>
@@ -747,12 +749,13 @@ const ProceedToPayPage = () => {
 
                           <Button
                             size="small"
+                           
                             sx={{
                               mt: 1,
                               color: "#19AEDC",
                               "&:hover": {
                                 backgroundColor: "rgba(25, 174, 220, 0.1)",
-                              },
+                              },   fontFamily:"albert sans"
                             }}
                             onClick={() => applyDirectCoupon(coupon)}
                             disabled={!isValid || remainingUses <= 0}
@@ -769,6 +772,7 @@ const ProceedToPayPage = () => {
             {/* Back to tickets button */}
             {!isMobile && (
               <Button
+            
                 variant="outlined"
                 sx={{
                   marginTop: "20px",
@@ -778,6 +782,7 @@ const ProceedToPayPage = () => {
                     borderColor: "#0d8daf",
                     backgroundColor: "rgba(25, 174, 220, 0.04)",
                   },
+                     fontFamily:"albert sans"
                 }}
                 onClick={handleBackToTickets}
               >
@@ -799,7 +804,7 @@ const ProceedToPayPage = () => {
           }}
         >
           <Box sx={{ display: "flex", justifyContent: "space-between" }}>
-            <Typography variant="h6" fontWeight="bold">
+            <Typography variant="h6" fontWeight="bold"  fontFamily="albert sans">
               Order Summary
             </Typography>
           </Box>
@@ -809,7 +814,7 @@ const ProceedToPayPage = () => {
           {ticketData && ticketData.length > 0 ? (
             <>
               <Typography
-                variant="body2"
+                variant="body2"  fontFamily="albert sans"
                 sx={{ fontWeight: "bold", paddingTop: "3%" }}
               >
                 Tickets
@@ -823,8 +828,8 @@ const ProceedToPayPage = () => {
                     paddingTop: "3%",
                   }}
                 >
-                  <Typography variant="body2">{ticket.type}</Typography>
-                  <Typography variant="body2" textAlign="right">
+                  <Typography  fontFamily="albert sans" variant="body2">{ticket.type}</Typography>
+                  <Typography  fontFamily="albert sans" variant="body2" textAlign="right">
                     {ticket.quantity}x{displayTicketPrice(ticket.price)}
                   </Typography>
                 </Box>
@@ -832,6 +837,7 @@ const ProceedToPayPage = () => {
             </>
           ) : (
             <Typography
+             fontFamily="albert sans"
               variant="body2"
               sx={{ color: "#4B5563", paddingTop: "3%" }}
             >
@@ -844,6 +850,7 @@ const ProceedToPayPage = () => {
             <>
               <Divider sx={{ my: 1 }} />
               <Typography
+               fontFamily="albert sans"
                 variant="body2"
                 sx={{ fontWeight: "bold", paddingTop: "3%" }}
               >
@@ -858,8 +865,8 @@ const ProceedToPayPage = () => {
                     paddingTop: "3%",
                   }}
                 >
-                  <Typography variant="body2">{food.name}</Typography>
-                  <Typography variant="body2" textAlign="right">
+                  <Typography  fontFamily="albert sans" variant="body2">{food.name}</Typography>
+                  <Typography  fontFamily="albert sans" variant="body2" textAlign="right">
                     {food.quantity}x₹{food.price}
                   </Typography>
                 </Box>
@@ -877,8 +884,8 @@ const ProceedToPayPage = () => {
               paddingTop: "3%",
             }}
           >
-            <Typography variant="body2">Sub-total</Typography>
-            <Typography variant="body2" textAlign="right" fontWeight="bold">
+            <Typography fontFamily="albert sans"  variant="body2">Sub-total</Typography>
+            <Typography fontFamily="albert sans" variant="body2" textAlign="right" fontWeight="bold">
               ₹{financialData.subtotal.toFixed(2)}
             </Typography>
           </Box>
@@ -892,8 +899,8 @@ const ProceedToPayPage = () => {
                 paddingTop: "5%",
               }}
             >
-              <Typography variant="body2">Convenience Fee</Typography>
-              <Typography variant="body2" textAlign="right" fontWeight="bold">
+              <Typography  fontFamily="albert sans" variant="body2">Convenience Fee</Typography>
+              <Typography  fontFamily="albert sans" variant="body2" textAlign="right" fontWeight="bold">
                 ₹{financialData.convenienceFee.toFixed(2)}
               </Typography>
             </Box>
@@ -908,10 +915,10 @@ const ProceedToPayPage = () => {
                 paddingTop: "5%",
               }}
             >
-              <Typography variant="body2" sx={{ color: "#19AEDC" }}>
+              <Typography  fontFamily="albert sans" variant="body2" sx={{ color: "#19AEDC" }}>
                 Discount
               </Typography>
-              <Typography
+              <Typography  fontFamily="albert sans"
                 variant="body2"
                 textAlign="right"
                 fontWeight="bold"
@@ -930,10 +937,10 @@ const ProceedToPayPage = () => {
               paddingTop: "5%",
             }}
           >
-            <Typography variant="h6" fontWeight="bold">
+            <Typography  fontFamily="albert sans" variant="h6" fontWeight="bold">
               Total Amount
             </Typography>
-            <Typography variant="h6" textAlign="right" fontWeight="bold">
+            <Typography  fontFamily="albert sans" variant="h6" textAlign="right" fontWeight="bold">
               ₹{calculatedTotal.toFixed(2)}
             </Typography>
           </Box>
@@ -966,16 +973,19 @@ const ProceedToPayPage = () => {
                   width: "100%",
                   padding: "8px",
                   borderRadius: "5px",
+                   
                 },
               }}
+              fontFamily="albert sans"
             />
             {appliedCoupon ? (
               <Button
+               
                 sx={{
                   textTransform: "none",
                   fontSize: "14px",
                   color: "error.main",
-                  fontWeight: "bold",
+                  fontWeight: "bold",   fontFamily:"albert sans"
                 }}
                 onClick={() => {
                   setAppliedCoupon(null);
@@ -987,11 +997,12 @@ const ProceedToPayPage = () => {
               </Button>
             ) : (
               <Button
+              
                 sx={{
                   textTransform: "none",
                   fontSize: "14px",
                   color: "#19AEDC",
-                  fontWeight: "bold",
+                  fontWeight: "bold",   fontFamily:"albert sans"
                 }}
                 onClick={handleApplyPromoCode}
               >
@@ -1001,7 +1012,7 @@ const ProceedToPayPage = () => {
           </Box>
           {isMobile && (
             <Box mt={isMobile ? 2 : 4} mb={isMobile ? 15 : 0}>
-              <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>
+              <Typography  fontFamily="albert sans" variant="h6" fontWeight="bold" sx={{ mb: 2 }}>
                 Coupon & Discount FAQs
               </Typography>
 
@@ -1017,10 +1028,10 @@ const ProceedToPayPage = () => {
                       "&:hover": { backgroundColor: "#f0f4f8" },
                     }}
                   >
-                    <Typography fontWeight="medium">{faq.question}</Typography>
+                    <Typography  fontFamily="albert sans" fontWeight="medium">{faq.question}</Typography>
                   </AccordionSummary>
                   <AccordionDetails>
-                    <Typography variant="body2" color="text.secondary">
+                    <Typography   fontFamily="albert sans" variant="body2" color="text.secondary">
                       {faq.answer}
                     </Typography>
                   </AccordionDetails>
@@ -1030,7 +1041,7 @@ const ProceedToPayPage = () => {
               {/* Available Coupons Section */}
               {eventCoupons.length > 0 && (
                 <Box mt={3}>
-                  <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>
+                  <Typography fontFamily="albert sans" variant="h6" fontWeight="bold" sx={{ mb: 2 }}>
                     Available Coupons
                   </Typography>
                   {eventCoupons.map((coupon, index) => {
@@ -1073,12 +1084,13 @@ const ProceedToPayPage = () => {
                             borderBottomLeftRadius: "8px",
                           }}
                         >
-                          <Typography variant="caption" fontWeight="bold">
+                          <Typography  fontFamily="albert sans" variant="caption" fontWeight="bold">
                             {isValid && remainingUses > 0 ? "ACTIVE" : "INACTIVE"}
                           </Typography>
                         </Box>
 
                         <Typography
+                        fontFamily="albert sans"
                           variant="h6"
                           fontWeight="bold"
                           sx={{ color: "#19AEDC" }}
@@ -1087,10 +1099,11 @@ const ProceedToPayPage = () => {
                         </Typography>
 
                         <Box sx={{ mt: 1 }}>
-                          <Typography variant="body2" fontWeight="medium">
+                          <Typography  fontFamily="albert sans" variant="body2" fontWeight="medium">
                             ₹{coupon.reducePert} off
                           </Typography>
                           <Typography
+                          fontFamily="albert sans"
                             variant="body2"
                             color="text.secondary"
                             sx={{ mt: 0.5 }}
@@ -1098,12 +1111,14 @@ const ProceedToPayPage = () => {
                             Valid: {startDate} - {endDate}
                           </Typography>
                           <Typography
+                          fontFamily="albert sans"
                             variant="body2"
                             color="text.secondary"
                           >
                             Uses remaining: {remainingUses}/{coupon.couponLimits}
                           </Typography>
                           <Typography
+                          fontFamily="albert sans"
                             variant="caption"
                             color="text.secondary"
                           >
@@ -1112,13 +1127,14 @@ const ProceedToPayPage = () => {
                         </Box>
 
                         <Button
+                        
                           size="small"
                           sx={{
                             mt: 1,
                             color: "#19AEDC",
                             "&:hover": {
                               backgroundColor: "rgba(25, 174, 220, 0.1)",
-                            },
+                            },   fontFamily:"albert sans"
                           }}
                           onClick={() => applyDirectCoupon(coupon)}
                           disabled={!isValid || remainingUses <= 0}
@@ -1136,9 +1152,11 @@ const ProceedToPayPage = () => {
           {/* Proceed Button */}
           {!isMobile && (
             <Button
+         
               fullWidth
               variant="contained"
               sx={{
+                   fontFamily:"albert sans",
                 backgroundColor: "#19AEDC",
                 color: "#fff",
                 marginTop: "5%",
@@ -1194,13 +1212,14 @@ const ProceedToPayPage = () => {
           }}
         >
           <Button
-            fullWidth
+  
             variant="contained"
             sx={{
+                 fontFamily:"albert sans",
               backgroundColor: "#19AEDC",
               color: "#fff",
               width: "60%",
-              borderRadius: "25px",
+              borderRadius: "15px",
               padding: "3%",
               fontSize: "14px",
               "&:hover": { backgroundColor: "#0c8baf" },

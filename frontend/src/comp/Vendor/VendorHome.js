@@ -485,22 +485,7 @@ const VendorHome = () => {
             >
               {totalEvents}
             </Typography>
-            <Box sx={{ display: "flex", mt: "2%", ml: "-1%", gap: "2%" }}>
-              {eventsGrowth >= 0 ? (
-                <ArrowUpwardIcon sx={{ color: "#10B981" }} />
-              ) : (
-                <ArrowDownwardIcon sx={{ color: "#EF4444" }} />
-              )}
-              <Typography
-                sx={{
-                  fontFamily: "albert sans",
-                  fontSize: "17px",
-                  color: eventsGrowth >= 0 ? "#10B981" : "#EF4444",
-                }}
-              >
-                {Math.abs(eventsGrowth)}% from last month
-              </Typography>
-            </Box>
+            
           </Box>
 
           <Box
@@ -538,22 +523,7 @@ const VendorHome = () => {
             >
               {ticketsSold.toLocaleString()}
             </Typography>
-            <Box sx={{ display: "flex", mt: "2%", ml: "-1%", gap: "2%" }}>
-              {ticketsGrowth >= 0 ? (
-                <ArrowUpwardIcon sx={{ color: "#10B981" }} />
-              ) : (
-                <ArrowDownwardIcon sx={{ color: "#EF4444" }} />
-              )}
-              <Typography
-                sx={{
-                  fontFamily: "albert sans",
-                  fontSize: "17px",
-                  color: ticketsGrowth >= 0 ? "#10B981" : "#EF4444",
-                }}
-              >
-                {Math.abs(ticketsGrowth)}% from last month
-              </Typography>
-            </Box>
+  
           </Box>
 
           <Box
@@ -591,22 +561,7 @@ const VendorHome = () => {
             >
               ₹{grossSales.toLocaleString()}
             </Typography>
-            <Box sx={{ display: "flex", mt: "2%", ml: "-1%", gap: "2%" }}>
-              {salesGrowth >= 0 ? (
-                <ArrowUpwardIcon sx={{ color: "#10B981" }} />
-              ) : (
-                <ArrowDownwardIcon sx={{ color: "#EF4444" }} />
-              )}
-              <Typography
-                sx={{
-                  fontFamily: "albert sans",
-                  fontSize: "17px",
-                  color: salesGrowth >= 0 ? "#10B981" : "#EF4444",
-                }}
-              >
-                {Math.abs(salesGrowth)}% from last month
-              </Typography>
-            </Box>
+           
           </Box>
 
           <Box
@@ -698,22 +653,7 @@ const VendorHome = () => {
             >
               {totalEvents}
             </Typography>
-            <Box sx={{ display: "flex", mt: "2%", ml: "-1%", gap: "2%" }}>
-              {eventsGrowth >= 0 ? (
-                <ArrowUpwardIcon sx={{ color: "#10B981" ,fontSize: "20px"}} />
-              ) : (
-                <ArrowDownwardIcon sx={{ color: "#EF4444" ,fontSize: "20px"}} />
-              )}
-              <Typography
-                sx={{
-                  fontFamily: "albert sans",
-                  fontSize: "14px",
-                  color: eventsGrowth >= 0 ? "#10B981" : "#EF4444",
-                }}
-              >
-                {Math.abs(eventsGrowth)}% from last month
-              </Typography>
-            </Box>
+           
           </Box>
 
           <Box
@@ -751,22 +691,7 @@ const VendorHome = () => {
             >
               {ticketsSold.toLocaleString()}
             </Typography>
-            <Box sx={{ display: "flex", mt: "2%", ml: "-1%", gap: "2%" }}>
-              {ticketsGrowth >= 0 ? (
-                <ArrowUpwardIcon sx={{ color: "#10B981" ,fontSize:20}} />
-              ) : (
-                <ArrowDownwardIcon sx={{ color: "#EF4444" ,fontSize:20 }} />
-              )}
-              <Typography
-                sx={{
-                  fontFamily: "albert sans",
-                  fontSize: "14px",
-                  color: ticketsGrowth >= 0 ? "#10B981" : "#EF4444",
-                }}
-              >
-                {Math.abs(ticketsGrowth)}% from last month
-              </Typography>
-            </Box>
+          
           </Box>
           </Box>
           <Box
@@ -813,22 +738,7 @@ const VendorHome = () => {
             >
               ₹{grossSales.toLocaleString()}
             </Typography>
-            <Box sx={{ display: "flex", mt: "2%", ml: "-1%", gap: "2%" }}>
-              {salesGrowth >= 0 ? (
-                <ArrowUpwardIcon sx={{ color: "#10B981"  ,fontSize: "20px"}} />
-              ) : (
-                <ArrowDownwardIcon sx={{ color: "#EF4444"  ,fontSize: "20px"}} />
-              )}
-              <Typography
-                sx={{
-                  fontFamily: "albert sans",
-                  fontSize: "14px",
-                  color: salesGrowth >= 0 ? "#10B981" : "#EF4444",
-                }}
-              >
-                {Math.abs(salesGrowth)}% from last month
-              </Typography>
-            </Box>
+    
           </Box>
 
           <Box
@@ -1018,7 +928,7 @@ const VendorHome = () => {
       >
         {/* Top: Title and Status */}
         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 1 }} onClick={() => handleEventClick(event)}>
-          <Typography variant="h6" sx={{ fontWeight: "bold" }}>
+          <Typography variant="h6" sx={{ fontWeight: "bold", fontFamily:'albert sans' }}>
             {event.name}
           </Typography>
           <Box
@@ -1039,22 +949,22 @@ const VendorHome = () => {
         {/* Bottom: Event Details */}
         <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }} onClick={() => handleEventClick(event)}>
           <Box sx={{ display: "flex", justifyContent: "space-between" }} onClick={() => handleEventClick(event)}>
-            <Typography sx={{ color: "#6B7280" }}>Date</Typography>
-            <Typography>
+            <Typography sx={{ color: "#6B7280" , fontFamily:'albert sans'}}>Date</Typography>
+            <Typography sx={{ fontFamily:'albert sans'}}>
               {event.eventDate
                 ? new Date(event.eventDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
                 : "N/A"}
             </Typography>
           </Box>
           <Box sx={{ display: "flex", justifyContent: "space-between" }}>
-            <Typography sx={{ color: "#6B7280" }}>Tickets Sold</Typography>
-            <Typography>
+            <Typography sx={{ color: "#6B7280", fontFamily:'albert sans' }}>Tickets Sold</Typography>
+            <Typography sx={{ fontFamily:'albert sans'}}>
               {event.ticketsSold || 0}/{getMaxTickets(event)}
             </Typography>
           </Box>
           <Box sx={{ display: "flex", justifyContent: "space-between" }}>
-            <Typography sx={{ color: "#6B7280" }}>Revenue</Typography>
-            <Typography sx={{ color: "#059669", fontWeight: "bold" }}>
+            <Typography sx={{ color: "#6B7280" , fontFamily:'albert sans'}}>Revenue</Typography>
+            <Typography sx={{ color: "#059669", fontWeight: "bold", fontFamily:'albert sans' }}>
               ₹{(event.gross || 0).toLocaleString()}
             </Typography>
           </Box>
@@ -1066,7 +976,7 @@ const VendorHome = () => {
           <Typography
               sx={{
                         color: "#19AEDC",
-                        cursor: "pointer",
+                        cursor: "pointer", fontFamily:'albert sans',
                         "&:hover": { textDecoration: "underline" },
                       }}
                       onClick={(e) => handleClick(e, event)}
@@ -1095,12 +1005,12 @@ const VendorHome = () => {
                                     boxShadow: 1,
                                   }}
                                 >
-                                  <MenuItem onClick={handleUpdateEvent}>
+                                  <MenuItem onClick={handleUpdateEvent} sx={{fontFamily:'albert sans'}}>
                                     Update Event
                                   </MenuItem>
                                   <MenuItem
                                     onClick={handleDeleteEvent}
-                                    sx={{ color: "red" }}
+                                    sx={{ color: "red", fontFamily:'albert sans' }}
                                   >
                                     Delete Event
                                   </MenuItem>
@@ -1110,7 +1020,7 @@ const VendorHome = () => {
       </Card>
     ))
   ) : (
-    <Typography sx={{ textAlign: "center", padding: 3, color: "#6B7280", width: "90%", margin: "0 auto" }}>
+    <Typography sx={{ textAlign: "center", padding: 3, color: "#6B7280", width: "90%", margin: "0 auto" ,fontFamily:'albert sans'}}>
       No events found. Create your first event to get started!
     </Typography>
   )}
@@ -1212,10 +1122,10 @@ const VendorHome = () => {
                               sx={{ display: "flex", width: "40%", alignItems: "center" }}
                             >
                               <Box sx={{ ml: 0 }}>
-                                <Typography sx={{ fontWeight: "600" }}>
+                                <Typography sx={{ fontWeight: "600" ,fontFamily:'albert sans'}}>
                                   {event.name}
                                 </Typography>
-                                <Typography sx={{ fontSize: "14px", color: "gray" }}>
+                                <Typography sx={{ fontSize: "14px", color: "gray",fontFamily:'albert sans' }}>
                                   {event.venueDetails?.area ||
                                     event.venueDetails?.venueName ||
                                     "Venue not specified"}
@@ -1223,7 +1133,7 @@ const VendorHome = () => {
                               </Box>
                             </Box>
 
-                            <Typography sx={{ width: "12%", textAlign: "center" }}>
+                            <Typography sx={{ width: "12%", textAlign: "center",fontFamily:'albert sans' }}>
                               {event.eventDate
                                 ? new Date(event.eventDate).toLocaleString("en-IN", {
                                     dateStyle: "medium",
@@ -1232,11 +1142,11 @@ const VendorHome = () => {
                                 : "N/A"}
                             </Typography>
 
-                            <Typography sx={{ width: "12%", textAlign: "center" }}>
+                            <Typography sx={{ width: "12%", textAlign: "center" ,fontFamily:'albert sans'}}>
                               {event.ticketsSold || 0}/{getMaxTickets(event)}
                             </Typography>
 
-                            <Typography sx={{ width: "12%", textAlign: "center" }}>
+                            <Typography sx={{ width: "12%", textAlign: "center",fontFamily:'albert sans' }}>
                               ₹{(event.gross || 0).toLocaleString()}
                             </Typography>
 
@@ -1248,7 +1158,7 @@ const VendorHome = () => {
                               }}
                             >
                               <Typography
-                                sx={{
+                                sx={{fontFamily:'albert sans',
                                   backgroundColor:
                                     getEventStatus(event) === "On Sale"
                                       ? "#DBEAFE"
@@ -1291,6 +1201,7 @@ const VendorHome = () => {
                                   color: "#19AEDC",
                                   cursor: "pointer",
                                   "&:hover": { textDecoration: "underline" },
+                                  fontFamily:'albert sans'
                                 }}
                                 onClick={(e) => handleClick(e, event)}
                               >
@@ -1318,12 +1229,12 @@ const VendorHome = () => {
                                     boxShadow: 1,
                                   }}
                                 >
-                                  <MenuItem onClick={handleUpdateEvent}>
+                                  <MenuItem onClick={handleUpdateEvent} sx={{fontFamily:'albert sans'}}>
                                     Update Event
                                   </MenuItem>
                                   <MenuItem
                                     onClick={handleDeleteEvent}
-                                    sx={{ color: "red" }}
+                                    sx={{ color: "red",fontFamily:'albert sans' }}
                                   >
                                     Delete Event
                                   </MenuItem>
@@ -1343,7 +1254,7 @@ const VendorHome = () => {
                             backgroundColor: "white",
                           }}
                         >
-                          <Typography sx={{ color: "#6B7280" }}>
+                          <Typography sx={{ color: "#6B7280",fontFamily:'albert sans' }}>
                             No events found. Create your first event to get started!
                           </Typography>
                         </Box>
@@ -1364,7 +1275,7 @@ const VendorHome = () => {
       borderTop: "1px solid #dcdcdc",
     }}
   >
-    <Typography sx={{ fontSize: "14px", color: "#6B7280" }}>
+    <Typography sx={{ fontSize: "14px", color: "#6B7280",fontFamily:'albert sans' }}>
       Showing {startIndex + 1} to {Math.min(endIndex, filteredEvents.length)} of {filteredEvents.length} entries
     </Typography>
     <Box>

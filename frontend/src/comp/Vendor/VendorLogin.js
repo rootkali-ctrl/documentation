@@ -52,6 +52,9 @@ const handleLogin = async () => {
     const response = await axios.post(`${process.env.REACT_APP_API_BASE_URL}/api/vendor/login`, {
       username, password
     });
+await axios.post(`${process.env.REACT_APP_API_BASE_URL}/api/vendor/lastlogin`, {
+  username,
+});
 
     if (response.data.Message === "Login successful") {
       navigate(`/vendorhome/${response.data.vendorId}`);

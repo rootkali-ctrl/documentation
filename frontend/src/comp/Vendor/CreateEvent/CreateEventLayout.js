@@ -1,7 +1,7 @@
 import React, { useEffect } from "react";
 import { Outlet, useLocation, useNavigate, useParams } from "react-router-dom";
 import { EventProvider, useEventContext } from "./EventContext";
-import { Stepper, Step, StepLabel, Box} from "@mui/material";
+import {useMediaQuery, Stepper, Step, StepLabel, Box} from "@mui/material";
 
 const steps = ["Event Setup", "Pricing & Perks", "Final Setup"];
 
@@ -51,7 +51,7 @@ const CreateEventLayout = () => {
   const location = useLocation();
   const currentStep = getCurrentStep(location.pathname);
   const isPreviewPage = location.pathname.includes("eventpreview");
-
+  const isMobile = useMediaQuery("(max-width:900px)");
   return (
     <EventProvider>
       <RouteGuard>
@@ -65,12 +65,13 @@ const CreateEventLayout = () => {
             <Stepper
               activeStep={currentStep}
               alternativeLabel
-              sx={{ padding: "20px 5%", width: "50%", margin: "0 auto" }}
+              sx={{ padding: "20px 5%", width: !isMobile ? "50%" : '90%' , margin: "0 auto" }}
             >
               {steps.map((label, index) => (
                 <Step key={label}>
                   <StepLabel
                     sx={{
+                      width:'100%',
                       "& .MuiStepLabel-label": {
                         fontFamily: "Albert Sans",
                         color: currentStep === index ? "#19AEDC" : "#999",

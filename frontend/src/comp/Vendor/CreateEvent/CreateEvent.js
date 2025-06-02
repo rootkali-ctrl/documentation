@@ -9,7 +9,8 @@ import {
   Grid,
   TextField,
   Select,
-  useMediaQuery
+  useMediaQuery,
+  IconButton,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { useTheme } from "@mui/material/styles";
@@ -26,7 +27,7 @@ import { useParams } from "react-router-dom";
 const CreateEvent = () => {
   const navigate = useNavigate();
   const { vendorId } = useParams();
-  const { updateFormSection, formData, markStepCompleted  } = useEventContext();
+  const { updateFormSection, formData, markStepCompleted } = useEventContext();
   const isMobile = useMediaQuery("(max-width:900px)");
   const [mediaLink, setMediaLink] = useState("");
   const [selectedCategories, setSelectedCategories] = useState([]);
@@ -39,6 +40,12 @@ const CreateEvent = () => {
     eventDate: dayjs(),
   });
 
+  const [imageData, setImageData] = useState({
+    eventCard: null,
+    banner: null,
+    previousEvents: [null, null, null],
+    ticket: null,
+  });
   const [speaker, setSpeaker] = useState([{ name: "", role: "" }]);
   const [venueDetails, setVenueDetails] = useState({
     venueName: "",
@@ -48,7 +55,6 @@ const CreateEvent = () => {
     pincode: "",
     area: "",
   });
-
 
   useEffect(() => {
     if (formData.eventDetails) {
@@ -81,6 +87,55 @@ const CreateEvent = () => {
     }
   }, [formData]);
 
+  const [images, setImages] = useState([]);
+  const fileInputRef = useRef(null);
+
+  // New refs for individual upload buttons
+  const fileInputRefs = {
+    eventCard: useRef(null),
+    banner: useRef(null),
+    previousEvents: [useRef(null), useRef(null), useRef(null)],
+    ticket: useRef(null),
+  };
+
+  // Image specifications for different types
+  const imageSpecs = {
+    eventCard: {
+      width: "300px",
+      height: "200px",
+      label: "Event Card Image",
+      description: "300x200px - Main event card display",
+    },
+    banner: {
+      width: "800px",
+      height: "300px",
+      label: "Banner Image",
+      description: "800x300px - Hero banner",
+    },
+    previousEvents: {
+      width: "300px",
+      height: "200px",
+      label: "Previous Event Images",
+      description: "300x200px each - Event gallery",
+    },
+    ticket: {
+      width: "200px",
+      height: "400px",
+      label: "Ticket Image",
+      description: "200x400px - Ticket design",
+    },
+  };
+
+  // Check if all images are uploaded
+  const isImageUploadComplete = () => {
+    return !!(
+      imageData.eventCard &&
+      imageData.banner &&
+      imageData.previousEvents.every((img) => img) &&
+      imageData.ticket
+    );
+  };
+
   const isFormValid = () => {
     const requiredFieldsValid =
       localData.name.trim() !== "" &&
@@ -95,38 +150,161 @@ const CreateEvent = () => {
       venueDetails.pincode.trim() !== "" &&
       venueDetails.area.trim() !== "";
 
-    const bannerValid = localData.banner.length === 6;
+    const bannerValid = isImageUploadComplete();
 
     return requiredFieldsValid && bannerValid;
   };
 
-  const handleNext = () => {
-  if (!isFormValid()) {
-    alert("Please fill all required fields and upload exactly 6 banner images.");
-    return;
-  }
+  const handleCategorizedFileSelect =
+    (type, index = null) =>
+    (event) => {
+      const file = event.target.files[0];
+      if (!file || !file.type.startsWith("image/")) return;
 
-  const eventData = {
-    ...localData,
-    speaker,
-    eventDate: dayjs(localData.eventDate).toISOString(),
-    eventHost: dayjs(localData.eventHost).toISOString(),
-    vendorId,
-    mediaLink,
-    category: selectedCategories,
-    venueDetails,
-    banner: localData.banner,
+      const imageUrl = URL.createObjectURL(file);
+
+      setImageData((prev) => {
+        let newData = { ...prev };
+
+        if (type === "previousEvents" && index !== null) {
+          newData.previousEvents = [...prev.previousEvents];
+          newData.previousEvents[index] = { file, url: imageUrl };
+        } else {
+          newData[type] = { file, url: imageUrl };
+        }
+
+        // Update banner array and images for display
+        const allFiles = [];
+        const allUrls = [];
+
+        // Add files in specific order
+        if (newData.eventCard) {
+          allFiles.push(newData.eventCard.file);
+          allUrls.push(newData.eventCard.url);
+        }
+        if (newData.banner) {
+          allFiles.push(newData.banner.file);
+          allUrls.push(newData.banner.url);
+        }
+        newData.previousEvents.forEach((img) => {
+          if (img) {
+            allFiles.push(img.file);
+            allUrls.push(img.url);
+          }
+        });
+        if (newData.ticket) {
+          allFiles.push(newData.ticket.file);
+          allUrls.push(newData.ticket.url);
+        }
+
+        setLocalData((prevLocal) => ({
+          ...prevLocal,
+          banner: allFiles,
+        }));
+
+        setImages(allUrls);
+
+        return newData;
+      });
+    };
+
+  // Remove individual images
+  const removeImage = (type, index = null) => {
+    setImageData((prev) => {
+      let newData = { ...prev };
+
+      if (type === "previousEvents" && index !== null) {
+        newData.previousEvents = [...prev.previousEvents];
+        if (newData.previousEvents[index]) {
+          URL.revokeObjectURL(newData.previousEvents[index].url);
+          newData.previousEvents[index] = null;
+        }
+      } else {
+        if (newData[type]) {
+          URL.revokeObjectURL(newData[type].url);
+          newData[type] = null;
+        }
+      }
+
+      // Update banner array and images
+      const allFiles = [];
+      const allUrls = [];
+
+      if (newData.eventCard) {
+        allFiles.push(newData.eventCard.file);
+        allUrls.push(newData.eventCard.url);
+      }
+      if (newData.banner) {
+        allFiles.push(newData.banner.file);
+        allUrls.push(newData.banner.url);
+      }
+      newData.previousEvents.forEach((img) => {
+        if (img) {
+          allFiles.push(img.file);
+          allUrls.push(img.url);
+        }
+      });
+      if (newData.ticket) {
+        allFiles.push(newData.ticket.file);
+        allUrls.push(newData.ticket.url);
+      }
+
+      setLocalData((prevLocal) => ({
+        ...prevLocal,
+        banner: allFiles,
+      }));
+
+      setImages(allUrls);
+
+      return newData;
+    });
   };
 
-  console.log("Event Details on Next Click:", eventData);
+  const handleFileSelect = (event) => {
+    const files = Array.from(event.target.files);
 
-  updateFormSection("eventDetails", eventData);
-  
-  markStepCompleted("step1");
-  
-  navigate(`/createevent/${vendorId}/step2`);
-};
+    const validImages = files
+      .filter((file) => file.type.startsWith("image/"))
+      .slice(0, 6);
+    const newImageUrls = validImages.map((file) => URL.createObjectURL(file));
 
+    setImages((prev) => [...prev, ...newImageUrls].slice(0, 6));
+
+    setLocalData((prev) => ({
+      ...prev,
+      banner: [...validImages].slice(0, 6),
+    }));
+  };
+
+  // Your existing handleNext function remains the same
+  const handleNext = () => {
+    if (!isFormValid()) {
+      alert(
+        "Please fill all required fields and upload exactly 6 banner images."
+      );
+      return;
+    }
+
+    const eventData = {
+      ...localData,
+      speaker,
+      eventDate: dayjs(localData.eventDate).toISOString(),
+      eventHost: dayjs(localData.eventHost).toISOString(),
+      vendorId,
+      mediaLink,
+      category: selectedCategories,
+      venueDetails,
+      banner: localData.banner,
+    };
+
+    console.log("Event Details on Next Click:", eventData);
+
+    updateFormSection("eventDetails", eventData);
+
+    markStepCompleted("step1");
+
+    navigate(`/createevent/${vendorId}/step2`);
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -157,25 +335,6 @@ const CreateEvent = () => {
     const updated = [...speaker];
     updated[index][field] = value;
     setSpeaker(updated);
-  };
-
-  const [images, setImages] = useState([]);
-  const fileInputRef = useRef(null);
-
-  const handleFileSelect = (event) => {
-    const files = Array.from(event.target.files);
-
-    const validImages = files
-      .filter((file) => file.type.startsWith("image/"))
-      .slice(0, 6);
-    const newImageUrls = validImages.map((file) => URL.createObjectURL(file));
-
-    setImages((prev) => [...prev, ...newImageUrls].slice(0, 6));
-
-    setLocalData((prev) => ({
-      ...prev,
-      banner: [...validImages].slice(0, 6),
-    }));
   };
 
   const handleVenueChange = (field, value) => {
@@ -328,11 +487,10 @@ const CreateEvent = () => {
       <Box
         sx={{
           backgroundColor: "#F9FAFB",
-          minHeight: !isMobile? "100vh" :null,
+          minHeight: !isMobile ? "100vh" : null,
           display: "flex",
           flexDirection: "column",
           width: "100%",
-          
         }}
       >
         {/* Header */}
@@ -340,7 +498,7 @@ const CreateEvent = () => {
           sx={{
             display: "flex",
             flexDirection: "column",
-            width:isMobile?"90%": "70%",
+            width: isMobile ? "90%" : "70%",
             margin: "0 auto",
             overflowX: "hidden",
           }}
@@ -348,7 +506,7 @@ const CreateEvent = () => {
           {/*Event overview*/}
           <Box
             sx={{
-              padding: isMobile?"2% 4%": "2% 3%",
+              padding: isMobile ? "2% 4%" : "2% 3%",
               display: "flex",
               flexDirection: "column",
               width: "100%",
@@ -364,82 +522,434 @@ const CreateEvent = () => {
               sx={{
                 fontFamily: "albert sans",
                 fontWeight: "900",
-                fontSize: isMobile?"20px":"28px",
+                fontSize: isMobile ? "20px" : "28px",
               }}
             >
               Event Overview
             </Typography>
             <Box>
               <Box sx={{ width: "100%", mt: "2%" }}>
-                <Typography mb={1} sx={{ fontFamily: "albert sans" }}>
-                  Event Banner
-                </Typography>
-
-                <Box
+                <Typography
+                  mb={2}
                   sx={{
-                    width: isMobile?"90%":"80%",
-                    maxWidth: 1200,
-                    height: isMobile?200:300,
-                    maxHeight: "400px",
-                    border: "2px dashed #ccc",
-                    borderRadius: 4,
-                    overflow: "hidden",
-                    backgroundColor: "#f9f9f9",
-                    mx: "auto",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    position: "relative",
+                    fontFamily: "albert sans",
+                    fontSize: "18px",
+                    fontWeight: "bold",
                   }}
                 >
-                  {images.length > 0 ? (
-                    <Carousel
-                      navButtonsAlwaysVisible
-                      autoPlay={false}
-                      animation="slide"
-                      indicators={false}
-                      sx={{
-                        width: "100%",
-                        height: "100%",
-                      }}
-                    >
-                      {images.map((img, index) => (
+                  Event Images Upload
+                </Typography>
+
+                <Typography
+                  mb={3}
+                  sx={{ fontFamily: "albert sans", color: "#666" }}
+                >
+                  Please upload all 6 images (1 Event Card + 1 Banner + 3
+                  Previous Events + 1 Ticket)
+                </Typography>
+
+                {/* Event Card Image */}
+                <Box mb={3}>
+                  <Typography
+                    mb={1}
+                    sx={{ fontFamily: "albert sans", fontWeight: "bold" }}
+                  >
+                    Event Card Image
+                  </Typography>
+                  <Typography
+                    mb={2}
+                    sx={{
+                      fontFamily: "albert sans",
+                      fontSize: "12px",
+                      color: "#666",
+                    }}
+                  >
+                    300x200px - Main event display
+                  </Typography>
+                  <Box
+                    sx={{
+                      width: isMobile ? "90%" : "300px",
+                      height: "200px",
+                      border: imageData.eventCard
+                        ? "2px solid #19AEDC"
+                        : "2px dashed #ccc",
+                      borderRadius: 4,
+                      overflow: "hidden",
+                      backgroundColor: imageData.eventCard
+                        ? "#f0f9ff"
+                        : "#f9f9f9",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      position: "relative",
+                      cursor: !imageData.eventCard ? "pointer" : "default",
+                    }}
+                    onClick={() =>
+                      !imageData.eventCard &&
+                      fileInputRefs.eventCard.current.click()
+                    }
+                  >
+                    {imageData.eventCard ? (
+                      <>
                         <Box
-                          key={index}
+                          component="img"
+                          src={imageData.eventCard.url}
+                          alt="Event Card"
                           sx={{
-                            width: "100%",
-                            height: "100%",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            backgroundColor: "#fff",
+                            maxWidth: "100%",
+                            maxHeight: "100%",
+                            objectFit: "contain",
+                          }}
+                        />
+                        <IconButton
+                          sx={{
+                            position: "absolute",
+                            top: 4,
+                            right: 4,
+                            bgcolor: "rgba(255,255,255,0.9)",
+                            "&:hover": { bgcolor: "rgba(255,255,255,1)" },
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeImage("eventCard");
                           }}
                         >
-                          <Box
-                            component="img"
-                            src={img}
-                            alt={`upload-${index}`}
-                            sx={{
-                              maxWidth: "100%",
-                              maxHeight: "100%",
-                              objectFit: "contain",
-                            }}
-                          />
-                        </Box>
-                      ))}
-                    </Carousel>
-                  ) : (
-                    <Typography
-                      variant="subtitle1"
-                      color="textSecondary"
-                      sx={{ fontFamily: "albert sans" }}
-                    >
-                      No image uploaded
-                    </Typography>
-                  )}
+                          <Typography sx={{ fontSize: "16px" }}>×</Typography>
+                        </IconButton>
+                      </>
+                    ) : (
+                      <Typography
+                        variant="subtitle1"
+                        color="textSecondary"
+                        sx={{ fontFamily: "albert sans" }}
+                      >
+                        Click to upload Event Card
+                      </Typography>
+                    )}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      ref={fileInputRefs.eventCard}
+                      style={{ display: "none" }}
+                      onChange={handleCategorizedFileSelect("eventCard")}
+                    />
+                  </Box>
                 </Box>
 
-                {/* Upload Button - bottom-right */}
+                {/* Banner Image */}
+                <Box mb={3}>
+                  <Typography
+                    mb={1}
+                    sx={{ fontFamily: "albert sans", fontWeight: "bold" }}
+                  >
+                    Banner Image
+                  </Typography>
+                  <Typography
+                    mb={2}
+                    sx={{
+                      fontFamily: "albert sans",
+                      fontSize: "12px",
+                      color: "#666",
+                    }}
+                  >
+                    800x300px - Hero banner
+                  </Typography>
+                  <Box
+                    sx={{
+                      width: isMobile ? "90%" : "80%",
+                      maxWidth: 800,
+                      height: isMobile ? 200 : 300,
+                      border: imageData.banner
+                        ? "2px solid #19AEDC"
+                        : "2px dashed #ccc",
+                      borderRadius: 4,
+                      overflow: "hidden",
+                      backgroundColor: imageData.banner ? "#f0f9ff" : "#f9f9f9",
+                      mx: "auto",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      position: "relative",
+                      cursor: !imageData.banner ? "pointer" : "default",
+                    }}
+                    onClick={() =>
+                      !imageData.banner && fileInputRefs.banner.current.click()
+                    }
+                  >
+                    {imageData.banner ? (
+                      <>
+                        <Box
+                          component="img"
+                          src={imageData.banner.url}
+                          alt="Banner"
+                          sx={{
+                            maxWidth: "100%",
+                            maxHeight: "100%",
+                            objectFit: "contain",
+                          }}
+                        />
+                        <IconButton
+                          sx={{
+                            position: "absolute",
+                            top: 4,
+                            right: 4,
+                            bgcolor: "rgba(255,255,255,0.9)",
+                            "&:hover": { bgcolor: "rgba(255,255,255,1)" },
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeImage("banner");
+                          }}
+                        >
+                          <Typography sx={{ fontSize: "16px" }}>×</Typography>
+                        </IconButton>
+                      </>
+                    ) : (
+                      <Typography
+                        variant="subtitle1"
+                        color="textSecondary"
+                        sx={{ fontFamily: "albert sans" }}
+                      >
+                        Click to upload Banner
+                      </Typography>
+                    )}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      ref={fileInputRefs.banner}
+                      style={{ display: "none" }}
+                      onChange={handleCategorizedFileSelect("banner")}
+                    />
+                  </Box>
+                </Box>
+
+                {/* Previous Event Images */}
+                <Box mb={3}>
+                  <Typography
+                    mb={1}
+                    sx={{ fontFamily: "albert sans", fontWeight: "bold" }}
+                  >
+                    Previous Event Images
+                  </Typography>
+                  <Typography
+                    mb={2}
+                    sx={{
+                      fontFamily: "albert sans",
+                      fontSize: "12px",
+                      color: "#666",
+                    }}
+                  >
+                    300x200px each - Event gallery (3 images required)
+                  </Typography>
+                  <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
+                    {[0, 1, 2].map((index) => (
+                      <Box
+                        key={index}
+                        sx={{
+                          width: isMobile ? "90px" : "300px",
+                          height: isMobile ? "60px" : "200px",
+                          border: imageData.previousEvents[index]
+                            ? "2px solid #19AEDC"
+                            : "2px dashed #ccc",
+                          borderRadius: 4,
+                          overflow: "hidden",
+                          backgroundColor: imageData.previousEvents[index]
+                            ? "#f0f9ff"
+                            : "#f9f9f9",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          position: "relative",
+                          cursor: !imageData.previousEvents[index]
+                            ? "pointer"
+                            : "default",
+                        }}
+                        onClick={() =>
+                          !imageData.previousEvents[index] &&
+                          fileInputRefs.previousEvents[index].current.click()
+                        }
+                      >
+                        {imageData.previousEvents[index] ? (
+                          <>
+                            <Box
+                              component="img"
+                              src={imageData.previousEvents[index].url}
+                              alt={`Previous Event ${index + 1}`}
+                              sx={{
+                                maxWidth: "100%",
+                                maxHeight: "100%",
+                                objectFit: "contain",
+                              }}
+                            />
+                            <IconButton
+                              sx={{
+                                position: "absolute",
+                                top: 2,
+                                right: 2,
+                                bgcolor: "rgba(255,255,255,0.9)",
+                                "&:hover": { bgcolor: "rgba(255,255,255,1)" },
+                                minWidth: "auto",
+                                width: "24px",
+                                height: "24px",
+                              }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                removeImage("previousEvents", index);
+                              }}
+                            >
+                              <Typography sx={{ fontSize: "14px" }}>
+                                ×
+                              </Typography>
+                            </IconButton>
+                          </>
+                        ) : (
+                          <Typography
+                            variant={isMobile ? "caption" : "subtitle2"}
+                            color="textSecondary"
+                            sx={{
+                              fontFamily: "albert sans",
+                              textAlign: "center",
+                            }}
+                          >
+                            Event {index + 1}
+                          </Typography>
+                        )}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          ref={fileInputRefs.previousEvents[index]}
+                          style={{ display: "none" }}
+                          onChange={handleCategorizedFileSelect(
+                            "previousEvents",
+                            index
+                          )}
+                        />
+                      </Box>
+                    ))}
+                  </Box>
+                </Box>
+
+                {/* Ticket Image */}
+                <Box mb={3}>
+                  <Typography
+                    mb={1}
+                    sx={{ fontFamily: "albert sans", fontWeight: "bold" }}
+                  >
+                    Ticket Image
+                  </Typography>
+                  <Typography
+                    mb={2}
+                    sx={{
+                      fontFamily: "albert sans",
+                      fontSize: "12px",
+                      color: "#666",
+                    }}
+                  >
+                    150x200px - Ticket design
+                  </Typography>
+                  <Box
+                    sx={{
+                      width: isMobile ? "90%" : "150px",
+                      height: "200px",
+                      border: imageData.ticket
+                        ? "2px solid #19AEDC"
+                        : "2px dashed #ccc",
+                      borderRadius: 4,
+                      overflow: "hidden",
+                      backgroundColor: imageData.ticket ? "#f0f9ff" : "#f9f9f9",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      position: "relative",
+                      cursor: !imageData.ticket ? "pointer" : "default",
+                    }}
+                    onClick={() =>
+                      !imageData.ticket && fileInputRefs.ticket.current.click()
+                    }
+                  >
+                    {imageData.ticket ? (
+                      <>
+                        <Box
+                          component="img"
+                          src={imageData.ticket.url}
+                          alt="Ticket"
+                          sx={{
+                            maxWidth: "100%",
+                            maxHeight: "100%",
+                            objectFit: "contain",
+                          }}
+                        />
+                        <IconButton
+                          sx={{
+                            position: "absolute",
+                            top: 4,
+                            right: 4,
+                            bgcolor: "rgba(255,255,255,0.9)",
+                            "&:hover": { bgcolor: "rgba(255,255,255,1)" },
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeImage("ticket");
+                          }}
+                        >
+                          <Typography sx={{ fontSize: "16px" }}>×</Typography>
+                        </IconButton>
+                      </>
+                    ) : (
+                      <Typography
+                        variant="subtitle1"
+                        color="textSecondary"
+                        sx={{ fontFamily: "albert sans" }}
+                      >
+                        Ticket image
+                      </Typography>
+                    )}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      ref={fileInputRefs.ticket}
+                      style={{ display: "none" }}
+                      onChange={handleCategorizedFileSelect("ticket")}
+                    />
+                  </Box>
+                </Box>
+
+                {/* Progress Indicator */}
+                <Box
+                  sx={{
+                    mt: 3,
+                    p: 2,
+                    backgroundColor: isImageUploadComplete()
+                      ? "#e8f5e8"
+                      : "#fff3e0",
+                    borderRadius: 2,
+                    border: `1px solid ${
+                      isImageUploadComplete() ? "#4caf50" : "#ff9800"
+                    }`,
+                    mb: 2,
+                  }}
+                >
+                  <Typography
+                    sx={{ fontFamily: "albert sans", fontWeight: "bold" }}
+                  >
+                    Progress:{" "}
+                    {Object.values(imageData).flat().filter(Boolean).length}/6
+                    images uploaded
+                  </Typography>
+                  <Typography
+                    sx={{
+                      fontFamily: "albert sans",
+                      fontSize: "12px",
+                      color: "#666",
+                    }}
+                  >
+                    {isImageUploadComplete()
+                      ? "All images uploaded! You can proceed to the next step."
+                      : "Please upload all required images to continue."}
+                  </Typography>
+                </Box>
+
+                {/* Keep your existing upload button for fallback */}
                 <Box
                   sx={{
                     display: "flex",
@@ -448,47 +958,29 @@ const CreateEvent = () => {
                     width: "90%",
                     mb: "2%",
                   }}
-                >
-                  <Box sx={{ display: "flex", gap: "2%", width: isMobile?"70%":"60%" }}>
-                    <Typography
-                      sx={{ margin: "0 auto", fontFamily: "albert sans" }}
-                    >
-                      Please upload exactly 6 images to continue
-                    </Typography>
-                  </Box>
-                  <Box
-                    sx={{
-                      width: isMobile?"40%":"40%",
-                      display: "flex",
-                      justifyContent: "flex-end",
-                    }}
-                  >
-                    <Button
-                      variant="contained"
-                      sx={{
-                        textTransform: "none",
-                        bgcolor: "#19AEDC",
-                        fontFamily: "albert sans",
-                        fontSize: isMobile?"12px":"14px",
-                        p:isMobile?"1px 10px":"6px 12px",
-                      }}
-                      onClick={() => fileInputRef.current.click()}
-                    >
-                      Upload Image
-                    </Button>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      ref={fileInputRef}
-                      style={{ display: "none" }}
-                      onChange={handleFileSelect}
-                    />
-                  </Box>
-                </Box>
+                ></Box>
               </Box>
 
-              <FormControl fullWidth variant="outlined">
+              
+            </Box>
+          </Box>
+
+          <Box
+            sx={{
+              padding: "2% 3%",
+              display: "flex",
+              flexDirection: "column",
+              width: "100%",
+              margin: "2% auto",
+              boxSizing: "border-box",
+              backgroundColor: "white",
+              height: "auto",
+              borderRadius: "10px",
+              boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
+            }}
+          >
+
+          <FormControl fullWidth variant="outlined">
                 <Typography
                   variant="subtitle2"
                   sx={{
@@ -660,8 +1152,7 @@ const CreateEvent = () => {
                   ))}
                 </Select>
               </FormControl>
-            </Box>
-          </Box>
+              </Box>
 
           {/*Speaker and hosts*/}
           <Box
@@ -690,7 +1181,7 @@ const CreateEvent = () => {
                 sx={{
                   fontFamily: "albert sans",
                   fontWeight: "900",
-                  fontSize: isMobile?"16px":"28px",
+                  fontSize: isMobile ? "16px" : "28px",
                 }}
               >
                 Speakers and Hosts (Optional)
@@ -712,8 +1203,8 @@ const CreateEvent = () => {
                 border: "1px solid #E5E7EB",
                 borderRadius: "10px",
                 padding: "2% 3%",
-                minHeight: isMobile?30:null,
-                height: isMobile?"auto":null,
+                minHeight: isMobile ? 30 : null,
+                height: isMobile ? "auto" : null,
                 display: "flex",
                 flexDirection: "column",
                 gap: "2%",
@@ -723,7 +1214,7 @@ const CreateEvent = () => {
                 <Box
                   key={index}
                   sx={{
-                    display:isMobile?"block": "flex",
+                    display: isMobile ? "block" : "flex",
                     gap: "3%",
                     alignItems: "flex-end",
                   }}
@@ -771,7 +1262,7 @@ const CreateEvent = () => {
                         color: "#666",
                         fontWeight: 500,
                         fontFamily: "Albert Sans",
-                        mt: isMobile?"10px":"0px",
+                        mt: isMobile ? "10px" : "0px",
                       }}
                     >
                       Role/Designation of speaker
@@ -805,7 +1296,7 @@ const CreateEvent = () => {
                       cursor: "pointer",
                       "&:hover": { color: "red" },
                       mb: "8px",
-                      mt: isMobile?"10px":"0px",
+                      mt: isMobile ? "10px" : "0px",
                     }}
                     onClick={() => handleRemoveSpeaker(index)}
                   />
@@ -840,8 +1331,8 @@ const CreateEvent = () => {
             </Typography>
             <Box
               sx={{
-                display: isMobile?"block":"flex",
-                width:isMobile?"100%": "95%",
+                display: isMobile ? "block" : "flex",
+                width: isMobile ? "100%" : "95%",
                 margin: "0 auto",
                 gap: "5%",
                 mt: "2%",
@@ -850,7 +1341,7 @@ const CreateEvent = () => {
               <LocalizationProvider dateAdapter={AdapterDayjs}>
                 <FormControl
                   variant="outlined"
-                  sx={{ marginBottom: 2, width:isMobile?"90%":"45%" }}
+                  sx={{ marginBottom: 2, width: isMobile ? "90%" : "45%" }}
                 >
                   <Typography
                     variant="subtitle2"
@@ -869,7 +1360,6 @@ const CreateEvent = () => {
                     onChange={(newValue) =>
                       handleDateChange("eventDate", newValue)
                     }
-                    
                     slotProps={{
                       textField: {
                         variant: "outlined",
@@ -892,7 +1382,6 @@ const CreateEvent = () => {
                             {
                               borderColor: "#19AEDC",
                             },
-                          
                         },
                       },
                     }}
@@ -903,7 +1392,11 @@ const CreateEvent = () => {
               <LocalizationProvider dateAdapter={AdapterDayjs}>
                 <FormControl
                   variant="outlined"
-                  sx={{ marginBottom: 2, width: "45%", width:isMobile?"90%":"45%"  }}
+                  sx={{
+                    marginBottom: 2,
+                    width: "45%",
+                    width: isMobile ? "90%" : "45%",
+                  }}
                 >
                   <Typography
                     variant="subtitle2"
