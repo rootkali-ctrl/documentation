@@ -16,6 +16,7 @@ import {
   Button,
   Alert,
   Snackbar,
+  DialogContentText,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import QrCodeIcon from "@mui/icons-material/QrCode";
@@ -30,6 +31,8 @@ import {
   doc,
   getDoc,
   updateDoc,
+  writeBatch,
+  serverTimestamp,
 } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import MainHeader from "../Header/MainHeader";
@@ -50,7 +53,15 @@ const RecentOrders = () => {
     message: "",
     severity: "success",
   });
-
+  // Required state variables (add these to your component state)
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [pendingTicketId, setPendingTicketId] = useState(null);
+  const [pendingEventTitle, setPendingEventTitle] = useState("");
+  const [pendingTicket, setPendingTicket] = useState(null);
+  const [userEmail, setUserEmail] = useState("");
+  const [vendorID, setVendorID] = useState("");
+  const [vendorEmail, setVendorEmail] = useState("");
+  const [vendorContact, setVendorContact] = useState("");
   // Authenticate and get current user
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -81,10 +92,17 @@ const RecentOrders = () => {
         console.error(`Error fetching user data: ${err.message}`);
       }
     };
+
     if (currentUser) {
       fetchUserData();
     }
   }, [currentUser, userId]);
+
+  useEffect(() => {
+    if (userData?.email) {
+      setUserEmail(userData.email);
+    }
+  }, [userData]);
 
   // Fetch first event image from Firestore document
   const fetchEventImage = async (eventId) => {
@@ -106,7 +124,9 @@ const RecentOrders = () => {
       const images = eventData.images || eventData.bannerImages || [];
 
       if (images.length === 0) {
-        console.warn(`No images found in event document for eventId: ${eventId}`);
+        console.warn(
+          `No images found in event document for eventId: ${eventId}`
+        );
         return null;
       }
 
@@ -118,7 +138,9 @@ const RecentOrders = () => {
 
       return firstImageUrl;
     } catch (error) {
-      console.error(`Error fetching event image for eventId ${eventId}: ${error.message}`);
+      console.error(
+        `Error fetching event image for eventId ${eventId}: ${error.message}`
+      );
       return null;
     }
   };
@@ -130,6 +152,7 @@ const RecentOrders = () => {
       const eventDocSnapshot = await getDoc(eventDocRef);
       if (eventDocSnapshot.exists()) {
         const eventData = eventDocSnapshot.data();
+        setVendorID(eventData.vendorId);
         return {
           cancellationAvailable:
             eventData.cancellationAvailable === "true" ||
@@ -148,7 +171,9 @@ const RecentOrders = () => {
         eventDate: null,
       };
     } catch (error) {
-      console.error(`Error fetching event details for eventId ${eventId}: ${error.message}`);
+      console.error(
+        `Error fetching event details for eventId ${eventId}: ${error.message}`
+      );
       return {
         cancellationAvailable: false,
         cancellationDays: 0,
@@ -158,6 +183,26 @@ const RecentOrders = () => {
       };
     }
   };
+
+  useEffect(() => {
+    const fetchVendorEmail = async (vendorID) => {
+      try {
+        const vendorDocRef = doc(db, "vendors", vendorID);
+        const vendorDocSnapshot = await getDoc(vendorDocRef);
+        if (vendorDocSnapshot.exists()) {
+          const vendorData = vendorDocSnapshot.data();
+          setVendorEmail(vendorData.organisationMail);
+          setVendorContact(vendorData.organisationContact);
+        }
+      } catch (err) {
+        console.error("Error fetching vendor email:", err);
+      }
+    };
+
+    if (vendorID) {
+      fetchVendorEmail(vendorID);
+    }
+  }, [vendorID]);
 
   // Check if cancellation is allowed
   const isCancellationAllowed = (
@@ -210,18 +255,23 @@ const RecentOrders = () => {
           try {
             const createdAtDate = new Date(ticketData.createdAt);
             if (!isNaN(createdAtDate.getTime())) {
-              formattedOrderDate = `${createdAtDate.toLocaleDateString("en-US", {
-                day: "2-digit",
-                month: "short",
-                year: "numeric",
-              })} at ${createdAtDate.toLocaleTimeString("en-US", {
+              formattedOrderDate = `${createdAtDate.toLocaleDateString(
+                "en-US",
+                {
+                  day: "2-digit",
+                  month: "short",
+                  year: "numeric",
+                }
+              )} at ${createdAtDate.toLocaleTimeString("en-US", {
                 hour: "2-digit",
                 minute: "2-digit",
                 hour12: true,
               })}`;
             }
           } catch (dateError) {
-            console.warn(`Failed to format date for ticket ${doc.id}: ${dateError.message}`);
+            console.warn(
+              `Failed to format date for ticket ${doc.id}: ${dateError.message}`
+            );
           }
 
           const eventStatus = determineEventStatus(ticketData.eventDate);
@@ -304,6 +354,9 @@ const RecentOrders = () => {
     }
   }, [userData, currentUser, userId]);
 
+
+
+
   // Determine event status
   const determineEventStatus = (eventDateStr) => {
     if (!eventDateStr) return "Unknown";
@@ -359,56 +412,339 @@ const RecentOrders = () => {
     setSelectedQR(null);
   };
 
+const sendCancellationEmails = async (
+  ticketData,
+  eventData,
+  refundAmount,
+  cancellationFee,
+  vendorContact
+) => {
+  try {
+    // Email 1: User to Vendor notification
+    const vendorEmailData = {
+      to: vendorEmail, // Make sure vendorEmail is available
+      from: "noreply@ticketb.com", // Use your domain
+      subject: `Ticket Cancellation Notice - ${eventData.name}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background-color: #19aedc; padding: 20px; text-align: center;">
+            <h1 style="color: white; margin: 0;">TicketB</h1>
+          </div>
+          <div style="padding: 20px; border: 1px solid #ddd; border-top: none;">
+            <h2>Ticket Cancellation Notice</h2>
+            <p>Dear Event Organizer,</p>
+            <p>A ticket booking has been cancelled for your event:</p>
+            
+            <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
+              <h3 style="margin-top: 0; color: #555;">Event Details:</h3>
+              <p><strong>Event:</strong> ${eventData.name}</p>
+              <p><strong>Event Date:</strong> ${eventData.eventDate 
+                ? new Date(eventData.eventDate).toLocaleString("en-IN", {
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                  })
+                : "N/A"}</p>
+              <p><strong>Ticket ID:</strong> ${ticketData.id}</p>
+              <p><strong>Customer Email:</strong> ${userEmail}</p>
+              <p><strong>Original Amount:</strong> ₹${ticketData.event.totalAmount}</p>
+              <p><strong>Refund Amount:</strong> ₹${refundAmount.toFixed(2)}</p>
+              <p><strong>Cancellation Fee:</strong> ₹${cancellationFee.toFixed(2)}</p>
+              <p><strong>Cancelled At:</strong> ${new Date().toLocaleString()}</p>
+            </div>
+            
+            <div style="background-color: #fff3cd; padding: 15px; border-radius: 5px;">
+              <h4 style="margin-top: 0; color: #856404;">Ticket Summary:</h4>
+              ${ticketData.event.tickets
+                ?.map(ticket => `<p>• ${ticket.type}: ${ticket.quantity} ticket(s)</p>`)
+                .join("") || "<p>Ticket details not available</p>"}
+            </div>
+            
+            <p>The ticket inventory has been automatically updated. Please check your events page for confirmation.</p>
+            <p>Best regards,<br>TicketB Team</p>
+          </div>
+          
+          <div style="background-color: #f1f1f1; padding: 10px; text-align: center; font-size: 12px; color: #666;">
+            <p>This is an automated message from TicketB. Please do not reply to this email.</p>
+          </div>
+        </div>
+      `
+    };
+
+    // Email 2: Cancellation confirmation to user
+    const userEmailData = {
+      to: userEmail, // Make sure userEmail is available
+      from: "noreply@ticketb.com", // Use your domain
+      subject: `Ticket Cancellation Confirmed - ${eventData.name}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background-color: #19aedc; padding: 20px; text-align: center;">
+            <h1 style="color: white; margin: 0;">TicketB</h1>
+          </div>
+          
+          <div style="padding: 20px; border: 1px solid #ddd; border-top: none;">
+            <div style="background-color: #d4edda; padding: 20px; border-radius: 5px; margin-bottom: 20px;">
+              <h2 style="color: #155724; margin-top: 0;">✓ Ticket Cancellation Successful</h2>
+            </div>
+            
+            <p>Dear Customer,</p>
+            <p>Your ticket cancellation has been processed successfully. Here are the details:</p>
+            
+            <div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin: 20px 0;">
+              <h3 style="margin-top: 0; color: #333;">Cancellation Details:</h3>
+              <p><strong>Event:</strong> ${eventData.name}</p>
+              <p><strong>Event Date:</strong> ${eventData.eventDate 
+                ? new Date(eventData.eventDate).toLocaleString("en-IN", {
+                    dateStyle: "medium", 
+                    timeStyle: "short",
+                  })
+                : "N/A"}</p>
+              <p><strong>Ticket ID:</strong> ${ticketData.id}</p>
+              <p><strong>Cancelled On:</strong> ${new Date().toLocaleString()}</p>
+            </div>
+            
+            <div style="background-color: #e8f4fd; padding: 20px; border-radius: 5px; margin: 20px 0;">
+              <h3 style="margin-top: 0; color: #0c5460;">Your Tickets:</h3>
+              ${ticketData.event.tickets
+                ?.map(ticket => `<p><strong>${ticket.type}:</strong> ${ticket.quantity} ticket(s)</p>`)
+                .join("") || "<p>Ticket details not available</p>"}
+            </div>
+            
+            <div style="background-color: #fff3cd; padding: 20px; border-radius: 5px; margin: 20px 0;">
+              <h3 style="margin-top: 0; color: #856404;">Refund Information:</h3>
+              <p><strong>Original Amount:</strong> ₹${ticketData.event.totalAmount}</p>
+              <p><strong>Cancellation Fee:</strong> ₹${cancellationFee.toFixed(2)}</p>
+              <p><strong>Refund Amount:</strong> 
+                <span style="color: #28a745; font-size: 18px; font-weight: bold;">₹${refundAmount.toFixed(2)}</span>
+              </p>
+            </div>
+            
+            <div style="background-color: #d1ecf1; padding: 15px; border-radius: 5px;">
+              <p style="margin: 0;"><strong>Note:</strong> Your refund will be processed within 5–7 business days. 
+              Vendor contact: ${vendorContact}. If amount is not received, please call for clarification.</p>
+            </div>
+            
+            <p>Thank you for using TicketB!</p>
+            <p>Best regards,<br>TicketB Team</p>
+          </div>
+          
+          <div style="background-color: #f1f1f1; padding: 10px; text-align: center; font-size: 12px; color: #666;">
+            <p>This is an automated message from TicketB. Please do not reply to this email.</p>
+          </div>
+        </div>
+      `
+    };
+
+
+    // Validate email addresses before sending
+    if (!vendorEmail || !userEmail) {
+      throw new Error("Missing recipient email addresses");
+    }
+
+    // Send both emails with proper error handling
+    const emailPromises = [
+      fetch(`${process.env.REACT_APP_API_BASE_URL}/api/send-email`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(vendorEmailData),
+      }).then(response => {
+        if (!response.ok) {
+          throw new Error(`Vendor email failed: ${response.status} ${response.statusText}`);
+        }
+        return response.json();
+      }),
+      
+      fetch(`${process.env.REACT_APP_API_BASE_URL}/api/send-email`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(userEmailData),
+      }).then(response => {
+        if (!response.ok) {
+          throw new Error(`User email failed: ${response.status} ${response.statusText}`);
+        }
+        return response.json();
+      })
+    ];
+
+    const [vendorEmailResponse, userEmailResponse] = await Promise.allSettled(emailPromises);
+
+    // Log results
+    if (vendorEmailResponse.status === "fulfilled") {
+    } else {
+      console.error("Failed to send vendor email:", vendorEmailResponse.reason);
+    }
+
+    if (userEmailResponse.status === "fulfilled") {
+    } else {
+      console.error("Failed to send user email:", userEmailResponse.reason);
+    }
+
+    return {
+      vendorEmailSent: vendorEmailResponse.status === "fulfilled",
+      userEmailSent: userEmailResponse.status === "fulfilled",
+      vendorError: vendorEmailResponse.status === "rejected" ? vendorEmailResponse.reason.message : null,
+      userError: userEmailResponse.status === "rejected" ? userEmailResponse.reason.message : null,
+    };
+
+  } catch (error) {
+    console.error("Error sending cancellation emails:", error);
+    return {
+      vendorEmailSent: false,
+      userEmailSent: false,
+      error: error.message,
+    };
+  }
+};
   // Handle ticket cancellation
   const handleCancelTicket = async (ticketId, eventTitle, ticket) => {
-    if (!window.confirm(`Are you sure you want to cancel your ticket for "${eventTitle}"?`)) {
-      return;
-    }
+    // Set dialog state instead of using window.confirm
+    setConfirmDialogOpen(true);
+    setPendingTicketId(ticketId);
+    setPendingEventTitle(eventTitle);
+    setPendingTicket(ticket);
+  };
+
+  // Function to execute cancellation after confirmation
+  const confirmCancellation = async () => {
+    setConfirmDialogOpen(false);
     setCancellationLoading(true);
+
     try {
-      let refundAmount = ticket.event.totalAmount;
+      // Debug log to see ticket structure
+
+      // Access data from the correct locations based on the ticket structure
+      const eventId = pendingTicket.event.id;
+      const ticketSummary = pendingTicket.event.tickets || [];
+
+      if (!eventId) {
+        throw new Error("Event ID not found in ticket data");
+      }
+
+      let refundAmount = pendingTicket.event.totalAmount || 0;
       let cancellationFee = 0;
-      const ticketCount = ticket.event.tickets.reduce(
-        (total, t) => total + t.quantity,
+
+      // Calculate ticket count from ticketSummary
+      const ticketCount = ticketSummary.reduce(
+        (total, t) => total + (t.quantity || 0),
         0
       );
 
-      if (ticket.event.deductionType === "percentage") {
-        refundAmount =
-          (ticket.event.totalAmount * (100 - ticket.event.deductionRate)) / 100;
-        cancellationFee = ticket.event.totalAmount - refundAmount;
-      } else if (ticket.event.deductionType === "price") {
-        cancellationFee = ticket.event.deductionRate * ticketCount;
-        refundAmount = ticket.event.totalAmount - cancellationFee;
+      const deductionType = pendingTicket.event.deductionType;
+      const deductionRate = pendingTicket.event.deductionRate || 0;
+
+      if (deductionType === "percentage") {
+        refundAmount = (refundAmount * (100 - deductionRate)) / 100;
+        cancellationFee = pendingTicket.event.totalAmount - refundAmount;
+      } else if (deductionType === "price") {
+        cancellationFee = deductionRate * ticketCount;
+        refundAmount = pendingTicket.event.totalAmount - cancellationFee;
       }
 
       refundAmount = Math.max(0, Math.round(refundAmount * 100) / 100);
       cancellationFee = Math.round(cancellationFee * 100) / 100;
 
-      const ticketDocRef = doc(db, "tickets", ticketId);
+      // Start a batch operation for atomic updates
+      const batch = writeBatch(db);
+
+      // Update the ticket document
+      const ticketDocRef = doc(db, "tickets", pendingTicketId);
       const cancellationTime = new Date().toISOString();
-      await updateDoc(ticketDocRef, {
+      batch.update(ticketDocRef, {
         cancelled: true,
         cancelledAt: cancellationTime,
         refundAmount: refundAmount,
       });
 
-      // Update tickets state to reflect cancellation
+      // Update the event document to restore ticket availability
+      const eventDocRef = doc(db, "events", eventId);
+
+      // Get current event data to update pricing array
+      const eventDoc = await getDoc(eventDocRef);
+      let eventData = null;
+
+      if (eventDoc.exists()) {
+        eventData = eventDoc.data();
+
+        // Ensure pricing array exists
+        if (eventData.pricing && Array.isArray(eventData.pricing)) {
+          const updatedPricing = eventData.pricing.map((priceCategory) => {
+            // Find matching ticket types from the cancelled booking
+            const cancelledTicketsOfThisType = ticketSummary.filter(
+              (ticketItem) => ticketItem.type === priceCategory.ticketType
+            );
+
+            if (cancelledTicketsOfThisType.length > 0) {
+              // Sum up all cancelled tickets of this type
+              const totalCancelledQuantity = cancelledTicketsOfThisType.reduce(
+                (sum, cancelledTicket) => sum + (cancelledTicket.quantity || 0),
+                0
+              );
+
+              return {
+                ...priceCategory,
+                seats: (priceCategory.seats || 0) + totalCancelledQuantity,
+              };
+            }
+            return priceCategory;
+          });
+
+          // Update the event document
+          batch.update(eventDocRef, {
+            pricing: updatedPricing,
+            ticketBookedCount: Math.max(
+              0,
+              (eventData.ticketBookedCount || 0) - ticketCount
+            ),
+            lastUpdated: serverTimestamp(),
+          });
+        }
+      }
+
+      // Commit all updates atomically
+      await batch.commit();
+
+      // Send email notifications after successful database update
+
+      if (eventData) {
+
+        const emailResults = await sendCancellationEmails(
+          pendingTicket,
+          eventData,
+          refundAmount,
+          cancellationFee,
+          vendorContact
+        );
+
+      }
+
+      // Update local tickets state to reflect cancellation
       setTickets((prevTickets) =>
         prevTickets.map((t) =>
-          t.id === ticketId
-            ? { ...t, cancelled: true, refundAmount, cancelledAt: cancellationTime }
+          t.id === pendingTicketId
+            ? {
+                ...t,
+                cancelled: true,
+                refundAmount,
+                cancelledAt: cancellationTime,
+              }
             : t
         )
       );
 
       setSnackbar({
         open: true,
-        message: `Ticket for "${eventTitle}" cancelled successfully. Refund of ₹${refundAmount.toFixed(2)} will be processed.`,
+        message: `Ticket for "${pendingEventTitle}" cancelled successfully. Refund of ₹${refundAmount.toFixed(
+          2
+        )} will be processed. Confirmation emails have been sent.`,
         severity: "success",
       });
     } catch (error) {
-      console.error(`Error cancelling ticket ${ticketId}: ${error.message}`);
+      console.error(
+        `Error cancelling ticket ${pendingTicketId}: ${error.message}`
+      );
       setSnackbar({
         open: true,
         message: `Failed to cancel ticket: ${error.message}`,
@@ -416,6 +752,10 @@ const RecentOrders = () => {
       });
     } finally {
       setCancellationLoading(false);
+      // Clear pending state
+      setPendingTicketId(null);
+      setPendingEventTitle("");
+      setPendingTicket(null);
     }
   };
 
@@ -440,6 +780,39 @@ const RecentOrders = () => {
 
   return (
     <Box sx={{ backgroundColor: "#f9f9f9", minHeight: "100vh" }}>
+      <Dialog
+        open={confirmDialogOpen}
+        onClose={() => setConfirmDialogOpen(false)}
+      >
+        <DialogTitle sx={{ fontFamily: "albert sans" }}>
+          Confirm Ticket Cancellation
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ fontFamily: "albert sans" }}>
+            Are you sure you want to cancel your ticket for{" "}
+            <strong>"{pendingEventTitle}"</strong>?{" "}
+            {pendingTicket?.event?.deductionRate}% is held and remaining will be
+            refunded.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => setConfirmDialogOpen(false)}
+            sx={{ fontFamily: "albert sans" }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={confirmCancellation}
+            color="error"
+            variant="contained"
+            sx={{ fontFamily: "albert sans" }}
+          >
+            Cancel Ticket
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       <MainHeader />
       <Container maxWidth="lg" sx={{ pt: 4, pb: 8 }}>
         <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
@@ -449,7 +822,11 @@ const RecentOrders = () => {
           <Typography
             variant="h5"
             component="h1"
-            sx={{ fontWeight: "bold", color: "rgb(25, 174, 220)", fontFamily: "Albert Sans, sans-serif" }}
+            sx={{
+              fontWeight: "bold",
+              color: "rgb(25, 174, 220)",
+              fontFamily: "Albert Sans, sans-serif",
+            }}
           >
             Your Recent Orders
           </Typography>
@@ -460,7 +837,11 @@ const RecentOrders = () => {
           </Box>
         ) : error ? (
           <Paper sx={{ p: 3, textAlign: "center" }}>
-            <Typography variant="body1" color="error" sx={{ mb: 2, fontFamily: "Albert Sans, sans-serif" }}>
+            <Typography
+              variant="body1"
+              color="error"
+              sx={{ mb: 2, fontFamily: "Albert Sans, sans-serif" }}
+            >
               {error}
             </Typography>
             <Box sx={{ display: "flex", justifyContent: "center" }}>
@@ -490,7 +871,10 @@ const RecentOrders = () => {
                     <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path>
                     <path d="M3 21v-5h5"></path>
                   </svg>
-                  <Typography variant="button" sx={{ ml: 1, fontFamily: "Albert Sans, sans-serif" }}>
+                  <Typography
+                    variant="button"
+                    sx={{ ml: 1, fontFamily: "Albert Sans, sans-serif" }}
+                  >
                     Retry
                   </Typography>
                 </Box>
@@ -499,17 +883,30 @@ const RecentOrders = () => {
           </Paper>
         ) : tickets.length === 0 ? (
           <Paper sx={{ p: 5, textAlign: "center" }}>
-            <Typography variant="h6" sx={{ fontFamily: "Albert Sans, sans-serif" }}>
+            <Typography
+              variant="h6"
+              sx={{ fontFamily: "Albert Sans, sans-serif" }}
+            >
               You haven't made any bookings yet.
             </Typography>
-            <Typography variant="body1" sx={{ mt: 2, fontFamily: "Albert Sans, sans-serif" }}>
+            <Typography
+              variant="body1"
+              sx={{ mt: 2, fontFamily: "Albert Sans, sans-serif" }}
+            >
               Browse events and book your first ticket!
             </Typography>
           </Paper>
         ) : (
           tickets.map((ticket) => (
             <Box key={ticket.id} sx={{ mb: 4 }}>
-              <Typography variant="body2" sx={{ color: "#666", mb: 1, fontFamily: "Albert Sans, sans-serif" }}>
+              <Typography
+                variant="body2"
+                sx={{
+                  color: "#666",
+                  mb: 1,
+                  fontFamily: "Albert Sans, sans-serif",
+                }}
+              >
                 Ordered on: {ticket.orderedOn} | Booking ID: {ticket.bookingId}
                 {ticket.cancelled && (
                   <span style={{ color: "#ff6b6b", fontWeight: "bold" }}>
@@ -536,7 +933,7 @@ const RecentOrders = () => {
                 <Box
                   sx={{
                     width: { xs: "100%", sm: 250 },
-                    height: { xs: 160, sm: "100%" },
+                    height: { xs: 200, sm: "100%" },
                     position: "relative",
                     backgroundColor: "#f5f5f5",
                     filter: ticket.cancelled ? "grayscale(50%)" : "none",
@@ -552,7 +949,7 @@ const RecentOrders = () => {
                       style={{
                         width: "100%",
                         height: "100%",
-                        objectFit: "cover",
+                        objectFit: "contain",
                         display: "block",
                       }}
                       onError={(e) => {
@@ -574,8 +971,14 @@ const RecentOrders = () => {
                       backgroundColor: "#f5f5f5",
                     }}
                   >
-                    <Typography variant="body2" color="text.secondary" sx={{ fontFamily: "Albert Sans, sans-serif" }}>
-                      {ticket.event.imageUrl ? "Image Failed to Load" : "No Image Available"}
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ fontFamily: "Albert Sans, sans-serif" }}
+                    >
+                      {ticket.event.imageUrl
+                        ? "Image Failed to Load"
+                        : "No Image Available"}
                     </Typography>
                   </Box>
                 </Box>
@@ -597,7 +1000,13 @@ const RecentOrders = () => {
                       mb: 1,
                     }}
                   >
-                    <Typography variant="h6" sx={{ fontWeight: "bold", fontFamily: "Albert Sans, sans-serif" }}>
+                    <Typography
+                      variant="h6"
+                      sx={{
+                        fontWeight: "bold",
+                        fontFamily: "Albert Sans, sans-serif",
+                      }}
+                    >
                       {ticket.event.title}
                     </Typography>
                     <Chip
@@ -614,21 +1023,48 @@ const RecentOrders = () => {
                       }}
                     />
                   </Box>
-                  <Typography variant="body2" sx={{ color: "#666", mb: 0.5, fontFamily: "Albert Sans, sans-serif" }}>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: "#666",
+                      mb: 0.5,
+                      fontFamily: "Albert Sans, sans-serif",
+                    }}
+                  >
                     {ticket.event.formattedDate}{" "}
-                    {ticket.event.time !== "Time not available" ? `| ${ticket.event.time}` : ""}
+                    {ticket.event.time !== "Time not available"
+                      ? `| ${ticket.event.time}`
+                      : ""}
                   </Typography>
-                  <Typography variant="body2" sx={{ color: "#666", mb: 1, fontFamily: "Albert Sans, sans-serif" }}>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: "#666",
+                      mb: 1,
+                      fontFamily: "Albert Sans, sans-serif",
+                    }}
+                  >
                     {ticket.event.venue}
                   </Typography>
                   <Typography
                     variant="body2"
-                    sx={{ fontWeight: "bold", mb: 1, fontFamily: "Albert Sans, sans-serif" }}
+                    sx={{
+                      fontWeight: "bold",
+                      mb: 1,
+                      fontFamily: "Albert Sans, sans-serif",
+                    }}
                   >
                     {formatTicketsText(ticket.event.tickets)}
                   </Typography>
                   {ticket.cancelled && ticket.refundAmount !== null && (
-                    <Alert severity="info" sx={{ mb: 1, fontSize: "0.8rem", fontFamily: "Albert Sans, sans-serif" }}>
+                    <Alert
+                      severity="info"
+                      sx={{
+                        mb: 1,
+                        fontSize: "0.8rem",
+                        fontFamily: "Albert Sans, sans-serif",
+                      }}
+                    >
                       Ticket cancelled. Refund of ₹
                       {ticket.refundAmount.toFixed(2)} will be processed within
                       3-5 business days.
@@ -653,7 +1089,9 @@ const RecentOrders = () => {
                       }}
                     >
                       <Chip
-                        label={ticket.cancelled ? "Cancelled" : ticket.event.status}
+                        label={
+                          ticket.cancelled ? "Cancelled" : ticket.event.status
+                        }
                         size="small"
                         sx={{
                           backgroundColor: ticket.cancelled
@@ -671,17 +1109,18 @@ const RecentOrders = () => {
                           fontFamily: "Albert Sans, sans-serif",
                         }}
                       />
-                      {ticket.event.status === "Upcoming" && !ticket.cancelled && (
-                        <Tooltip title="Show QR Code">
-                          <IconButton
-                            size="small"
-                            onClick={() => handleOpenQR(ticket.bookingId)}
-                            sx={{ color: "rgb(25, 174, 220)", p: 0.5 }}
-                          >
-                            <QrCodeIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      )}
+                      {ticket.event.status === "Upcoming" &&
+                        !ticket.cancelled && (
+                          <Tooltip title="Show QR Code">
+                            <IconButton
+                              size="small"
+                              onClick={() => handleOpenQR(ticket.bookingId)}
+                              sx={{ color: "rgb(25, 174, 220)", p: 0.5 }}
+                            >
+                              <QrCodeIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        )}
                       {ticket.event.status === "Upcoming" &&
                         !ticket.cancelled &&
                         (ticket.event.canCancel ? (
@@ -725,7 +1164,13 @@ const RecentOrders = () => {
                           </Typography>
                         ))}
                     </Box>
-                    <Typography variant="body2" sx={{ color: "#666", fontFamily: "Albert Sans, sans-serif" }}>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        color: "#666",
+                        fontFamily: "Albert Sans, sans-serif",
+                      }}
+                    >
                       {ticket.cancelled
                         ? "Ticket has been cancelled"
                         : ticket.event.status === "Upcoming"
@@ -744,7 +1189,13 @@ const RecentOrders = () => {
           maxWidth="xs"
           fullWidth
         >
-          <DialogTitle sx={{ textAlign: "center", pb: 1, fontFamily: "Albert Sans, sans-serif" }}>
+          <DialogTitle
+            sx={{
+              textAlign: "center",
+              pb: 1,
+              fontFamily: "Albert Sans, sans-serif",
+            }}
+          >
             Your Ticket QR Code
           </DialogTitle>
           <DialogContent
@@ -765,7 +1216,10 @@ const RecentOrders = () => {
             <Button
               variant="outlined"
               onClick={handleCloseQR}
-              sx={{ textTransform: "none", fontFamily: "Albert Sans, sans-serif" }}
+              sx={{
+                textTransform: "none",
+                fontFamily: "Albert Sans, sans-serif",
+              }}
             >
               Close
             </Button>

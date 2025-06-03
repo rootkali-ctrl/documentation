@@ -75,8 +75,18 @@ const EventCard = ({ event, userUID }) => {
       if (isNaN(date.getTime())) return null;
 
       const months = [
-        "JAN", "FEB", "MAR", "APR", "MAY", "JUN",
-        "JUL", "AUG", "SEP", "OCT", "NOV", "DEC",
+        "JAN",
+        "FEB",
+        "MAR",
+        "APR",
+        "MAY",
+        "JUN",
+        "JUL",
+        "AUG",
+        "SEP",
+        "OCT",
+        "NOV",
+        "DEC",
       ];
       const day = date.getDate();
       const month = months[date.getMonth()];
@@ -200,7 +210,9 @@ const EventCard = ({ event, userUID }) => {
           justifyContent: "space-between",
         }}
       >
-        <Box sx={{ flex: 1 }}> {/* Content section takes available space */}
+        <Box sx={{ flex: 1 }}>
+          {" "}
+          {/* Content section takes available space */}
           <Typography
             variant="body1"
             fontWeight="600"
@@ -219,7 +231,6 @@ const EventCard = ({ event, userUID }) => {
           >
             {event.name || "Event Title"}
           </Typography>
-
           <Box
             sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 0.5 }}
           >
@@ -240,7 +251,6 @@ const EventCard = ({ event, userUID }) => {
               {event.formattedDate || "Date not specified"}
             </Typography>
           </Box>
-
           <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 1 }}>
             <LocationOnIcon
               sx={{ fontSize: isMobile ? 12 : 14, color: "text.secondary" }}
@@ -1019,7 +1029,7 @@ const DesktopMainPage = () => {
   return (
     <Box sx={{ overflowX: "hidden", overflowY: "hidden" }}>
       <Header />
-      <Box  sx={{ overflowX: "hidden" }}>
+      <Box sx={{ overflowX: "hidden" }}>
         <Box sx={{ padding: isMobile ? 1.5 : 3 }}>
           <Box
             sx={{
@@ -1036,17 +1046,21 @@ const DesktopMainPage = () => {
                   sx={{
                     borderRadius: "12px",
                     overflow: "hidden",
+                    height: !isMobile ? "500px" : "200px",
                     width: "100vw",
                   }}
                 >
                   <CardMedia
                     component="div"
                     sx={{
-                      height: isMobile ? "30vh" : "60vh",
+                      //height: isMobile ? "30vh" : "60vh",
                       backgroundImage: `url(${url})`,
                       backgroundSize: "cover",
                       backgroundPosition: "center",
                       position: "relative",
+                      height: !isMobile ? "500px" : "200px",
+                      objectFit: "cover",
+                      width: "100vw",
                     }}
                   />
                 </Card>
@@ -1149,42 +1163,47 @@ const DesktopMainPage = () => {
         </Box>
 
         {/* Inline Banner */}
-        <Box>
-          {inlineBanner.imageUrl ? (
-            <Box
-              sx={{
-                width: isMobile ? "90%" : "97%",
-                height: isMobile ? "120px" : "180px",
-                overflow: "hidden",
-                margin: "0 auto",
-                cursor: "pointer",
-              }}
-              onClick={handleInlineBannerClick}
-            >
-              <Card
-                sx={{
-                  borderRadius: "16px",
-                  overflow: "hidden",
-                  width: "100%",
-                  height: "100%",
-                }}
-              >
-                <CardMedia
-                  component="div"
-                  sx={{
-                    width: "100%",
-                    height: "100%",
-                    backgroundImage: `url(${inlineBanner.imageUrl})`,
-                    backgroundSize: "cover",
-                    backgroundPosition: "center",
-                  }}
-                />
-              </Card>
-            </Box>
-          ) : (
-            <Divider sx={{ mt: 4 }} />
-          )}
-        </Box>
+         <Box sx={{
+      width: "100%",
+      maxWidth: "100vw",
+      margin: '4em auto',
+      padding: '0 8px',
+      boxSizing: 'border-box'
+    }}>
+      {inlineBanner?.imageUrl ? (
+        <Card
+          sx={{
+            width: '100%',
+            aspectRatio: '8/1',
+            height: {lg:'120px',md:'95px',sm:'80px',xs:'35px'}, 
+            maxHeight: '200px',
+            borderRadius: '12px',
+            overflow: 'hidden',
+            cursor: 'pointer',
+            backgroundImage: `url(${inlineBanner.imageUrl})`,
+            backgroundPosition: 'center center',
+            backgroundRepeat: 'no-repeat',
+            backgroundSize: {md:'cover',sm:'contain',xs:'contain'},
+            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+            transition: 'all 0.3s ease'
+          }}
+          onClick={handleInlineBannerClick}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'scale(1.01)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'scale(1)';
+          }}
+        />
+      ) : (
+        <hr style={{ 
+          marginTop: '2rem', 
+          border: 'none', 
+          borderTop: '1px solid #e0e0e0' 
+        }} />
+      )}
+    </Box>
+          
 
         {/* Filter Section */}
         <Box sx={{ px: isMobile ? 2 : 4 }}>

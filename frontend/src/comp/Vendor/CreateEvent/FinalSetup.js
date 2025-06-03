@@ -11,7 +11,7 @@ import {
   Select,
   TextField,
   Typography,
-  useMediaQuery
+  useMediaQuery,
 } from "@mui/material";
 import React, { useEffect, useState } from "react";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -22,7 +22,13 @@ import { Add, Remove } from "@mui/icons-material";
 const FinalSetup = () => {
   const navigate = useNavigate();
   const { vendorId } = useParams();
-  const { formData, updateFormSection, markStepCompleted, shouldRedirectToStep1, stepCompletion } = useEventContext();
+  const {
+    formData,
+    updateFormSection,
+    markStepCompleted,
+    shouldRedirectToStep1,
+    stepCompletion,
+  } = useEventContext();
   const isMobile = useMediaQuery("(max-width:900px)");
   // Redirect logic for reload detection and step validation
   useEffect(() => {
@@ -33,10 +39,13 @@ const FinalSetup = () => {
     }
 
     // Redirect to step 1 if previous steps are not completed or required data is missing
-    if (!stepCompletion.step1 || !stepCompletion.step2 || 
-        !formData.eventDetails?.name || 
-        !formData.pricing?.tickets?.length ||
-        Object.keys(formData.eventDetails || {}).length === 0) {
+    if (
+      !stepCompletion.step1 ||
+      !stepCompletion.step2 ||
+      !formData.eventDetails?.name ||
+      !formData.pricing?.tickets?.length ||
+      Object.keys(formData.eventDetails || {}).length === 0
+    ) {
       navigate(`/createevent/${vendorId}/step1`);
       return;
     }
@@ -56,8 +65,8 @@ const FinalSetup = () => {
   };
 
   useEffect(() => {
-    console.log(formData)
-  })
+    console.log(formData);
+  });
 
   const [localData, setLocalData] = useState({ contact: "", tags: "" });
   const [FAQ, setFAQ] = useState([{ ques: "", ans: "" }]);
@@ -66,7 +75,7 @@ const FinalSetup = () => {
   const [deductionRate, setDeductionRate] = useState("");
   const [deductionType, setDeductionType] = useState("");
   const [isFocused, setIsFocused] = useState(false);
-  
+
   const totalAttendees = formData?.pricing?.tickets?.reduce((acc, ticket) => {
     return acc + Number(ticket.seats || 0);
   }, 0);
@@ -82,22 +91,16 @@ const FinalSetup = () => {
   };
 
   const isFormValid = () => {
-  const faqs =
-    FAQ.length > 0 &&
-    FAQ.every(
-      (t) =>
-        t.ques.trim() !== "" &&
-        t.ans.trim() !== ""
-    );
-    const tags = 
-    localData.tags.length>0
+    const faqs =
+      FAQ.length > 0 &&
+      FAQ.every((t) => t.ques.trim() !== "" && t.ans.trim() !== "");
+    const tags = localData.tags.length > 0;
 
-  return faqs && tags;
-};
-
+    return faqs && tags;
+  };
 
   const [ticketCount, setTicketCount] = useState(10);
-  const maxLimit = 10; 
+  const maxLimit = 10;
   const minLimit = 1;
 
   const handleIncrement = () => {
@@ -113,20 +116,19 @@ const FinalSetup = () => {
   };
 
   const handleInputChange = (e) => {
-  const value = parseInt(e.target.value);
-  if (!isNaN(value)) {
-    setTicketCount(value);
-  }
-};
+    const value = parseInt(e.target.value);
+    if (!isNaN(value)) {
+      setTicketCount(value);
+    }
+  };
 
-const handleBlur = () => {
-  if (ticketCount < minLimit) {
-    setTicketCount(minLimit);
-  } else if (ticketCount > maxLimit) {
-    setTicketCount(maxLimit);
-  }
-};
-
+  const handleBlur = () => {
+    if (ticketCount < minLimit) {
+      setTicketCount(minLimit);
+    } else if (ticketCount > maxLimit) {
+      setTicketCount(maxLimit);
+    }
+  };
 
   const handleRemoveFAQ = (indexToRemove) => {
     const removeItem = [...FAQ];
@@ -143,9 +145,9 @@ const handleBlur = () => {
       cancellationDays: cancelDays,
       deductionType,
       deductionRate,
-      ticketCount
+      ticketCount,
     });
-    markStepCompleted("step3")
+    markStepCompleted("step3");
     navigate(`/createevent/${vendorId}/eventpreview`);
   };
 
@@ -170,7 +172,7 @@ const handleBlur = () => {
             display: "flex",
             padding: "2% 3%",
             flexDirection: "column",
-            width:isMobile?"90%": "70%",
+            width: isMobile ? "90%" : "70%",
             boxSizing: "border-box",
             backgroundColor: "white",
             height: "auto",
@@ -184,7 +186,7 @@ const handleBlur = () => {
               sx={{
                 fontFamily: "albert sans",
                 fontWeight: "900",
-                fontSize:isMobile?"20px": "28px",
+                fontSize: isMobile ? "20px" : "28px",
                 mb: "2%",
               }}
             >
@@ -208,7 +210,7 @@ const handleBlur = () => {
                 onChange={handleChange}
                 placeholder="xyz@gmail.com"
                 sx={{
-                  width: isMobile?"90%":"40%",
+                  width: isMobile ? "90%" : "50%",
                   height: "40px",
                   fontFamily: "Albert Sans",
                   "&::placeholder": {
@@ -230,17 +232,34 @@ const handleBlur = () => {
               sx={{
                 fontFamily: "albert sans",
                 fontWeight: "900",
-                fontSize:isMobile?"20px": "28px",
+                fontSize: isMobile ? "20px" : "28px",
                 mb: "1%",
               }}
             >
               Ticket Limit
             </Typography>
-            <Box sx={{display:isMobile?"block":'flex', alignItems:'center',width:'80%', justifyContent:'space-between' }}>
-              <Typography sx={{fontFamily:'albert sans',fontSize:isMobile?"14px":"16px"}}>
+            <Box
+              sx={{
+                display: isMobile ? "block" : "flex",
+                alignItems: "center",
+                width: "80%",
+                justifyContent: "space-between",
+              }}
+            >
+              <Typography
+                sx={{
+                  fontFamily: "albert sans",
+                  fontSize: isMobile ? "14px" : "16px",
+                }}
+              >
                 How many tickets should be booked in a single booking
               </Typography>
-              <Box display="flex" alignItems="center" gap={1} sx={{mt:isMobile?2:null,mb:isMobile?2:null}}>
+              <Box
+                display="flex"
+                alignItems="center"
+                gap={1}
+                sx={{ mt: isMobile ? 2 : null, mb: isMobile ? 2 : null }}
+              >
                 <IconButton
                   onClick={handleDecrement}
                   disabled={ticketCount <= minLimit}
@@ -281,7 +300,7 @@ const handleBlur = () => {
                 sx={{
                   fontFamily: "albert sans",
                   fontWeight: "900",
-                  fontSize:isMobile?"20px": "28px",
+                  fontSize: isMobile ? "20px" : "28px",
                 }}
               >
                 FAQs
@@ -311,11 +330,11 @@ const handleBlur = () => {
                   boxSizing: "border-box",
                   border: "1px solid #ccc",
                   padding: "2%",
-                  mt: isMobile?1:"1%",
+                  mt: isMobile ? 1 : "1%",
                   borderRadius: "10px",
                 }}
               >
-                <Box sx={{ width: isMobile?"90%":"95%" }}>
+                <Box sx={{ width: isMobile ? "90%" : "95%" }}>
                   <FormControl fullWidth variant="outlined">
                     <OutlinedInput
                       value={t.ques}
@@ -366,7 +385,7 @@ const handleBlur = () => {
                 </Box>
                 <Box
                   sx={{
-                    display:isMobile?"block": "flex",
+                    display: isMobile ? "block" : "flex",
                     justifyContent: "flex-end",
                     width: "5%",
                   }}
@@ -389,7 +408,7 @@ const handleBlur = () => {
               sx={{
                 fontFamily: "albert sans",
                 fontWeight: "900",
-                fontSize: isMobile?"20px": "28px",
+                fontSize: isMobile ? "20px" : "28px",
               }}
             >
               Tags
@@ -401,7 +420,7 @@ const handleBlur = () => {
                 onChange={handleChange}
                 placeholder="add tags"
                 sx={{
-                  width:isMobile?"90%": "40%",
+                  width: isMobile ? "90%" : "50%",
                   height: "40px",
                   fontFamily: "Albert Sans",
                   "&::placeholder": {
@@ -446,7 +465,7 @@ const handleBlur = () => {
                 sx={{
                   display: "flex",
                   flexDirection: "column",
-                  width: isMobile?"90%":"40%",
+                  width: isMobile ? "90%" : "50%",
                   gap: "1em",
                 }}
               >
@@ -465,9 +484,15 @@ const handleBlur = () => {
                       borderColor: "#ccc",
                     },
                   }}
-                  placeholder="Days before event to cancel"
+                  placeholder="Cancel up to X days before (Enter only numbers)"
                   value={cancelDays}
-                  onChange={(e) => setCancelDays(e.target.value)}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (/^\d*$/.test(value)) {
+                      setCancelDays(value);
+                    }
+                  }}
+                  inputProps={{ inputMode: "numeric", pattern: "[0-9]*" }}
                 />
                 <FormControl
                   sx={{
@@ -514,25 +539,27 @@ const handleBlur = () => {
                     >
                       Percentage
                     </MenuItem>
-                    <MenuItem value="price" sx={{ fontFamily: "Albert Sans" }}>
-                      Price
-                    </MenuItem>
                   </Select>
                 </FormControl>
                 <OutlinedInput
-                  placeholder="Deduction Rate"
+                  placeholder="Deduction Rate (Enter only numbers)"
                   disabled={isFocused}
                   sx={{
                     width: "100%",
-
                     height: "40px",
                     fontFamily: "Albert Sans",
                     "& .MuiOutlinedInput-notchedOutline": {
                       borderColor: "#ccc",
                     },
                   }}
+                  inputProps={{ inputMode: "numeric", pattern: "[0-9]*" }}
                   value={deductionRate}
-                  onChange={(e) => setDeductionRate(e.target.value)}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (/^\d*$/.test(value)) {
+                      setDeductionRate(value);
+                    }
+                  }}
                 />
               </Box>
             )}
@@ -556,7 +583,7 @@ const handleBlur = () => {
               backgroundColor: "#19AEDC",
               fontFamily: "albert sans",
               fontSize: "17px",
-              mt:isMobile?1:null
+              mt: isMobile ? 1 : null,
             }}
           >
             Proceed to preview

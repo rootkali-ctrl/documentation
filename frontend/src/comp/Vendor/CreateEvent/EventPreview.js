@@ -13,300 +13,111 @@ import {
   DialogContent,
   DialogContentText,
   DialogActions,
-  useMediaQuery
+  useMediaQuery,
+  CardMedia,
+  Divider,
+  TextField,
+  Snackbar
 } from "@mui/material";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 import EventIcon from "@mui/icons-material/Event";
 import PeopleIcon from "@mui/icons-material/People";
 import ShareIcon from "@mui/icons-material/Share";
-import { useNavigate } from "react-router-dom";
+import PlayArrowIcon from "@mui/icons-material/PlayArrow";
+import { useNavigate, useParams } from "react-router-dom";
 import EventContext, { useEventContext } from "./EventContext.js";
 import axios from "axios";
-import Carousel from "react-material-ui-carousel";
+import Slider from "react-slick";
 
 const EventPage = () => {
   const navigate = useNavigate();
+  const { eventId, userUID } = useParams();
   const isMobile = useMediaQuery("(max-width:900px)");
-  //Event date
+  
+  // State management
   const [submitting, setSubmitting] = useState(false);
   const [openDialog, setOpenDialog] = useState(false);
+  const [showShareDialog, setShowShareDialog] = useState(false);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState("");
+  const [previewUrls, setPreviewUrls] = useState([]);
+  const [paddingBottom, setPaddingBottom] = useState(20);
 
   const { formData, shouldRedirectToStep1, stepCompletion } = useContext(EventContext);
-  const rawDate = formData.eventDetails.eventDate;
   const { resetForm } = useEventContext();
 
-  // Handle page reload and validation - redirect to step 1
-  useEffect(() => { 
-    // Redirect to step 1 if page was reloaded 
-    if (shouldRedirectToStep1()) { 
-      navigate(`/createevent/${formData.eventDetails.vendorId}/step1`); 
-      return; 
-    } 
- 
-    // Redirect to step 1 if previous steps are not completed or required data is missing 
-    if (!stepCompletion.step1 || !stepCompletion.step2 ||  
-        !formData.eventDetails?.name ||  
-        !formData.pricing?.tickets?.length || 
-        Object.keys(formData.eventDetails || {}).length === 0 ||
-        !formData.eventDetails?.banner?.length) { 
-      navigate(`/createevent/${formData.eventDetails.vendorId}/step1`); 
-      return; 
-    } 
-  }, [shouldRedirectToStep1, stepCompletion, formData, navigate]);
+  // Mock data - replace with actual data from your context/API
+  const event = formData?.eventDetails || {};
+  const speakers = formData?.eventDetails?.speaker || [];
+  const faqs = formData?.finalSetup?.FAQ || [];
+  const tagsList = formData?.finalSetup?.tags ? formData.finalSetup.tags.split(',').map(tag => tag.trim()) : [];
+  const youtubeVideoId = extractYouTubeId(formData?.eventDetails?.mediaLink);
 
-  const formattedDate = new Date(rawDate).toLocaleString("en-US", {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  });
-
-  //total seats
-  const totalAttendees = formData?.pricing?.tickets?.reduce((acc, ticket) => {
-    return acc + Number(ticket.seats || 0);
-  }, 0);
-
-  //event location
-  const location = formData?.eventDetails?.venueDetails?.venueName;
-
-  // const handleSubmit = async () => {
-  //   const { eventDetails, pricing, finalSetup } = formData;
-  //   const form = new FormData();
-
-  //   // Append banner images
-  //   eventDetails.banner.forEach((file) => {
-  //     form.append("bannerImages", file);
-  //   });
-
-  //   // Format payload according to backend expectations
-  //   const payload = {
-  //     name: eventDetails.name,
-  //     description: eventDetails.description,
-  //     category: eventDetails.category,
-  //     eventDate: eventDetails.eventDate,
-  //     eventHost: eventDetails.eventHost,
-  //     mediaLink: eventDetails.mediaLink || "",
-  //     vendorId: eventDetails.vendorId,
-
-  //     speaker: (eventDetails.speaker || []).map((sp) => ({
-  //       name: sp.name || "",
-  //       role: sp.role || "",
-  //     })),
-
-  //     venueDetails: eventDetails.venueDetails,
-
-  //     pricing: (pricing.tickets || []).map((ticket) => ({
-  //       ticketType: ticket.ticketType || "",
-  //       features: ticket.features || "",
-  //       price: parseFloat(ticket.price) || 0,
-  //       tax: !!ticket.tax,
-  //       free: !!ticket.freeEvent,
-  //       seats: parseInt(ticket.seats) || 0,
-  //     })),
-
-  //     perks: (pricing.addons || []).map((addon) => ({
-  //       itemName: addon.itemName || "",
-  //       price: parseFloat(addon.price) || 0,
-  //       limit: parseInt(addon.limit) || 0,
-  //     })),
-
-  //     coupons: (pricing.coupons || []).map((coupon) => ({
-  //       couponCode: coupon.couponCode || "",
-  //       couponLimits: parseInt(coupon.couponLimits) || 0,
-  //       reducePert: parseFloat(coupon.reducePert) || 0,
-  //       startTime: coupon.startTime || "",
-  //       endTime: coupon.endTime || "",
-  //     })),
-
-  //     contact: finalSetup.contact || "",
-  //     FAQ: (finalSetup.FAQ || []).map((faq) => ({
-  //       question: faq.ques || "",
-  //       answer: faq.ans || "",
-  //     })),
-
-  //     ticketCount: finalSetup.ticketCount || "",
-  //     tags: finalSetup.tags || "",
-  //     cancellationAvailable: finalSetup.cancellationAvailable || false,
-  //     cancellationDays: finalSetup.cancellationDays || "",
-  //     deductionType: finalSetup.deductionType || "",
-  //     deductionRate: finalSetup.deductionRate || "",
-  //     createdAt: new Date().toISOString(),
-  //   };
-
-  //   // Append payload to formData
-  //   Object.entries(payload).forEach(([key, value]) => {
-  //     form.append(
-  //       key,
-  //       typeof value === "object" ? JSON.stringify(value) : value
-  //     );
-  //   });
-
-  //   try {
-  //     setSubmitting(true);
-  //     const response = await axios.post(
-  //       `${process.env.REACT_APP_API_BASE_URL}/api/event/`,
-  //       form,
-  //       {
-  //         headers: {
-  //           "Content-Type": "multipart/form-data",
-  //         },
-  //       }
-  //     );
-  //     console.log(response);
-  //     setOpenDialog(true);
-
-  //     // Navigate first, then reset form
-  //     navigate(`/vendorhome/${formData.eventDetails.vendorId}`);
-
-  //     // Reset form after navigation
-  //     setTimeout(() => {
-  //       resetForm();
-  //     }, 100); // Small delay to ensure navigation completes
-  //   } catch (error) {
-  //     alert("Failed to create event.");
-  //     setSubmitting(false);
-  //   } finally {
-  //     setSubmitting(false);
-  //   }
-  // };
-
-  const handleSubmit = async () => {
-  const { eventDetails, pricing, finalSetup } = formData;
-  const form = new FormData();
-
-  // Append banner images
-  eventDetails.banner.forEach((file) => {
-    form.append("bannerImages", file);
-  });
-
-  const perksWithImages = await Promise.all(
-    (pricing.addons || []).map(async (addon) => {
-      const itemName = addon.itemName || "";
-      let imageUrl = "";
-
-      try {
-        const res = await axios.get(
-          `https://api.unsplash.com/search/photos`,
-          {
-            params: {
-              query: itemName,
-              per_page: 1,
-              orientation: "landscape",
-            },
-            headers: {
-              Authorization: `Client-ID ${process.env.REACT_APP_UNSPLASH_ACCESS_KEY}`,
-            },
-          }
-        );
-
-        const results = res.data.results;
-        if (results.length > 0) {
-          imageUrl = results[0].urls.small; // or .regular for higher resolution
-        }
-      } catch (error) {
-        console.warn(`Unsplash image fetch failed for "${itemName}"`, error);
-      }
-
-      return {
-        itemName,
-        price: parseFloat(addon.price) || 0,
-        limit: parseInt(addon.limit) || 0,
-        url: imageUrl,
-      };
-    })
-  );
-
-  // 2️⃣ Build full payload
-  const payload = {
-    name: eventDetails.name,
-    description: eventDetails.description,
-    category: eventDetails.category,
-    eventDate: eventDetails.eventDate,
-    eventHost: eventDetails.eventHost,
-    mediaLink: eventDetails.mediaLink || "",
-    vendorId: eventDetails.vendorId,
-
-    speaker: (eventDetails.speaker || []).map((sp) => ({
-      name: sp.name || "",
-      role: sp.role || "",
-    })),
-
-    venueDetails: eventDetails.venueDetails,
-
-    pricing: (pricing.tickets || []).map((ticket) => ({
-      ticketType: ticket.ticketType || "",
-      features: ticket.features || "",
-      price: parseFloat(ticket.price) || 0,
-      tax: !!ticket.tax,
-      free: !!ticket.freeEvent,
-      seats: parseInt(ticket.seats) || 0,
-    })),
-
-    perks: perksWithImages, // ✅ with image URL now
-
-    coupons: (pricing.coupons || []).map((coupon) => ({
-      couponCode: coupon.couponCode || "",
-      couponLimits: parseInt(coupon.couponLimits) || 0,
-      reducePert: parseFloat(coupon.reducePert) || 0,
-      startTime: coupon.startTime || "",
-      endTime: coupon.endTime || "",
-    })),
-
-    contact: finalSetup.contact || "",
-    FAQ: (finalSetup.FAQ || []).map((faq) => ({
-      question: faq.ques || "",
-      answer: faq.ans || "",
-    })),
-
-    ticketCount: finalSetup.ticketCount || "",
-    tags: finalSetup.tags || "",
-    cancellationAvailable: finalSetup.cancellationAvailable || false,
-    cancellationDays: finalSetup.cancellationDays || "",
-    deductionType: finalSetup.deductionType || "",
-    deductionRate: finalSetup.deductionRate || "",
-    createdAt: new Date().toISOString(),
+  // Helper functions
+  const formatDateTime = (dateString) => {
+    if (!dateString) return "Date not available";
+    return new Date(dateString).toLocaleString("en-US", {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
   };
 
-  // 3️⃣ Append payload to FormData
-  Object.entries(payload).forEach(([key, value]) => {
-    form.append(key, typeof value === "object" ? JSON.stringify(value) : value);
-  });
+  const getEventCapacity = (pricing) => {
+    if (!pricing?.tickets) return "N/A";
+    return pricing.tickets.reduce((acc, ticket) => acc + Number(ticket.seats || 0), 0);
+  };
 
-  // 4️⃣ Submit form
-  try {
-    setSubmitting(true);
-    const response = await axios.post(
-      `${process.env.REACT_APP_API_BASE_URL}/api/event/`,
-      form,
-      {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      }
-    );
+  const getShareUrl = () => {
+    return window.location.href;
+  };
 
-    console.log(response);
-    setOpenDialog(true);
-    navigate(`/vendorhome/${formData.eventDetails.vendorId}`);
-    setTimeout(() => resetForm(), 100);
-  } catch (error) {
-    alert("Failed to create event.");
-    console.error(error);
-    setSubmitting(false);
-  } finally {
-    setSubmitting(false);
+  function extractYouTubeId(url) {
+    if (!url) return null;
+    const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/);
+    return match ? match[1] : null;
   }
-};
 
-  const [previewUrls, setPreviewUrls] = useState([]);
+  // Event handlers
+  const handleSnackbarClose = () => {
+    setSnackbarOpen(false);
+  };
 
+  const handleDialogClose = () => {
+    setShowShareDialog(false);
+  };
+
+  const handlePlayVideo = () => {
+    if (youtubeVideoId) {
+      window.open(`https://www.youtube.com/watch?v=${youtubeVideoId}`, '_blank');
+    }
+  };
+
+  // Page reload and validation
+  useEffect(() => {
+    if (shouldRedirectToStep1()) {
+      navigate(`/createevent/${formData.eventDetails?.vendorId}/step1`);
+      return;
+    }
+
+    if (!stepCompletion?.step1 || !stepCompletion?.step2 ||
+        !formData.eventDetails?.name ||
+        !formData.pricing?.tickets?.length ||
+        Object.keys(formData.eventDetails || {}).length === 0 ||
+        !formData.eventDetails?.banner?.length) {
+      navigate(`/createevent/${formData.eventDetails?.vendorId}/step1`);
+      return;
+    }
+  }, [shouldRedirectToStep1, stepCompletion, formData, navigate]);
+
+  // Handle banner preview URLs
   useEffect(() => {
     if (formData?.eventDetails?.banner?.length) {
       try {
         const urls = formData.eventDetails.banner.map((file) => {
-          // Validate that file is actually a File or Blob object
           if (!(file instanceof File) && !(file instanceof Blob)) {
             throw new Error('Invalid file object');
           }
@@ -314,29 +125,172 @@ const EventPage = () => {
         });
         setPreviewUrls(urls);
 
-        // Cleanup on unmount
         return () => {
           urls.forEach((url) => URL.revokeObjectURL(url));
         };
       } catch (error) {
         console.error('Error creating object URLs:', error);
-        // Redirect to step 1 if banner files are corrupted/invalid
-        navigate(`/createevent/${formData.eventDetails.vendorId}/step1`);
+        navigate(`/createevent/${formData.eventDetails?.vendorId}/step1`);
       }
     }
-  }, [formData.eventDetails.banner, navigate, formData.eventDetails.vendorId]);
+  }, [formData.eventDetails?.banner, navigate, formData.eventDetails?.vendorId]);
 
-  // Return early if redirecting due to page reload or missing data
-  if (shouldRedirectToStep1() || 
-      !stepCompletion.step1 || !stepCompletion.step2 ||  
-      !formData.eventDetails?.name ||  
-      !formData.pricing?.tickets?.length || 
+  // Handle safe area for mobile devices
+  useEffect(() => {
+    if (isMobile) {
+      const updatePadding = () => {
+        const safeAreaBottom = parseInt(
+          getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-bottom') || '0'
+        );
+        setPaddingBottom(Math.max(20, safeAreaBottom));
+      };
+
+      updatePadding();
+      window.addEventListener('resize', updatePadding);
+      return () => window.removeEventListener('resize', updatePadding);
+    }
+  }, [isMobile]);
+
+  const handleSubmit = async () => {
+    const { eventDetails, pricing, finalSetup } = formData;
+    const form = new FormData();
+
+    eventDetails.banner.forEach((file) => {
+      form.append("bannerImages", file);
+    });
+
+    const perksWithImages = await Promise.all(
+      (pricing.addons || []).map(async (addon) => {
+        const itemName = addon.itemName || "";
+        let imageUrl = "";
+
+        try {
+          const res = await axios.get(
+            `https://api.unsplash.com/search/photos`,
+            {
+              params: {
+                query: itemName,
+                per_page: 1,
+                orientation: "landscape",
+              },
+              headers: {
+                Authorization: `Client-ID ${process.env.REACT_APP_UNSPLASH_ACCESS_KEY}`,
+              },
+            }
+          );
+
+          const results = res.data.results;
+          if (results.length > 0) {
+            imageUrl = results[0].urls.small;
+          }
+        } catch (error) {
+          console.warn(`Unsplash image fetch failed for "${itemName}"`, error);
+        }
+
+        return {
+          itemName,
+          price: parseFloat(addon.price) || 0,
+          limit: parseInt(addon.limit) || 0,
+          url: imageUrl,
+        };
+      })
+    );
+
+    const payload = {
+      name: eventDetails.name,
+      description: eventDetails.description,
+      category: eventDetails.category,
+      eventDate: eventDetails.eventDate,
+      eventHost: eventDetails.eventHost,
+      mediaLink: eventDetails.mediaLink || "",
+      vendorId: eventDetails.vendorId,
+
+      speaker: (eventDetails.speaker || []).map((sp) => ({
+        name: sp.name || "",
+        role: sp.role || "",
+      })),
+
+      venueDetails: eventDetails.venueDetails,
+
+      pricing: (pricing.tickets || []).map((ticket) => ({
+        ticketType: ticket.ticketType || "",
+        features: ticket.features || "",
+        price: parseFloat(ticket.price) || 0,
+        tax: !!ticket.tax,
+        free: !!ticket.freeEvent,
+        seats: parseInt(ticket.seats) || 0,
+      })),
+
+      perks: perksWithImages,
+
+      coupons: (pricing.coupons || []).map((coupon) => ({
+        couponCode: coupon.couponCode || "",
+        couponLimits: parseInt(coupon.couponLimits) || 0,
+        reducePert: parseFloat(coupon.reducePert) || 0,
+        startTime: coupon.startTime || "",
+        endTime: coupon.endTime || "",
+      })),
+
+      contact: finalSetup.contact || "",
+      FAQ: (finalSetup.FAQ || []).map((faq) => ({
+        question: faq.ques || "",
+        answer: faq.ans || "",
+      })),
+
+      ticketCount: finalSetup.ticketCount || "",
+      tags: finalSetup.tags || "",
+      cancellationAvailable: finalSetup.cancellationAvailable || false,
+      cancellationDays: finalSetup.cancellationDays || "",
+      deductionType: finalSetup.deductionType || "",
+      deductionRate: finalSetup.deductionRate || "",
+      createdAt: new Date().toISOString(),
+    };
+
+    Object.entries(payload).forEach(([key, value]) => {
+      form.append(key, typeof value === "object" ? JSON.stringify(value) : value);
+    });
+
+    try {
+      setSubmitting(true);
+      const response = await axios.post(
+        `${process.env.REACT_APP_API_BASE_URL}/api/event/`,
+        form,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+
+      console.log(response);
+      setOpenDialog(true);
+      navigate(`/vendorhome/${formData.eventDetails.vendorId}`);
+      setTimeout(() => resetForm(), 100);
+    } catch (error) {
+      alert("Failed to create event.");
+      console.error(error);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Early return for redirects
+  if (shouldRedirectToStep1() ||
+      !stepCompletion?.step1 || !stepCompletion?.step2 ||
+      !formData.eventDetails?.name ||
+      !formData.pricing?.tickets?.length ||
       Object.keys(formData.eventDetails || {}).length === 0 ||
       !formData.eventDetails?.banner?.length) {
-    return <div>Redirecting...</div>; // Optional loading state
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="100vh">
+        <CircularProgress />
+      </Box>
+    );
   }
+
   return (
-    <Box sx={{ minHeight: "100vh", bgcolor: "#F9FAFB" }}>
+
+      <Box sx={{ minHeight: "100vh", bgcolor: "#F9FAFB" }}>
       {/* Header */}
       {/* <Header/> */}
       <Box
@@ -395,417 +349,727 @@ const EventPage = () => {
       {/* Main Content */}
       <Box
         sx={{
-          backgroundColor: "#F9FAFB",
-          padding: "20px 5%",
           display: "flex",
-          flexDirection: { xs: "column", md: "row" },
           gap: 3,
+          padding: "20px 2%",
+          flexDirection: { xs: "column", md: "row" },
+          mt: 0,
+          pt: isMobile ? 1 : 4,
+          backgroundColor: "#f9f9f9",
+          maxWidth: "100%",
+          width:'98%',
+          boxSizing: "border-box",
         }}
       >
         {/* Left Section */}
-        <Box sx={{ flex: 2 }}>
-          {/* Event Image */}
-          <Box
+        <Box sx={{ 
+          flex: { md: 2, xs: 1 }, 
+          width: { lg: "70%", md: "70%", xs: "100%" },
+          maxWidth: "100%",
+        }}>
+          {/* Hero Image Card */}
+          <Card
             sx={{
-              width: isMobile?"100%":"80%",
-              maxWidth: 1200,
-              height: isMobile?200:300,
-              maxHeight: "400px",
-              border: "2px dashed #ccc",
-              borderRadius: 4,
-              overflow: "hidden",
-              backgroundColor: "#f9f9f9",
-              mx: "auto",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
+              borderRadius: "20px",
+              boxShadow: "none",
               position: "relative",
+              maxWidth: { lg: "800px", md: "100%" },
+              margin: "0 auto",
+              overflow: "hidden",
             }}
           >
-            {previewUrls.length > 0 ? (
-              <Carousel
-                navButtonsAlwaysVisible
-                autoPlay={false}
-                animation="slide"
-                indicators={false}
+            <Box sx={{ position: "relative" }}>
+              <CardMedia
+                component="img"
+                image={previewUrls[0] || "/placeholder-event.jpg"}
+                alt={formData.eventDetails?.name || "Event"}
                 sx={{
                   width: "100%",
-                  height: "100%",
+                  height: { xs: "200px", md: "300px" },
+                  objectFit: "cover",
                 }}
-              >
-                {previewUrls.map((img, index) => (
-                  <Box
-                    key={index}
-                    sx={{
-                      width: "100%",
-                      height: "100%",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      backgroundColor: "#fff",
-                    }}
-                  >
-                    <Box
-                      component="img"
-                      src={img}
-                      alt={`preview-${index}`}
-                      sx={{
-                        maxWidth: "100%",
-                        maxHeight: "100%",
-                        objectFit: "contain",
-                      }}
-                    />
-                  </Box>
-                ))}
-              </Carousel>
-            ) : (
-              <Typography
-                variant="subtitle1"
-                color="textSecondary"
-                sx={{ fontFamily: "albert sans" }}
-              >
-                No image uploaded
-              </Typography>
-            )}
-          </Box>
+              />
 
-          {/*
-            <BannerPreviewCarousel files={formData.eventDetails.banner} /> */}
-          {/* Event Details */}
-          <Card sx={{ mt: 2 }}>
+              {isMobile && (
+                <Box
+                  sx={{
+                    position: "absolute",
+                    bottom: 10,
+                    right: 10,
+                    backgroundColor: "white",
+                    borderRadius: "50%",
+                    width: 36,
+                    height: 36,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                    cursor: "pointer",
+                    border: "1px solid #19AEDC",
+                  }}
+                  onClick={() => setShowShareDialog(true)}
+                >
+                  <ShareIcon fontSize="small" sx={{ color: "#19AEDC" }} />
+                </Box>
+              )}
+            </Box>
+          </Card>
+
+          {/* Event Details Card */}
+          <Card
+            sx={{
+              mt: { xs: 2, md: 3 },
+              borderRadius: "20px",
+              boxShadow: "none",
+            }}
+          >
             <CardContent>
               <Typography
-                variant="h6"
+                variant="h4"
                 sx={{
                   fontWeight: "bold",
-                  fontSize: isMobile?"24px":"30px",
+                  fontSize: { xs: "20px", md: "28px" },
                   fontFamily: "albert sans",
+                  mb: 2,
                 }}
               >
-                {/* Tech Innovation Summit 2025 */}
-                {formData.eventDetails.name || "Event Title"}
+                {formData.eventDetails?.name || "Event Title"}
               </Typography>
-              {formData?.eventDetails?.category?.length > 0 && (
-                <Box sx={{ display: "flex", gap: 1, mb: 2, flexWrap: "wrap",mt:isMobile?1:0 }}>
-                  {formData.eventDetails.category.map((cat, index) => (
+
+              <Box
+                sx={{
+                  display: "flex",
+                  gap: 1,
+                  my: 2,
+                  flexWrap: "wrap",
+                }}
+              >
+                {formData.eventDetails?.category &&
+                  formData.eventDetails.category.map((cat, index) => (
                     <Chip
                       key={index}
                       label={cat}
-                      sx={{ backgroundColor: "#DBEAFE", color: "#19AEDC" }}
+                      sx={{
+                        backgroundColor: "#DBEAFE",
+                        color: "#19AEDC",
+                        fontSize: { xs: "12px", md: "14px" },
+                        fontFamily: "albert sans",
+                      }}
                     />
                   ))}
-                </Box>
-              )}
+              </Box>
 
               <Typography
                 variant="h6"
-                sx={{
-                  fontWeight: "bold",
-                  fontSize: "20px",
-                  fontFamily: "albert sans",
+                sx={{ 
+                  fontWeight: "bold", 
+                  fontFamily: "albert sans", 
+                  mb: 1,
+                  mt: 3,
                 }}
               >
                 About the Event
               </Typography>
               <Typography
-                variant="body1"
-                paragraph
-                color="#4B5563"
-                sx={{ fontFamily: "albert sans",width: isMobile?"100%":"100%",overflowX: "hidden", textOverflow: "ellipsis" }}
-              >
-                {formData.eventDetails.description}
-              </Typography>
-
-              <Typography
-                variant="h6"
+                color="text.secondary"
                 sx={{
-                  fontWeight: "bold",
-                  fontSize: "20px",
+                  mb: 2,
+                  whiteSpace: "pre-line",
+                  wordBreak: "break-word",
+                  overflowWrap: "break-word",
                   fontFamily: "albert sans",
+                  lineHeight: 1.6,
                 }}
               >
-                Event Comforts
+                {formData.eventDetails?.description ||
+                  "No description available for this event."}
               </Typography>
 
-              <Box
-                sx={{
-                  width: "100%",
-                  height: "70px",
-                  border: 0.5,
-                  borderColor: "#4B5563",
-                  display: "flex",
-                  gap: 2,
-                  flexDirection: "column",
-                }}
-              />
+              {formData.pricing?.addons && formData.pricing.addons.length > 0 && (
+                <>
+                  <Typography
+                    variant="h6"
+                    sx={{
+                      fontWeight: "bold",
+                      mt: 3,
+                      mb: 1,
+                      fontFamily: "albert sans",
+                    }}
+                  >
+                    Event Perks
+                  </Typography>
+                  <Box
+                    sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}
+                  >
+                    {formData.pricing.addons.map((perk, index) => (
+                      <Chip
+                        key={index}
+                        label={`${perk.itemName} (Limit: ${perk.limit})`}
+                        sx={{ 
+                          backgroundColor: "#F0F9FF", 
+                          color: "#475569",
+                          fontFamily: "albert sans",
+                        }}
+                      />
+                    ))}
+                  </Box>
+                </>
+              )}
             </CardContent>
           </Card>
 
-          {/* Location */}
-          <Card sx={{ mt: 2 }}>
+          {/* Location Card */}
+          <Card
+            sx={{
+              mt: { xs: 2, md: 3 },
+              borderRadius: "20px",
+              boxShadow: "none",
+            }}
+          >
             <CardContent>
               <Typography
-                variant="h6"
+                variant="h5"
                 sx={{
                   fontWeight: "bold",
-                  fontSize: "30px",
+                  fontSize: { xs: "20px", md: "24px" },
                   fontFamily: "albert sans",
+                  mb: 2,
                 }}
               >
                 Location
               </Typography>
-              <iframe
-                width="100%"
-                height="300"
-                frameBorder="0"
-                style={{ border: 0, borderRadius: "8px" }}
-                src="https://www.openstreetmap.org/export/embed.html?bbox=-122.431297%2C37.773972%2C-122.431297%2C37.773972&layer=mapnik&marker=37.773972%2C-122.431297"
-                allowFullScreen
-              ></iframe>
+              
+              {formData.eventDetails?.venueDetails?.gmapLink ? (
+                <Box
+                  sx={{
+                    width: "100%",
+                    height: "300px",
+                    borderRadius: "10px",
+                    overflow: "hidden",
+                    mb: 2,
+                  }}
+                >
+                  <iframe
+                    width="100%"
+                    height="100%"
+                    frameBorder="0"
+                    style={{ border: 0 }}
+                    src={formData.eventDetails.venueDetails.gmapLink}
+                    allowFullScreen
+                    title="Event Location"
+                  />
+                </Box>
+              ) : (
+                <Box
+                  sx={{
+                    width: "100%",
+                    height: "300px",
+                    backgroundColor: "#E5E7EB",
+                    borderRadius: "10px",
+                    mb: 2,
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                  }}
+                >
+                  <Typography sx={{ fontFamily: "albert sans", color: "#6B7280" }}>
+                    Map not available
+                  </Typography>
+                </Box>
+              )}
+              
               <Typography
-                variant="body2"
                 color="text.secondary"
-                mt={1}
-                sx={{ fontFamily: "albert sans" }}
+                sx={{
+                  fontSize: { xs: "14px", md: "16px" },
+                  fontFamily: "albert sans",
+                  lineHeight: 1.5,
+                }}
               >
-                {formData?.eventDetails?.venueDetails?.venueName},{" "}
-                {formData?.eventDetails?.venueDetails?.streetName},{" "}
-                {formData?.eventDetails?.venueDetails?.area},{" "}
-                {formData?.eventDetails?.venueDetails?.city} -{" "}
-                {formData?.eventDetails?.venueDetails?.pincode}, <br />{" "}
-                {formData?.eventDetails?.venueDetails?.state}
+                {formData.eventDetails?.venueDetails ? (() => {
+                  const { streetName, area, city, state, pincode } = formData.eventDetails.venueDetails;
+                  const parts = [];
+
+                  if (streetName) parts.push(streetName);
+                  if (area) parts.push(area);
+                  if (city && pincode) {
+                    parts.push(`${city} - ${pincode}`);
+                  } else if (city) {
+                    parts.push(city);
+                  } else if (pincode) {
+                    parts.push(pincode);
+                  }
+                  if (state) parts.push(state);
+
+                  return parts.length > 0 ? parts.join(", ") : "Address not provided";
+                })() : "Address not provided"}
               </Typography>
             </CardContent>
           </Card>
 
-          {/* FAQs */}
-          {formData?.finalSetup?.FAQ?.some(
-            (faq) => faq.ques.trim() || faq.ans.trim()
-          ) && (
-            <Card sx={{ mt: 2 }}>
+          {/* FAQ Section */}
+          {faqs.length > 0 && (
+            <Card
+              sx={{
+                mt: { xs: 2, md: 3 },
+                borderRadius: "20px",
+                boxShadow: "none",
+              }}
+            >
               <CardContent>
                 <Typography
-                  variant="h6"
+                  variant="h5"
                   sx={{
                     fontWeight: "bold",
-                    fontSize: "20px",
+                    fontSize: { xs: "20px", md: "24px" },
                     fontFamily: "albert sans",
+                    mb: 2,
                   }}
                 >
-                  FAQ's
+                  FAQs
                 </Typography>
-                <Box
-                  sx={{
-                    width: "95%",
-                    display: "flex",
-                    gap: 2,
-                    flexDirection: "column",
-                    p: 2,
-                  }}
-                >
-                  {formData.finalSetup.FAQ.map((qans, index) => (
-                    <Box key={index} sx={{ borderBottom: "1px solid #ccc" }}>
-                      <Typography
-                        variant="subtitle1"
-                        sx={{ fontFamily: "albert sans", fontSize: "18px" }}
-                      >
-                        {qans.ques}
-                      </Typography>
-                      <Typography
-                        variant="body2"
-                        color="text.secondary"
-                        sx={{ fontFamily: "albert sans" }}
-                      >
-                        {qans.ans}
-                      </Typography>
-                    </Box>
-                  ))}
-                </Box>
+                {faqs.map((faq, index) => (
+                  <Box key={index} sx={{ mb: index < faqs.length - 1 ? 3 : 0 }}>
+                    <Typography
+                      sx={{
+                        fontWeight: "bold",
+                        fontSize: { xs: "16px", md: "18px" },
+                        fontFamily: "albert sans",
+                        wordWrap: "break-word",
+                        overflowWrap: "break-word",
+                        mb: 1,
+                      }}
+                    >
+                      {faq.ques || faq.question}
+                    </Typography>
+                    <Typography
+                      color="text.secondary"
+                      sx={{
+                        fontSize: { xs: "14px", md: "16px" },
+                        fontFamily: "albert sans",
+                        wordWrap: "break-word",
+                        overflowWrap: "break-word",
+                        lineHeight: 1.6,
+                      }}
+                    >
+                      {faq.ans || faq.answer}
+                    </Typography>
+                    {index < faqs.length - 1 && <Divider sx={{ mt: 2 }} />}
+                  </Box>
+                ))}
               </CardContent>
             </Card>
           )}
         </Box>
 
         {/* Right Section */}
-        <Box sx={{ flex: 1 }}>
-          <Card>
+        <Box
+          sx={{
+            flex: { md: 1, xs: 1 },
+            width: { lg: "30%", md: "30%", xs: "100%" },
+            mt: { xs: 0, md: 0 },
+          }}
+        >
+          {/* Event Info Card */}
+          <Card sx={{ borderRadius: "20px", boxShadow: "none" }}>
             <CardContent>
-              <Box
-                sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}
-              >
-                <EventIcon color="#19AEDC" />
+              <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
+                <EventIcon sx={{ color: "#19AEDC" }} />
                 <Box>
                   <Typography
                     variant="body2"
-                    color="#4B5563"
+                    color="text.secondary"
                     sx={{ fontFamily: "albert sans" }}
                   >
                     Date & Time
                   </Typography>
                   <Typography
-                    variant="body2"
                     sx={{ fontWeight: "bold", fontFamily: "albert sans" }}
                   >
-                    {/* March 15, 2025 - 10:00 AM */}
-                    {formattedDate}
+                    {formatDateTime(formData.eventDetails?.eventDate)}
                   </Typography>
                 </Box>
               </Box>
-              <Box
-                sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}
-              >
-                <LocationOnIcon color="#19AEDC" />
+              
+              <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
+                <LocationOnIcon sx={{ color: "#19AEDC" }} />
                 <Box>
                   <Typography
                     variant="body2"
-                    color="#4B5563"
+                    color="text.secondary"
                     sx={{ fontFamily: "albert sans" }}
                   >
                     Location
                   </Typography>
                   <Typography
-                    variant="body2"
                     sx={{ fontWeight: "bold", fontFamily: "albert sans" }}
                   >
-                    {location}
+                    {formData.eventDetails?.venueDetails?.venueName || "Venue not specified"}
                   </Typography>
                 </Box>
               </Box>
+              
               <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                <PeopleIcon color="#19AEDC" />
+                <PeopleIcon sx={{ color: "#19AEDC" }} />
                 <Box>
                   <Typography
                     variant="body2"
-                    color="#4B5563"
+                    color="text.secondary"
                     sx={{ fontFamily: "albert sans" }}
                   >
                     Capacity
                   </Typography>
                   <Typography
-                    variant="body2"
                     sx={{ fontWeight: "bold", fontFamily: "albert sans" }}
                   >
-                    {totalAttendees}
+                    {getEventCapacity(formData.pricing)}
                   </Typography>
                 </Box>
               </Box>
             </CardContent>
           </Card>
 
-          <Button
-            variant="contained"
-            fullWidth
-            sx={{
-              mt: 2,
-              mb: 1,
-              backgroundColor: "#19AEDC",
-              color: "#fff",
-              fontFamily: "albert sans",
-            }}
-          >
-            Book Now
-          </Button>
-          <Button
-            variant="outlined"
-            startIcon={<ShareIcon />}
-            fullWidth
-            sx={{
-              mb: 1,
-              borderColor: "#19AEDC",
-              color: "#19AEDC",
-              fontFamily: "albert sans",
-            }}
-          >
-            Share Event
-          </Button>
+          {/* Desktop Action Buttons */}
+          {!isMobile && (
+            <>
+              <Button
+                variant="contained"
+                fullWidth
+                sx={{
+                  mt: 3,
+                  backgroundColor: "#19AEDC",
+                  color: "#FFFFFF",
+                  borderRadius: "12px",
+                  padding: "14px",
+                  textTransform: "none",
+                  fontSize: "16px",
+                  fontFamily: "albert sans",
+                  fontWeight: "600",
+                  "&:hover": {
+                    backgroundColor: "#1789AE",
+                  },
+                  "&:disabled": {
+                    backgroundColor: "#B0BEC5",
+                  },
+                }}
+              >
+                Get Tickets
+              </Button>
 
-          {formData?.eventDetails?.speaker?.some(
-            (s) => s.name.trim() || s.role.trim()
-          ) && (
-            <Card sx={{ mt: 2 }}>
+              <Button
+                variant="outlined"
+                fullWidth
+                startIcon={<ShareIcon />}
+                onClick={() => setShowShareDialog(true)}
+                sx={{
+                  mt: 2,
+                  fontFamily: "albert sans",
+                  borderColor: "#19AEDC",
+                  color: "#19AEDC",
+                  borderRadius: "12px",
+                  padding: "14px",
+                  textTransform: "none",
+                  fontSize: "16px",
+                  fontWeight: "600",
+                  "&:hover": {
+                    borderColor: "#1789AE",
+                    backgroundColor: "rgba(25, 174, 220, 0.04)",
+                  },
+                }}
+              >
+                Share Event
+              </Button>
+            </>
+          )}
+
+          {/* Speakers Section */}
+          {speakers.length > 0 && (
+            <Card
+              sx={{
+                mt: { xs: 2, md: 3 },
+                borderRadius: "20px",
+                boxShadow: "none",
+              }}
+            >
               <CardContent>
                 <Typography
                   variant="h6"
-                  sx={{
-                    fontWeight: "bold",
-                    fontSize: "30px",
-                    fontFamily: "albert sans",
-                  }}
+                  sx={{ fontWeight: "bold", mb: 2, fontFamily: "albert sans" }}
                 >
-                  Featured Speakers
+                  Speakers
                 </Typography>
-                <Box
-                  sx={{
-                    display: "flex",
-                    flexWrap: "wrap",
-                    flexDirection: "column",
-                    gap: 4,
-                    mt: 2,
-                  }}
-                >
-                  {formData.eventDetails.speaker.map((speaker, index) => {
-                    const hasContent =
-                      speaker.name?.trim() || speaker.role?.trim();
-                    if (!hasContent) return null;
-
-                    return (
-                      <Box
-                        key={index}
-                        sx={{ display: "flex", alignItems: "center", gap: 1 }}
+                {speakers.map((speaker, index) => (
+                  <Box
+                    key={index}
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 2,
+                      mb: index < speakers.length - 1 ? 2 : 0,
+                    }}
+                  >
+                    <Avatar
+                      src={speaker.img}
+                      sx={{ width: 50, height: 50 }}
+                      alt={speaker.name}
+                    >
+                      {speaker.name?.charAt(0)}
+                    </Avatar>
+                    <Box>
+                      <Typography
+                        sx={{ fontWeight: "bold", fontFamily: "albert sans" }}
                       >
-                        <Avatar />
-                        <Typography
-                          variant="body1"
-                          sx={{ fontFamily: "albert sans" }}
-                        >
-                          {speaker.name}
-                        </Typography>
-                        <Typography
-                          variant="body2"
-                          color="text.secondary"
-                          sx={{ fontFamily: "albert sans" }}
-                        >
-                          {speaker.role}
-                        </Typography>
-                      </Box>
-                    );
-                  })}
+                        {speaker.name}
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ fontFamily: "albert sans" }}
+                      >
+                        {speaker.role}
+                      </Typography>
+                    </Box>
+                  </Box>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Tags Section */}
+          {tagsList.length > 0 && (
+            <Card
+              sx={{
+                mt: { xs: 2, md: 3 },
+                borderRadius: "20px",
+                boxShadow: "none",
+              }}
+            >
+              <CardContent>
+                <Typography
+                  variant="h6"
+                  sx={{ fontWeight: "bold", mb: 2, fontFamily: "albert sans" }}
+                >
+                  Tags
+                </Typography>
+                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+                  {tagsList.map((tag, index) => (
+                    <Chip
+                      key={index}
+                      label={tag}
+                      sx={{
+                        backgroundColor: "#E0F2FE",
+                        color: "#19AEDC",
+                        fontFamily: "albert sans",
+                        wordBreak: "break-word",
+                      }}
+                    />
+                  ))}
                 </Box>
               </CardContent>
             </Card>
           )}
 
-          <Card sx={{ mt: 2 }}>
-            {formData?.finalSetup?.tags?.trim() && (
+          {/* YouTube Video Section */}
+          {youtubeVideoId && (
+            <Card sx={{ 
+              mt: { xs: 2, md: 3 }, 
+              borderRadius: "20px", 
+              boxShadow: "none" 
+            }}>
               <CardContent>
                 <Typography
                   variant="h6"
-                  sx={{
-                    fontWeight: "bold",
-                    fontSize: "20px",
-                    fontFamily: "albert sans",
-                  }}
+                  sx={{ fontWeight: "bold", mb: 2, fontFamily: "albert sans" }}
                 >
-                  TAGs
+                  Event Video
                 </Typography>
                 <Box
                   sx={{
-                    width: "90%",
-                    minHeight: "auto",
-                    display: "flex",
-                    alignItems: "center",
-                    padding: "8px",
+                    position: "relative",
+                    cursor: "pointer",
+                    borderRadius: "10px",
+                    overflow: "hidden",
+                    "&:hover .play-overlay": {
+                      opacity: 1,
+                    },
+                  }}
+                  onClick={handlePlayVideo}
+                >
+                  <CardMedia
+                    component="img"
+                    image={`https://img.youtube.com/vi/${youtubeVideoId}/maxresdefault.jpg`}
+                    onError={(e) => {
+                      e.target.src = `https://img.youtube.com/vi/${youtubeVideoId}/mqdefault.jpg`;
+                    }}
+                    alt="Video Thumbnail"
+                    sx={{
+                      width: "100%",
+                      height: "180px",
+                      objectFit: "cover",
+                    }}
+                  />
+
+                  <Box
+                    className="play-overlay"
+                    sx={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      width: "100%",
+                      height: "100%",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      background: "rgba(0,0,0,0.3)",
+                      opacity: 0.7,
+                      transition: "opacity 0.3s",
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        width: "60px",
+                        height: "60px",
+                        borderRadius: "50%",
+                        backgroundColor: "#19AEDC",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <PlayArrowIcon sx={{ color: "#fff", fontSize: "32px" }} />
+                    </Box>
+                  </Box>
+                </Box>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ 
+                    mt: 1, 
+                    textAlign: "center", 
+                    fontStyle: "italic",
+                    fontFamily: "albert sans",
                   }}
                 >
-                  <Typography sx={{ fontFamily: "albert sans" }}>
-                    {formData.finalSetup.tags}
-                  </Typography>
-                </Box>
+                  Click to watch event video
+                </Typography>
               </CardContent>
-            )}
-          </Card>
+            </Card>
+          )}
+
+          {/* Previous Events Carousel */}
+          {previewUrls.length >= 3 && (
+            <Card
+              sx={{
+                mt: { xs: 2, md: 3 },
+                borderRadius: "20px",
+                boxShadow: "none",
+                                  mb:isMobile ?'5em' : 0,
+
+              }}
+            >
+              <CardContent>
+                <Typography
+                  variant="h6"
+                  sx={{ fontWeight: "bold", mb: 2, fontFamily: "albert sans" }}
+                >
+                  Previous Events
+                </Typography>
+                <Box
+                  sx={{
+                    borderRadius: "10px",
+                    overflow: "hidden",
+                    "& .slick-dots": {
+                      bottom: "10px",
+                    },
+                    "& .slick-dots li button:before": {
+                      color: "#19AEDC",
+                    },
+                  }}
+                >
+                  <Slider
+                    dots
+                    infinite
+                    speed={500}
+                    slidesToShow={1}
+                    slidesToScroll={1}
+                    autoplay
+                    autoplaySpeed={5000}
+                    adaptiveHeight={false}
+                  >
+
+                {previewUrls.slice(2, 5).map((imgUrl, index) => (
+            <div key={index} style={{ height: "200px" }}>
+              <img
+                src={imgUrl}
+                alt={`Event Slide ${index + 4}`}
+                style={{
+                  width: "100%",
+                  height: "200px",
+                  objectFit: "cover", // Changed from "contain" to "cover"
+                  objectPosition: "center",
+                  display: "block",
+                  borderRadius: "10px",
+                }}
+              />
+            </div>
+          ))}
+        </Slider>
+      </Box>
+    </CardContent>
+  </Card>
+)}
+        
         </Box>
       </Box>
+
+      {isMobile && (
+        <Box
+          sx={{
+            position: "fixed",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            width: "100%",
+            backgroundColor: "#fff",
+            boxShadow: "0 -2px 10px rgba(0,0,0,0.1)",
+            padding: `10px 0 ${paddingBottom}px 0`,
+            zIndex: 1300,
+            display: "flex",
+            
+            justifyContent: "center",
+            alignItems: "center",
+            transition: "padding 0.3s ease-in-out",
+          }}
+        >
+          <Button
+            variant="contained"
+            onClick={() => navigate(`/ticketpricepage/${eventId}/${userUID}`)}
+            sx={{
+              backgroundColor: "#19AEDC",
+              color: "#FFFFFF",
+              fontFamily: "albert sans",
+
+              borderRadius: "15px",
+              width: "60%",
+              padding: "12px",
+              textTransform: "none",
+              fontSize: "16px",
+              "&:hover": {
+                backgroundColor: "#1789AE",
+              },
+            }}
+          >
+            Get Tickets
+          </Button>
+        </Box>
+      )}
+
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={3000}
+        onClose={handleSnackbarClose}
+        message={snackbarMessage}
+      />
     </Box>
   );
 };

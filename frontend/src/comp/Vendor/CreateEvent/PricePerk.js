@@ -5,7 +5,7 @@ import {
   FormControl,
   OutlinedInput,
   Typography,
-  useMediaQuery
+  useMediaQuery,
 } from "@mui/material";
 import React, { useEffect, useState } from "react";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
@@ -18,160 +18,51 @@ import { useNavigate } from "react-router-dom";
 import { useParams } from "react-router-dom";
 
 const PricePerk = () => {
+  const { vendorId } = useParams();
+  const {
+    formData,
+    setFormData,
+    markStepCompleted,
+    shouldRedirectToStep1,
+    stepCompletion,
+  } = useEventContext();
+  const isMobile = useMediaQuery("(max-width:900px)");
+  const navigate = useNavigate();
 
-const { vendorId } = useParams();
-const {
-  formData,
-  setFormData,
-  markStepCompleted,
-  shouldRedirectToStep1,
-  stepCompletion,
-} = useEventContext();
-const isMobile = useMediaQuery("(max-width:900px)");
-const navigate = useNavigate();
-
-// Redirect logic for reload detection and step validation
-useEffect(() => {
-  // Redirect to step 1 if page was reloaded
-  if (shouldRedirectToStep1()) {
-    navigate(`/createevent/${vendorId}/step1`);
-    return;
-  }
-
-  // Redirect to step 1 if step 1 is not completed or required data is missing
-  if (
-    !stepCompletion.step1 ||
-    !formData.eventDetails?.name ||
-    Object.keys(formData.eventDetails || {}).length === 0
-  ) {
-    navigate(`/createevent/${vendorId}/step1`);
-    return;
-  }
-}, [shouldRedirectToStep1, stepCompletion, formData, navigate, vendorId]);
-
-// Global tax state to control all tickets
-const [globalTax, setGlobalTax] = useState(false);
-
-const [ticket, setTicket] = useState([
-  {
-    ticketType: "",
-    features: "",
-    price: "",
-    tax: false, // This will be synced with globalTax
-    freeEvent: false,
-    seats: "",
-  },
-]);
-
-const [coupon, setCoupon] = useState([
-  {
-    couponCode: "",
-    reducePert: "",
-    startTime: dayjs(),
-    endTime: dayjs(),
-    couponLimits: "",
-  },
-]);
-
-const [item, setItem] = useState([
-  {
-    itemName: "",
-    price: "",
-    limit: "",
-    url: ""
-  },
-]);
-
-useEffect(() => {
-  if (formData?.pricing) {
-    // Initialize tickets with values from formData
-    if (formData.pricing.tickets?.length) {
-      setTicket(formData.pricing.tickets);
-
-      // Set globalTax based on the first ticket's tax value
-      const firstTicketTax =
-        typeof formData.pricing.tickets[0].tax === "boolean"
-          ? formData.pricing.tickets[0].tax
-          : false;
-      setGlobalTax(firstTicketTax);
-
-      // Make sure all tickets have the same tax value
-      const syncedTickets = formData.pricing.tickets.map((t) => ({
-        ...t,
-        tax: firstTicketTax, // Sync all tickets with the first ticket's tax value
-      }));
-      setTicket(syncedTickets);
+  // Redirect logic for reload detection and step validation
+  useEffect(() => {
+    // Redirect to step 1 if page was reloaded
+    if (shouldRedirectToStep1()) {
+      navigate(`/createevent/${vendorId}/step1`);
+      return;
     }
 
-    setCoupon(
-      formData.pricing.coupons?.length ? formData.pricing.coupons : coupon
-    );
-    setItem(
-  formData.pricing.addons?.length
-    ? formData.pricing.addons.map((a) => ({
-        itemName: a.itemName || "",
-        price: a.price || "",
-        limit: a.limit || "",
-        url: a.url || "", 
-      }))
-    : item
-);
-  }
-}, [formData]);
+    // Redirect to step 1 if step 1 is not completed or required data is missing
+    if (
+      !stepCompletion.step1 ||
+      !formData.eventDetails?.name ||
+      Object.keys(formData.eventDetails || {}).length === 0
+    ) {
+      navigate(`/createevent/${vendorId}/step1`);
+      return;
+    }
+  }, [shouldRedirectToStep1, stepCompletion, formData, navigate, vendorId]);
 
-const handleTicketChange = (index, field, value) => {
-  const updatedTickets = [...ticket];
-  updatedTickets[index][field] = value;
+  // Global tax state to control all tickets
+  const [globalTax, setGlobalTax] = useState(false);
 
-  if (field === "price") {
-    updatedTickets[index].freeEvent = false;
-  }
+  const [ticket, setTicket] = useState([
+    {
+      ticketType: "",
+      features: "",
+      price: "",
+      tax: false, // This will be synced with globalTax
+      freeEvent: false,
+      seats: "",
+    },
+  ]);
 
-  setTicket(updatedTickets);
-};
-
-const handleFreeCheckbox = (index, isChecked) => {
-  const updatedTickets = [...ticket];
-  updatedTickets[index].freeEvent = isChecked;
-
-  if (isChecked) {
-    updatedTickets[index].price = "0";
-  }
-
-  setTicket(updatedTickets);
-};
-
-// Handle global tax checkbox - affects all tickets
-const handleGlobalTaxCheckbox = (isChecked) => {
-  setGlobalTax(isChecked);
-
-  const updatedTickets = ticket.map((t) => ({
-    ...t,
-    tax: isChecked,
-  }));
-
-  setTicket(updatedTickets);
-};
-
-const handleAddonChange = (index, field, value) => {
-  const updatedAddon = [...item];
-  updatedAddon[index] = {
-    ...updatedAddon[index],
-    [field]: value,
-    url: updatedAddon[index].url || "",
-  };
-  setItem(updatedAddon);
-};
-
-const handleCouponChange = (index, field, value) => {
-  const updatedCoupon = [...coupon];
-  updatedCoupon[index][field] = value;
-  setCoupon(updatedCoupon);
-};
-
-const handleAddCoupon = () => {
-  setCoupon([
-    ...coupon,
+  const [coupon, setCoupon] = useState([
     {
       couponCode: "",
       reducePert: "",
@@ -180,83 +71,190 @@ const handleAddCoupon = () => {
       couponLimits: "",
     },
   ]);
-};
 
-const handleAddItem = () => {
-  setItem([...item, { itemName: "", price: "", limit: "", url: "" }]);
-};
-
-
-const handleRemoveItem = (indexToRemove) => {
-  const removeItem = [...item];
-  removeItem.splice(indexToRemove, 1);
-  setItem(removeItem);
-};
-
-const handleRemoveCoupon = (indexToRemove) => {
-  const removeItem = [...coupon];
-  removeItem.splice(indexToRemove, 1);
-  setCoupon(removeItem);
-};
-
-const handleAddTicket = () => {
-  setTicket([
-    ...ticket,
+  const [item, setItem] = useState([
     {
-      ticketType: "",
-      features: "",
+      itemName: "",
       price: "",
-      tax: globalTax,
-      freeEvent: false,
-      seats: "",
+      limit: "",
+      url: "",
     },
   ]);
-};
 
-const handleRemoveTicket = (indexToRemove) => {
-  const removeTicket = [...ticket];
-  removeTicket.splice(indexToRemove, 1);
-  setTicket(removeTicket);
-};
+  useEffect(() => {
+    if (formData?.pricing) {
+      // Initialize tickets with values from formData
+      if (formData.pricing.tickets?.length) {
+        setTicket(formData.pricing.tickets);
 
-const isFormValid = () => {
-  const ticketsValid =
-    ticket.length > 0 &&
-    ticket.every(
-      (t) =>
-        t.ticketType.trim() !== "" &&
-        t.features.trim() !== "" &&
-        t.seats.trim() !== "" &&
-        (t.freeEvent || t.price.trim() !== "")
-    );
+        // Set globalTax based on the first ticket's tax value
+        const firstTicketTax =
+          typeof formData.pricing.tickets[0].tax === "boolean"
+            ? formData.pricing.tickets[0].tax
+            : false;
+        setGlobalTax(firstTicketTax);
 
-  return ticketsValid;
-};
+        // Make sure all tickets have the same tax value
+        const syncedTickets = formData.pricing.tickets.map((t) => ({
+          ...t,
+          tax: firstTicketTax, // Sync all tickets with the first ticket's tax value
+        }));
+        setTicket(syncedTickets);
+      }
 
-const handleNext = () => {
-  if (!isFormValid()) {
-    return;
-  }
-
-  const cleanedTickets = ticket.map((t) => {
-    if (t.freeEvent) {
-      return { ...t, price: "0" };
+      setCoupon(
+        formData.pricing.coupons?.length ? formData.pricing.coupons : coupon
+      );
+      setItem(
+        formData.pricing.addons?.length
+          ? formData.pricing.addons.map((a) => ({
+              itemName: a.itemName || "",
+              price: a.price || "",
+              limit: a.limit || "",
+              url: a.url || "",
+            }))
+          : item
+      );
     }
-    return t;
-  });
+  }, [formData]);
 
-  setFormData((prev) => ({
-    ...prev,
-    pricing: {
-      tickets: cleanedTickets,
-      coupons: coupon,
-      addons: item,
-    },
-  }));
-  markStepCompleted("step2");
+  const handleTicketChange = (index, field, value) => {
+    const updatedTickets = [...ticket];
+    updatedTickets[index][field] = value;
 
-  navigate(`/createevent/${vendorId}/step3`);
-}
+    if (field === "price") {
+      updatedTickets[index].freeEvent = false;
+    }
+
+    setTicket(updatedTickets);
+  };
+
+  const handleFreeCheckbox = (index, isChecked) => {
+    const updatedTickets = [...ticket];
+    updatedTickets[index].freeEvent = isChecked;
+
+    if (isChecked) {
+      updatedTickets[index].price = "0";
+    }
+
+    setTicket(updatedTickets);
+  };
+
+  // Handle global tax checkbox - affects all tickets
+  const handleGlobalTaxCheckbox = (isChecked) => {
+    setGlobalTax(isChecked);
+
+    const updatedTickets = ticket.map((t) => ({
+      ...t,
+      tax: isChecked,
+    }));
+
+    setTicket(updatedTickets);
+  };
+
+  const handleAddonChange = (index, field, value) => {
+    const updatedAddon = [...item];
+    updatedAddon[index] = {
+      ...updatedAddon[index],
+      [field]: value,
+      url: updatedAddon[index].url || "",
+    };
+    setItem(updatedAddon);
+  };
+
+  const handleCouponChange = (index, field, value) => {
+    const updatedCoupon = [...coupon];
+    updatedCoupon[index][field] = value;
+    setCoupon(updatedCoupon);
+  };
+
+  const handleAddCoupon = () => {
+    setCoupon([
+      ...coupon,
+      {
+        couponCode: "",
+        reducePert: "",
+        startTime: dayjs(),
+        endTime: dayjs(),
+        couponLimits: "",
+      },
+    ]);
+  };
+
+  const handleAddItem = () => {
+    setItem([...item, { itemName: "", price: "", limit: "", url: "" }]);
+  };
+
+  const handleRemoveItem = (indexToRemove) => {
+    const removeItem = [...item];
+    removeItem.splice(indexToRemove, 1);
+    setItem(removeItem);
+  };
+
+  const handleRemoveCoupon = (indexToRemove) => {
+    const removeItem = [...coupon];
+    removeItem.splice(indexToRemove, 1);
+    setCoupon(removeItem);
+  };
+
+  const handleAddTicket = () => {
+    setTicket([
+      ...ticket,
+      {
+        ticketType: "",
+        features: "",
+        price: "",
+        tax: globalTax,
+        freeEvent: false,
+        seats: "",
+      },
+    ]);
+  };
+
+  const handleRemoveTicket = (indexToRemove) => {
+    const removeTicket = [...ticket];
+    removeTicket.splice(indexToRemove, 1);
+    setTicket(removeTicket);
+  };
+
+  const isFormValid = () => {
+    const ticketsValid =
+      ticket.length > 0 &&
+      ticket.every(
+        (t) =>
+          t.ticketType.trim() !== "" &&
+          t.features.trim() !== "" &&
+          t.seats.trim() !== "" &&
+          (t.freeEvent || t.price.trim() !== "")
+      );
+
+    return ticketsValid;
+  };
+
+  const handleNext = () => {
+    if (!isFormValid()) {
+      return;
+    }
+
+    const cleanedTickets = ticket.map((t) => {
+      if (t.freeEvent) {
+        return { ...t, price: "0" };
+      }
+      return t;
+    });
+
+    setFormData((prev) => ({
+      ...prev,
+      pricing: {
+        tickets: cleanedTickets,
+        coupons: coupon,
+        addons: item,
+      },
+    }));
+    markStepCompleted("step2");
+
+    navigate(`/createevent/${vendorId}/step3`);
+  };
   return (
     <div>
       <Box
@@ -272,7 +270,7 @@ const handleNext = () => {
           sx={{
             display: "flex",
             flexDirection: "column",
-            width: isMobile?"90%":"70%",
+            width: isMobile ? "90%" : "70%",
             margin: "0 auto",
           }}
         >
@@ -295,7 +293,7 @@ const handleNext = () => {
               sx={{
                 fontFamily: "albert sans",
                 fontWeight: "900",
-                fontSize:isMobile?"20px": "28px",
+                fontSize: isMobile ? "20px" : "28px",
               }}
             >
               Ticket Setup
@@ -326,7 +324,7 @@ const handleNext = () => {
                     </Typography>
                     <Box
                       sx={{
-                        display: isMobile?"block": "flex",
+                        display: isMobile ? "block" : "flex",
                         alignItems: "center",
                         gap: "2%",
                       }}
@@ -342,7 +340,7 @@ const handleNext = () => {
                         }
                         placeholder="Eg. VIP, Regular, Child"
                         sx={{
-                          width: isMobile?"90%":"35%",
+                          width: isMobile ? "90%" : "35%",
                           height: "40px",
                           fontFamily: "Albert Sans",
                           "&::placeholder": {
@@ -360,7 +358,7 @@ const handleNext = () => {
                         sx={{
                           alignItems: "center",
                           display: "flex",
-                          width: isMobile?"90%":"30%",
+                          width: isMobile ? "90%" : "30%",
                         }}
                       >
                         <Checkbox
@@ -373,10 +371,14 @@ const handleNext = () => {
                             "&.Mui-checked": {
                               color: "#19AEDC", // Always blue when checked
                             },
-                            
                           }}
                         />
-                        <Typography sx={{ fontFamily: "albert sans",fontSize:isMobile?"14px":"16px" }}>
+                        <Typography
+                          sx={{
+                            fontFamily: "albert sans",
+                            fontSize: isMobile ? "14px" : "16px",
+                          }}
+                        >
                           Free for this type
                         </Typography>
                       </Box>
@@ -430,7 +432,7 @@ const handleNext = () => {
 
                 <Box
                   sx={{
-                    display:isMobile?"block": "flex",
+                    display: isMobile ? "block" : "flex",
                     mt: "2%",
                     width: "100%",
                     alignItems: "center",
@@ -439,7 +441,7 @@ const handleNext = () => {
                   <FormControl
                     fullWidth
                     variant="outlined"
-                    sx={{ width: isMobile?"90%":"40%", mr: "2%" }}
+                    sx={{ width: isMobile ? "90%" : "40%", mr: "2%" }}
                   >
                     <Typography
                       variant="subtitle2"
@@ -455,9 +457,12 @@ const handleNext = () => {
                     <OutlinedInput
                       disabled={t.freeEvent}
                       value={t.price}
-                      onChange={(e) =>
-                        handleTicketChange(index, "price", e.target.value)
-                      }
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        if (/^\d*\.?\d{0,2}$/.test(value)) {
+                          handleTicketChange(index, "price", e.target.value);
+                        }
+                      }}
                       placeholder="0.00"
                       sx={{
                         width: "100%",
@@ -479,8 +484,8 @@ const handleNext = () => {
                     sx={{
                       alignItems: "center",
                       display: "flex",
-                      width: isMobile?"90%":"40%",
-                      mt:isMobile?1:2,
+                      width: isMobile ? "90%" : "40%",
+                      mt: isMobile ? 1 : 2,
                     }}
                   >
                     <Checkbox
@@ -496,7 +501,12 @@ const handleNext = () => {
                         },
                       }}
                     />
-                    <Typography sx={{ fontFamily: "Albert Sans",fontSize:isMobile?"14px":"16px" }}>
+                    <Typography
+                      sx={{
+                        fontFamily: "Albert Sans",
+                        fontSize: isMobile ? "14px" : "16px",
+                      }}
+                    >
                       Tax amount included in the ticket price
                     </Typography>
                   </Box>
@@ -505,7 +515,7 @@ const handleNext = () => {
                 <FormControl
                   fullWidth
                   variant="outlined"
-                  sx={{ width: isMobile?"90%": "40%", mt: "2%" }}
+                  sx={{ width: isMobile ? "90%" : "40%", mt: "2%" }}
                 >
                   <Typography
                     variant="subtitle2"
@@ -520,12 +530,15 @@ const handleNext = () => {
                   </Typography>
                   <OutlinedInput
                     value={t.seats}
-                    onChange={(e) =>
-                      handleTicketChange(index, "seats", e.target.value)
-                    }
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (/^\d*\.?\d{0,2}$/.test(value)) {
+                        handleTicketChange(index, "seats", e.target.value);
+                      }
+                    }}
                     placeholder="0"
                     sx={{
-                      width: isMobile?"90%":"90%",
+                      width: isMobile ? "90%" : "90%",
                       height: "40px",
                       fontFamily: "Albert Sans",
                       "&::placeholder": {
@@ -573,8 +586,7 @@ const handleNext = () => {
                 width: "100%",
                 mt: "3%",
               }}
-            >
-            </Box>
+            ></Box>
           </Box>
           {/*Add-ons*/}
           <Box
@@ -595,7 +607,7 @@ const handleNext = () => {
               sx={{
                 fontFamily: "albert sans",
                 fontWeight: "900",
-                fontSize:isMobile?"20px": "28px",
+                fontSize: isMobile ? "20px" : "28px",
               }}
             >
               Add-ons & Purchasables
@@ -604,14 +616,18 @@ const handleNext = () => {
               <Box
                 key={index}
                 sx={{
-                  display: isMobile?"block":"flex",
+                  display: isMobile ? "block" : "flex",
                   mt: "2%",
                   width: "100%",
                   alignItems: "center",
                   gap: "2%",
                 }}
               >
-                <FormControl fullWidth variant="outlined" sx={{ width: isMobile?"90%":"30%" }}>
+                <FormControl
+                  fullWidth
+                  variant="outlined"
+                  sx={{ width: isMobile ? "90%" : "30%" }}
+                >
                   <Typography
                     variant="subtitle2"
                     sx={{
@@ -645,7 +661,11 @@ const handleNext = () => {
                     }}
                   />
                 </FormControl>
-                <FormControl fullWidth variant="outlined" sx={{ width: isMobile?"90%":"30%" }}>
+                <FormControl
+                  fullWidth
+                  variant="outlined"
+                  sx={{ width: isMobile ? "90%" : "30%" }}
+                >
                   <Typography
                     variant="subtitle2"
                     sx={{
@@ -660,9 +680,13 @@ const handleNext = () => {
                   <OutlinedInput
                     value={t.price}
                     onChange={(e) => {
-                      handleAddonChange(index, "price", e.target.value);
+                      const value = e.target.value;
+                      if (/^\d*\.?\d{0,2}$/.test(value)) {
+                        handleAddonChange(index, "price", value);
+                      }
                     }}
                     placeholder="0.00"
+                    inputProps={{ inputMode: "decimal" }}
                     sx={{
                       width: "100%",
                       height: "40px",
@@ -679,7 +703,11 @@ const handleNext = () => {
                     }}
                   />
                 </FormControl>
-                <FormControl fullWidth variant="outlined" sx={{ width: isMobile?"90%":"30%" }}>
+                <FormControl
+                  fullWidth
+                  variant="outlined"
+                  sx={{ width: isMobile ? "90%" : "30%" }}
+                >
                   <Typography
                     variant="subtitle2"
                     sx={{
@@ -694,7 +722,10 @@ const handleNext = () => {
                   <OutlinedInput
                     value={t.limit}
                     onChange={(e) => {
-                      handleAddonChange(index, "limit", e.target.value);
+                      const value = e.target.value;
+                      if (/^\d*\.?\d{0,2}$/.test(value)) {
+                        handleAddonChange(index, "limit", e.target.value);
+                      }
                     }}
                     placeholder="100"
                     sx={{
@@ -719,10 +750,12 @@ const handleNext = () => {
                     cursor: "pointer",
                     color: "gray",
                     "&:hover": { color: "red" },
-                    mt:isMobile?2:3,
-                    ml:isMobile?1.5:null,
+                    mt: isMobile ? 2 : 3,
+                    ml: isMobile ? 1.5 : null,
                   }}
-                  onClick={() => {handleRemoveItem(index)}}
+                  onClick={() => {
+                    handleRemoveItem(index);
+                  }}
                 />
               </Box>
             ))}
@@ -769,7 +802,7 @@ const handleNext = () => {
               sx={{
                 fontFamily: "albert sans",
                 fontWeight: "900",
-                fontSize: isMobile?"20px":"28px",
+                fontSize: isMobile ? "20px" : "28px",
               }}
             >
               Coupons & Discounts
@@ -787,7 +820,7 @@ const handleNext = () => {
               >
                 <Box
                   sx={{
-                    display: isMobile?"block":"flex",
+                    display: isMobile ? "block" : "flex",
                     justifyContent: "space-between",
                     width: "100%",
                   }}
@@ -841,9 +874,16 @@ const handleNext = () => {
                     <OutlinedInput
                       value={t.reducePert}
                       onChange={(e) => {
-                        handleCouponChange(index, "reducePert", e.target.value);
+                        const value = e.target.value;
+                        if (/^\d*\.?\d{0,2}$/.test(value)) {
+                          handleCouponChange(
+                            index,
+                            "reducePert",
+                            e.target.value
+                          );
+                        }
                       }}
-                      placeholder="Eg. 200 reduced from tick price"
+                      placeholder="Eg. 20% reduced from ticket price"
                       sx={{
                         width: "90%",
                         height: "40px",
@@ -866,13 +906,15 @@ const handleNext = () => {
                       color: "gray",
                       "&:hover": { color: "red" },
                     }}
-                    onClick={() => {handleRemoveCoupon(index)}}
+                    onClick={() => {
+                      handleRemoveCoupon(index);
+                    }}
                   />
                 </Box>
 
                 <Box
                   sx={{
-                    display:  isMobile?"block":"flex",
+                    display: isMobile ? "block" : "flex",
                     mt: "3%",
                     width: "100%",
                     alignItems: "center",
@@ -883,7 +925,7 @@ const handleNext = () => {
                     <FormControl
                       fullWidth
                       variant="outlined"
-                      sx={{ width:  isMobile?"90%":"30%" }}
+                      sx={{ width: isMobile ? "90%" : "30%" }}
                     >
                       <Typography
                         variant="subtitle2"
@@ -933,7 +975,10 @@ const handleNext = () => {
                   </LocalizationProvider>
 
                   <LocalizationProvider dateAdapter={AdapterDayjs}>
-                    <FormControl variant="outlined" sx={{ width:  isMobile?"90%":"30%" }}>
+                    <FormControl
+                      variant="outlined"
+                      sx={{ width: isMobile ? "90%" : "30%" }}
+                    >
                       <Typography
                         variant="subtitle2"
                         sx={{
@@ -1000,11 +1045,14 @@ const handleNext = () => {
                     <OutlinedInput
                       value={t.couponLimits}
                       onChange={(e) => {
-                        handleCouponChange(
-                          index,
-                          "couponLimits",
-                          e.target.value
-                        );
+                        const value = e.target.value;
+                        if (/^\d*\.?\d{0,2}$/.test(value)) {
+                          handleCouponChange(
+                            index,
+                            "couponLimits",
+                            e.target.value
+                          );
+                        }
                       }}
                       placeholder="0"
                       sx={{

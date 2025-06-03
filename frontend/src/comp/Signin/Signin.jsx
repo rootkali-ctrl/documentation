@@ -74,7 +74,7 @@ const SignIn = ({
 
       // Send verification email
       await sendEmailVerification(user, {
-        url: "http://localhost:3000",
+        url: process.env.REACT_APP_API_BASE_URL || window.location.origin,
       });
 
       // Save user data to Firestore

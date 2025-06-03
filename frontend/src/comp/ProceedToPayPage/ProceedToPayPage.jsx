@@ -264,159 +264,158 @@ const ProceedToPayPage = () => {
     }, 0);
   };
 
-  // Handler for promo code application
-  const handleApplyPromoCode = async () => {
-    // Clear previous coupon results
-    setDiscount(0);
-    setAppliedCoupon(null);
-    setCouponSuccess(null);
 
-    if (!promoCode) {
-      setError("Please enter a promo code");
-      setTimeout(() => setError(null), 3000);
-      return;
-    }
+// Handler for promo code application
+const handleApplyPromoCode = async () => {
+  // Clear previous coupon results
+  setDiscount(0);
+  setAppliedCoupon(null);
+  setCouponSuccess(null);
 
-    // Find the coupon
-    const coupon = eventCoupons.find(
-      (c) => c.couponCode === promoCode.toUpperCase()
-    );
+  if (!promoCode) {
+    setError("Please enter a promo code");
+    setTimeout(() => setError(null), 3000);
+    return;
+  }
 
-    if (!coupon) {
-      setError("Invalid promo code");
-      setTimeout(() => setError(null), 3000);
-      return;
-    }
+  // Find the coupon
+  const coupon = eventCoupons.find(
+    (c) => c.couponCode === promoCode.toUpperCase()
+  );
 
-    // Check if coupon is within valid date range
-    const currentDate = new Date();
-    const startDate = new Date(coupon.startTime);
-    const endDate = new Date(coupon.endTime);
+  if (!coupon) {
+    setError("Invalid promo code");
+    setTimeout(() => setError(null), 3000);
+    return;
+  }
 
-    if (currentDate < startDate || currentDate > endDate) {
-      setError("Coupon is not valid at this time");
-      setTimeout(() => setError(null), 3000);
-      return;
-    }
+  // Check if coupon is within valid date range
+  const currentDate = new Date();
+  const startDate = new Date(coupon.startTime);
+  const endDate = new Date(coupon.endTime);
 
-    // Check coupon usage limit using a transaction
-    try {
-      const eventRef = doc(db, "events", eventId);
-      await runTransaction(db, async (transaction) => {
-        const eventDoc = await transaction.get(eventRef);
-        if (!eventDoc.exists()) {
-          throw new Error("Event not found");
-        }
+  if (currentDate < startDate || currentDate > endDate) {
+    setError("Coupon is not valid at this time");
+    setTimeout(() => setError(null), 3000);
+    return;
+  }
 
-        const eventData = eventDoc.data();
-        const coupons = eventData.coupons || [];
-        const couponIndex = coupons.findIndex(
-          (c) => c.couponCode === promoCode.toUpperCase()
-        );
+  // Check coupon usage limit using a transaction
+  try {
+    const eventRef = doc(db, "events", eventId);
+    await runTransaction(db, async (transaction) => {
+      const eventDoc = await transaction.get(eventRef);
+      if (!eventDoc.exists()) {
+        throw new Error("Event not found");
+      }
 
-        if (couponIndex === -1) {
-          throw new Error("Coupon not found");
-        }
+      const eventData = eventDoc.data();
+      const coupons = eventData.coupons || [];
+      const couponIndex = coupons.findIndex(
+        (c) => c.couponCode === promoCode.toUpperCase()
+      );
 
-        const selectedCoupon = coupons[couponIndex];
-        const timesUsed = selectedCoupon.timesUsed || 0;
+      if (couponIndex === -1) {
+        throw new Error("Coupon not found");
+      }
 
-        if (timesUsed >= selectedCoupon.couponLimits) {
-          throw new Error("Coupon usage limit reached");
-        }
+      const selectedCoupon = coupons[couponIndex];
+      const timesUsed = selectedCoupon.timesUsed || 0;
 
-        // Calculate discount
-        const discountAmount = Math.min(
-          selectedCoupon.reducePert || 0,
-          calculateTicketSubtotal()
-        );
-        const roundedDiscount = Math.round(discountAmount * 100) / 100;
+      if (timesUsed >= selectedCoupon.couponLimits) {
+        throw new Error("Coupon usage limit reached");
+      }
 
-        // Update timesUsed in Firestore
-        coupons[couponIndex].timesUsed = timesUsed + 1;
-        transaction.update(eventRef, { coupons });
+      // Calculate discount - CORRECTED
+      const subtotal = calculateTicketSubtotal();
+      const discountRate = selectedCoupon.reducePert || 0; // e.g. 30 for 30%
+      const discountAmount = (subtotal * discountRate) / 100; // 120 * 30 / 100 = 36
+      const roundedDiscount = Math.round(discountAmount * 100) / 100;
 
-        // Update state
-        setDiscount(roundedDiscount);
-        setAppliedCoupon(selectedCoupon);
-        setCouponSuccess(
-          `Coupon successfully applied! You saved ₹${roundedDiscount.toFixed(2)}`
-        );
-        setTimeout(() => setCouponSuccess(null), 5000);
-      });
-    } catch (err) {
-      console.error("Error applying coupon:", err);
-      setError(err.message || "Failed to apply coupon");
-      setTimeout(() => setError(null), 3000);
-    }
-  };
+      // Update timesUsed in Firestore
+      coupons[couponIndex].timesUsed = timesUsed + 1;
+      transaction.update(eventRef, { coupons });
+
+      // Update state
+      setDiscount(roundedDiscount);
+      setAppliedCoupon(selectedCoupon);
+      setCouponSuccess(
+        `Coupon successfully applied! You saved ₹${roundedDiscount.toFixed(2)}`
+      );
+      setTimeout(() => setCouponSuccess(null), 5000);
+    });
+  } catch (err) {
+    console.error("Error applying coupon:", err);
+    setError(err.message || "Failed to apply coupon");
+    setTimeout(() => setError(null), 3000);
+  }
+};
 
   // Function to apply coupon directly from the available coupons section
-  const applyDirectCoupon = async (coupon) => {
-    // Check if coupon is currently valid
-    const currentDate = new Date();
-    const startDate = new Date(coupon.startTime);
-    const endDate = new Date(coupon.endTime);
-    const isValid = currentDate >= startDate && currentDate <= endDate;
+ const applyDirectCoupon = async (coupon) => {
+  // Check if coupon is currently valid
+  const currentDate = new Date();
+  const startDate = new Date(coupon.startTime);
+  const endDate = new Date(coupon.endTime);
+  const isValid = currentDate >= startDate && currentDate <= endDate;
 
-    if (!isValid) {
-      setError("This coupon is not currently active");
-      setTimeout(() => setError(null), 3000);
-      return;
-    }
+  if (!isValid) {
+    setError("This coupon is not currently active");
+    setTimeout(() => setError(null), 3000);
+    return;
+  }
 
-    // Check coupon usage limit using a transaction
-    try {
-      const eventRef = doc(db, "events", eventId);
-      await runTransaction(db, async (transaction) => {
-        const eventDoc = await transaction.get(eventRef);
-        if (!eventDoc.exists()) {
-          throw new Error("Event not found");
-        }
+  // Check coupon usage limit using a transaction
+  try {
+    const eventRef = doc(db, "events", eventId);
+    await runTransaction(db, async (transaction) => {
+      const eventDoc = await transaction.get(eventRef);
+      if (!eventDoc.exists()) {
+        throw new Error("Event not found");
+      }
 
-        const eventData = eventDoc.data();
-        const coupons = eventData.coupons || [];
-        const couponIndex = coupons.findIndex(
-          (c) => c.couponCode === coupon.couponCode
-        );
+      const eventData = eventDoc.data();
+      const coupons = eventData.coupons || [];
+      const couponIndex = coupons.findIndex(
+        (c) => c.couponCode === coupon.couponCode
+      );
 
-        if (couponIndex === -1) {
-          throw new Error("Coupon not found");
-        }
+      if (couponIndex === -1) {
+        throw new Error("Coupon not found");
+      }
 
-        const selectedCoupon = coupons[couponIndex];
-        const timesUsed = selectedCoupon.timesUsed || 0;
+      const selectedCoupon = coupons[couponIndex];
+      const timesUsed = selectedCoupon.timesUsed || 0;
 
-        if (timesUsed >= selectedCoupon.couponLimits) {
-          throw new Error("Coupon usage limit reached");
-        }
+      if (timesUsed >= selectedCoupon.couponLimits) {
+        throw new Error("Coupon usage limit reached");
+      }
 
-        // Calculate discount
-        const discountAmount = Math.min(
-          selectedCoupon.reducePert || 0,
-          calculateTicketSubtotal()
-        );
-        const roundedDiscount = Math.round(discountAmount * 100) / 100;
+      // Calculate discount - CORRECTED
+      const subtotal = calculateTicketSubtotal();
+      const discountRate = selectedCoupon.reducePert || 0; // e.g. 30 for 30%
+      const discountAmount = (subtotal * discountRate) / 100; // 120 * 30 / 100 = 36
+      const roundedDiscount = Math.round(discountAmount * 100) / 100;
 
-        // Update timesUsed in Firestore
-        coupons[couponIndex].timesUsed = timesUsed + 1;
-        transaction.update(eventRef, { coupons });
+      // Update timesUsed in Firestore
+      coupons[couponIndex].timesUsed = timesUsed + 1;
+      transaction.update(eventRef, { coupons });
 
-        // Update state
-        setPromoCode(coupon.couponCode);
-        setDiscount(roundedDiscount);
-        setAppliedCoupon(selectedCoupon);
-        setCouponSuccess(
-          `Coupon successfully applied! You saved ₹${roundedDiscount.toFixed(2)}`
-        );
-        setTimeout(() => setCouponSuccess(null), 5000);
-      });
-    } catch (err) {
-      console.error("Error applying coupon:", err);
-      setError(err.message || "Failed to apply coupon");
-      setTimeout(() => setError(null), 3000);
-    }
-  };
+      // Update state
+      setPromoCode(coupon.couponCode);
+      setDiscount(roundedDiscount);
+      setAppliedCoupon(selectedCoupon);
+      setCouponSuccess(
+        `Coupon successfully applied! You saved ₹${roundedDiscount.toFixed(2)}`
+      );
+      setTimeout(() => setCouponSuccess(null), 5000);
+    });
+  } catch (err) {
+    console.error("Error applying coupon:", err);
+    setError(err.message || "Failed to apply coupon");
+    setTimeout(() => setError(null), 3000);
+  }
+};
 
   // Calculate total with discount
   const calculatedConvenienceFee = isFreeEvent

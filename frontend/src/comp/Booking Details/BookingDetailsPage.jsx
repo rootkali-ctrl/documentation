@@ -110,8 +110,6 @@ const BookingDetailsPage = () => {
         checkedIn: true,
         checkedInTime: new Date().toISOString(),
       }));
-
-      alert("Successfully checked in!");
       navigate(`/vendorprofile/vendorscanner/${vendorId}`)
     } catch (error) {
       console.error("Error checking in:", error);

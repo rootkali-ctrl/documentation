@@ -169,6 +169,7 @@ const EventDashboard = () => {
     }
   };
 
+  console.log(displayedOrders);
   useEffect(() => {
     const fetchEventDetails = async () => {
       if (!eventId || !eventData) return;
@@ -220,8 +221,14 @@ const EventDashboard = () => {
           typeSales[ticket.type] = { sold: 0, revenue: 0 };
         });
 
+        // Replace the ticket processing section with this grouped approach
         for (const docSnapshot of ticketSnapshots.docs) {
           const ticketData = docSnapshot.data();
+
+          // Check if ticket is cancelled
+          const isCancelled = ticketData.cancelled || false;
+          const cancelledAt = ticketData.cancelledAt || null;
+          const refundAmount = ticketData.refundAmount || null;
 
           if (
             ticketData.ticketSummary &&
@@ -235,14 +242,6 @@ const EventDashboard = () => {
 
             const isFreeEvent = ticketData.financial?.isFreeEvent || false;
 
-            let ticketType = "Standard";
-            if (ticketData.ticketSummary[0]) {
-              ticketType =
-                ticketData.ticketSummary[0].type ||
-                ticketData.ticketSummary[0].name ||
-                "Standard";
-            }
-
             const purchaseDate = new Date(
               ticketData.purchaseDate?.toDate() ||
                 ticketData.createdAt ||
@@ -254,72 +253,102 @@ const EventDashboard = () => {
               day: "numeric",
             });
 
-            const amount =
-              ticketData.financial?.totalAmount || ticketData.totalAmount || 0;
+            // Get total amount from financial data
+            const totalAmount = isFreeEvent
+              ? 0
+              : ticketData.financial?.totalAmount || 0;
+            const revenue = isCancelled ? 0 : totalAmount;
 
+            // Process all ticket types and combine them
+            const ticketTypeDetails = [];
+            let totalQuantity = 0;
+
+            ticketData.ticketSummary.forEach((ticketSummary) => {
+              const ticketType =
+                ticketSummary.type || ticketSummary.name || "Standard";
+              const quantity = Number(ticketSummary.quantity) || 0;
+              const price = isFreeEvent
+                ? 0
+                : Number(ticketSummary.price || ticketSummary.base_price) || 0;
+              const subtotal = isFreeEvent
+                ? 0
+                : Number(
+                    ticketSummary.subtotal || ticketSummary.ticket_total
+                  ) || price * quantity;
+
+              ticketTypeDetails.push({
+                type: ticketType,
+                quantity: quantity,
+                price: price,
+                subtotal: subtotal,
+              });
+
+              totalQuantity += quantity;
+
+              // Update individual ticket type sales for analytics
+              if (!isCancelled) {
+                if (!typeSales[ticketType]) {
+                  typeSales[ticketType] = { sold: 0, revenue: 0 };
+                }
+                typeSales[ticketType].sold += quantity;
+                typeSales[ticketType].revenue += subtotal;
+              }
+            });
+
+            // Create single order entry with all ticket types
             const orderObj = {
               id: docSnapshot.id,
-              custID: `#ORD-${docSnapshot.id.substring(0, 3)}`,
+              custID: `#ORD-${docSnapshot.id.substring(0, 6).toUpperCase()}`,
               custName: customerName,
               userId: ticketData.userId || "",
               email: ticketData.email || ticketData.userEmail || "",
               phone: ticketData.phone || ticketData.userPhone || "",
-              ticketType: isFreeEvent ? "Free" : ticketType,
+              ticketTypes: ticketTypeDetails, // Array of all ticket types
+              ticketTypeDisplay: ticketTypeDetails
+                .map((t) => `${t.type} (${t.quantity})`)
+                .join(", "), // For display
               date: formattedDate,
               purchaseDate: purchaseDate,
-              amt: amount,
+              amt: revenue,
               isFree: isFreeEvent,
+              cancelled: isCancelled,
+              cancelledAt: cancelledAt,
+              refundAmount: refundAmount,
+              quantity: totalQuantity,
+              originalAmount: totalAmount,
             };
 
             orders.push(orderObj);
 
-            csvDataArray.push({
-              Order_ID: orderObj.custID,
-              Customer_Name: customerName,
-              Customer_Email: orderObj.email,
-              Customer_Phone: orderObj.phone,
-              Ticket_Type: isFreeEvent ? "Free" : ticketType,
-              Purchase_Date: formattedDate,
-              Amount: isFreeEvent ? "0" : amount.toString(),
+            // CSV data - create separate rows for each ticket type in CSV
+            ticketTypeDetails.forEach((ticketDetail, index) => {
+              csvDataArray.push({
+                Order_ID: `${orderObj.custID}${
+                  index > 0 ? `-${index + 1}` : ""
+                }`,
+                Customer_Name: customerName,
+                Customer_Email: orderObj.email,
+                Customer_Phone: orderObj.phone,
+                Ticket_Type: isFreeEvent ? "Free" : ticketDetail.type,
+                Purchase_Date: formattedDate,
+                Amount: isCancelled
+                  ? "0 (Cancelled)"
+                  : isFreeEvent
+                  ? "0"
+                  : ticketDetail.subtotal.toFixed(2),
+                Quantity: ticketDetail.quantity,
+                Status: isCancelled ? "Cancelled" : "Booked",
+                Refund_Amount: isCancelled
+                  ? (refundAmount || 0).toString()
+                  : "N/A",
+              });
             });
 
-            ticketData.ticketSummary.forEach((summary) => {
-              const quantity = Number(summary.quantity) || 0;
-              const price = isFreeEvent ? 0 : Number(summary.price) || 0;
-              const revenue = price * quantity;
-              const type = summary.type || summary.name || "Standard";
-
-              totalTicketsSold += quantity;
+            // Only count towards totals if not cancelled
+            if (!isCancelled) {
+              totalTicketsSold += totalQuantity;
               totalRevenue += revenue;
-
-              if (typeSales[type]) {
-                typeSales[type].sold += quantity;
-                typeSales[type].revenue += revenue;
-              } else {
-                const existingTypeIndex = ticketTypeData.findIndex(
-                  (t) => t.type === type
-                );
-                if (existingTypeIndex !== -1) {
-                  typeSales[type] = { sold: quantity, revenue };
-                } else {
-                  if (typeSales["Other"]) {
-                    typeSales["Other"].sold += quantity;
-                    typeSales["Other"].revenue += revenue;
-                  } else {
-                    typeSales["Other"] = { sold: quantity, revenue };
-                    ticketTypeData.push({
-                      type: "Other",
-                      price: price,
-                      seats: 100,
-                      sold: quantity,
-                      revenue: revenue,
-                      isFree: price === 0,
-                      color: COLORS[ticketTypeData.length % COLORS.length],
-                    });
-                  }
-                }
-              }
-            });
+            }
           }
         }
 
@@ -497,16 +526,15 @@ const EventDashboard = () => {
     });
   };
 
- const calculateProgress = (ticket) => {
-  const sold = Number(ticket.sold ?? 0);
-  const seats = Number(ticket.seats ?? 0);
+  const calculateProgress = (ticket) => {
+    const sold = Number(ticket.sold ?? 0);
+    const seats = Number(ticket.seats ?? 0);
 
-  if (seats <= 0) return 0;
+    if (seats <= 0) return 0;
 
-  const percentage = (sold / seats) * 100;
-  return Math.min(100, Math.max(0, percentage));
-};
-
+    const percentage = (sold / seats) * 100;
+    return Math.min(100, Math.max(0, percentage));
+  };
 
   if (loading) {
     return (
@@ -893,11 +921,21 @@ const EventDashboard = () => {
             >
               Ticket Sales Overview
             </Typography>
-            <Grid container spacing={3} >
+            <Grid container spacing={3}>
               {ticketTypes.map((ticket, idx) => (
-                <Grid item xs={12} md={6} key={idx} sx={{width:isMobile ? '80%' : '20%'}}>
+                <Grid
+                  item
+                  xs={12}
+                  md={6}
+                  key={idx}
+                  sx={{ width: isMobile ? "80%" : "20%" }}
+                >
                   <Card
-                    sx={{ border: "1px solid #e0e0e0", borderRadius: "8px",width:'100%' }}
+                    sx={{
+                      border: "1px solid #e0e0e0",
+                      borderRadius: "8px",
+                      width: "100%",
+                    }}
                   >
                     <CardContent>
                       <Box
@@ -947,9 +985,7 @@ const EventDashboard = () => {
                             }}
                           >
                             {ticket.sold || 0} sold
-                            {ticket.seats > 0
-                              ? ` out of ${ticket.seats}`
-                              : ""}
+                            {ticket.seats > 0 ? ` out of ${ticket.seats}` : ""}
                           </Typography>
                         </Box>
                         <LinearProgress
@@ -1070,7 +1106,7 @@ const EventDashboard = () => {
                   <Box
                     sx={{
                       display: "grid",
-                      gridTemplateColumns: "1fr 2fr 1.5fr 1fr 1fr",
+                      gridTemplateColumns: "2fr 2fr 2fr 1.5fr 1fr 1fr",
                       padding: "12px 24px",
                       backgroundColor: "#f9f9f9",
                       borderBottom: "1px solid #e0e0e0",
@@ -1122,20 +1158,30 @@ const EventDashboard = () => {
                         fontSize: "14px",
                         fontWeight: "600",
                         color: "#666",
-                        textAlign: "right",
                       }}
                     >
                       Amount
+                    </Typography>
+                    <Typography
+                      sx={{
+                        fontFamily: "Albert Sans",
+                        fontSize: "14px",
+                        fontWeight: "600",
+                        color: "#666",
+                        pl: "5%",
+                      }}
+                    >
+                      Status
                     </Typography>
                   </Box>
 
                   {displayedOrders.length > 0 ? (
                     displayedOrders.map((order, idx) => (
                       <Box
-                        key={idx}
+                        key={order.id || idx}
                         sx={{
                           display: "grid",
-                          gridTemplateColumns: "1fr 2fr 1.5fr 1fr 1fr",
+                          gridTemplateColumns: "2fr 2fr 2fr 1.5fr 1fr 1fr",
                           padding: "16px 24px",
                           borderBottom: "1px solid #e0e0e0",
                           "&:hover": {
@@ -1162,11 +1208,41 @@ const EventDashboard = () => {
                         >
                           {order.custName}
                         </Typography>
-                        <Typography
-                          sx={{ fontFamily: "Albert Sans", fontSize: "14px" }}
+
+                        {/* Enhanced Ticket Types Display */}
+                        <Box
+                          sx={{
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: "4px",
+                          }}
                         >
-                          {order.ticketType}
-                        </Typography>
+                          {order.ticketTypes ? (
+                            order.ticketTypes.map((ticketType, ticketIdx) => (
+                              <Box key={ticketIdx}>
+                                <Typography
+                                  sx={{
+                                    fontFamily: "Albert Sans",
+                                    fontSize: "13px",
+                                    fontWeight: "500",
+                                  }}
+                                >
+                                  {ticketType.type}
+                                </Typography>
+                              </Box>
+                            ))
+                          ) : (
+                            <Typography
+                              sx={{
+                                fontFamily: "Albert Sans",
+                                fontSize: "14px",
+                              }}
+                            >
+                              {order.ticketTypeDisplay || "Standard"}
+                            </Typography>
+                          )}
+                        </Box>
+
                         <Typography
                           sx={{ fontFamily: "Albert Sans", fontSize: "14px" }}
                         >
@@ -1177,13 +1253,58 @@ const EventDashboard = () => {
                             fontFamily: "Albert Sans",
                             fontSize: "14px",
                             fontWeight: "600",
-                            textAlign: "right",
                           }}
                         >
                           {order.isFree ? (
                             <span style={{ color: "#4CAF50" }}>Free</span>
                           ) : (
-                            `₹${order.amt.toLocaleString()}`
+                            `₹${Math.round(order.amt).toLocaleString()}`
+                          )}
+                        </Typography>
+                        <Typography
+                          sx={{
+                            fontFamily: "Albert Sans",
+                            fontSize: "14px",
+                            fontWeight: "600",
+                            pl: "5%",
+                          }}
+                        >
+                          {order.cancelled ? (
+                            <Button
+                              variant="contained"
+                              disabled
+                              sx={{
+                                textTransform: "none",
+                                bgcolor: "#D1FAE5",
+                                color: "#047857",
+                                fontFamily: "albert sans",
+                                "&.Mui-disabled": {
+                                  bgcolor: "#D1FAE5",
+                                  color: "#047857",
+                                  cursor: "not-allowed",
+                                },
+                              }}
+                            >
+                              Booked
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="contained"
+                              disabled
+                              sx={{
+                                fontFamily: "albert sans",
+                                textTransform: "none",
+                                bgcolor: "#FEE2E2",
+                                color: "#B91C1C",
+                                "&.Mui-disabled": {
+                                  bgcolor: "#FEE2E2",
+                                  color: "#B91C1C",
+                                  cursor: "not-allowed",
+                                },
+                              }}
+                            >
+                              Cancelled
+                            </Button>
                           )}
                         </Typography>
                       </Box>
@@ -1289,37 +1410,6 @@ const EventDashboard = () => {
             </Card>
           </Box>
         </Box>
-
-        {bannerImage && (
-          <Box
-            sx={{
-              width: "300px",
-              display: { xs: "none", md: "block" },
-              mt: "24px",
-            }}
-          >
-            <Box
-              sx={{
-                width: "100%",
-                height: "400px",
-                borderRadius: "10px",
-                overflow: "hidden",
-                position: "sticky",
-                top: "24px",
-              }}
-            >
-              <img
-                src={bannerImage}
-                alt="Event Banner"
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "cover",
-                }}
-              />
-            </Box>
-          </Box>
-        )}
       </Box>
     </div>
   );

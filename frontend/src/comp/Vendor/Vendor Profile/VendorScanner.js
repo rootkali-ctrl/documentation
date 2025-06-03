@@ -18,7 +18,8 @@ import {
   CircularProgress,
   Backdrop,
   Divider,
-  
+  DialogContentText,
+  DialogTitle,
 } from "@mui/material";
 import React, { useState, useEffect, useRef } from "react";
 import { Camera, AlertCircle, Smartphone, CheckCircle, X } from "lucide-react";
@@ -35,10 +36,8 @@ import CorporateFareIcon from "@mui/icons-material/CorporateFare";
 import QrCodeScannerOutlinedIcon from "@mui/icons-material/QrCodeScannerOutlined";
 import CameraAltOutlinedIcon from "@mui/icons-material/CameraAltOutlined";
 import VendorProfileHeader from "./VendorProfileHeader";
-import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import Drawer from "@mui/material/Drawer";
-
-
 
 const VendorScanner = () => {
   const { vendorId } = useParams();
@@ -53,6 +52,9 @@ const VendorScanner = () => {
   const scannerRef = useRef(null);
   const navigate = useNavigate();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [tickCancelled, setTickCancelled] = useState(null);
+  const [showCancelledDialog, setShowCancelledDialog] = useState(false);
+
   const sidebarItems = [
     {
       name: "Profile",
@@ -82,7 +84,6 @@ const VendorScanner = () => {
 
   // Cleanup scanner on unmount
   useEffect(() => {
-    console.log(vendorId);
     return () => {
       stopScanner();
     };
@@ -151,14 +152,11 @@ const VendorScanner = () => {
   };
 
   const onScanSuccess = async (decodedText, decodedResult) => {
-    console.log("Raw QR Code scanned:", decodedText);
-
     // Stop scanning immediately after successful scan
     await stopScanner();
 
     // Clean the scanned text (remove # and trim)
     const cleanedText = decodedText.replace(/^#+|#+$/g, "").trim();
-    console.log("Cleaned QR text:", cleanedText);
 
     setScanResult(cleanedText);
 
@@ -167,11 +165,9 @@ const VendorScanner = () => {
     try {
       // Try to parse as JSON first
       parsedData = JSON.parse(cleanedText);
-      console.log("Parsed as JSON:", parsedData);
     } catch (error) {
       // If not JSON, treat as booking ID
       parsedData = { bookingId: cleanedText };
-      console.log("Treated as booking ID:", parsedData);
     }
 
     setScannedData(parsedData);
@@ -203,8 +199,6 @@ const VendorScanner = () => {
       setVerificationStatus(null);
 
       const bookingId = scannedData.bookingId;
-      console.log("Verifying booking ID:", bookingId);
-      console.log("Expected vendor ID:", vendorId);
 
       // Get ticket document from Firestore
       const ticketRef = doc(db, "tickets", bookingId);
@@ -216,23 +210,19 @@ const VendorScanner = () => {
 
       const ticketData = ticketSnap.data();
       const firestoreVendorId = ticketData.vendorId;
-
-      console.log("Firestore vendor ID:", firestoreVendorId);
-      console.log("URL vendor ID:", vendorId);
+      setTickCancelled(ticketData.cancelled);
 
       // Check if vendor IDs match
       if (firestoreVendorId === vendorId) {
-        setVerificationStatus("success");
-
-        // Wait a moment to show success, then navigate
-        setTimeout(() => {
-          navigate(`/vendorprofile/${vendorId}/booking/${bookingId}`);
-        }, 2000);
-      } else {
-        setVerificationStatus("mismatch");
-        setError(
-          `This ticket belongs to a different venue. Only authorized vendor can scan the tickets.`
-        );
+        if (ticketData.cancelled) {
+          setShowCancelledDialog(true);
+          setVerificationStatus("cancelled");
+        } else {
+          setVerificationStatus("success");
+          setTimeout(() => {
+            navigate(`/vendorprofile/${vendorId}/booking/${bookingId}`);
+          }, 2000);
+        }
       }
     } catch (error) {
       console.error("Firestore verification error:", error);
@@ -294,80 +284,100 @@ const VendorScanner = () => {
             ))}
           </Box>
         ) : (
-           <>
-         <AppBar
-  position="fixed"
-  elevation={0}
-  sx={{
-    width: "fit-content",
-    bgcolor: "transparent",
-    boxShadow: "none",
-    zIndex: 20,
-    top: 60,
-    left: 16,
-  }}
->
-  <Toolbar sx={{ minHeight: "auto", padding: 0 }}>
-    <IconButton
-      onClick={() => setDrawerOpen(true)}
-      sx={{
-        backgroundColor: "#fff",
-        width: 90,
-        height: 30,
-        borderRadius: 5,
-        boxShadow: 2,
-        zIndex: 0,
-        "&:hover": {
-          backgroundColor: "#f0f0f0",
-        },
-      }}
-    >
-      <Typography variant="body1" sx={{ fontFamily: "albert sans", fontWeight: "bold", color: "rgb(25, 174, 220)" }}>
-        Menu
-      </Typography>
-      <ArrowForwardIcon sx={{ color: "rgb(25, 174, 220)" ,fontSize:18,ml:1}} />
-    </IconButton>
-  </Toolbar>
-</AppBar>
+          <>
+            <AppBar
+              position="fixed"
+              elevation={0}
+              sx={{
+                width: "fit-content",
+                bgcolor: "transparent",
+                boxShadow: "none",
+                zIndex: 20,
+                top: 60,
+                left: 16,
+              }}
+            >
+              <Toolbar sx={{ minHeight: "auto", padding: 0 }}>
+                <IconButton
+                  onClick={() => setDrawerOpen(true)}
+                  sx={{
+                    backgroundColor: "#fff",
+                    width: 90,
+                    height: 30,
+                    borderRadius: 5,
+                    boxShadow: 2,
+                    zIndex: 0,
+                    "&:hover": {
+                      backgroundColor: "#f0f0f0",
+                    },
+                  }}
+                >
+                  <Typography
+                    variant="body1"
+                    sx={{
+                      fontFamily: "albert sans",
+                      fontWeight: "bold",
+                      color: "rgb(25, 174, 220)",
+                    }}
+                  >
+                    Menu
+                  </Typography>
+                  <ArrowForwardIcon
+                    sx={{ color: "rgb(25, 174, 220)", fontSize: 18, ml: 1 }}
+                  />
+                </IconButton>
+              </Toolbar>
+            </AppBar>
 
-
-    <Drawer anchor="left" open={drawerOpen} onClose={() => setDrawerOpen(false)}>
-      <Box
-        sx={{ width: 250, p: 2 ,mt: 8}}
-        role="presentation"
-        onClick={() => setDrawerOpen(false)}
-        onKeyDown={() => setDrawerOpen(false)}
-      >
-        <Typography variant="h6" sx={{ fontFamily: "albert sans", fontWeight: "bold", mb: 2,color: "rgb(25, 174, 220)" }}>
-          Vendor Menu
-        </Typography>
-        {sidebarItems.map((item) => (
-          <Button
-            key={item.name}
-            onClick={() => (window.location.href = item.path)}
-            variant={item.active ? "contained" : "outlined"}
-            fullWidth
-            sx={{
-              justifyContent: "flex-start",
-              my: 1,
-              paddingY: 1.5,
-              borderRadius: "10px",
-              borderColor: item.active ? "#19aedc" : "#ddd",
-              bgcolor: item.active ? "#e3f2fd" : "white",
-              color: item.active ? "#19aedc" : "black",
-              textTransform: "none",
-              fontWeight: item.active ? "bold" : "normal",
-              gap: 2,
-              fontSize: "16px",
-              fontFamily: "albert sans",
-            }}
-            startIcon={item.icon}
-          >
-            {item.name}
-          </Button>
-        ))}
-      </Box>
-    </Drawer>
+            <Drawer
+              anchor="left"
+              open={drawerOpen}
+              onClose={() => setDrawerOpen(false)}
+            >
+              <Box
+                sx={{ width: 250, p: 2, mt: 8 }}
+                role="presentation"
+                onClick={() => setDrawerOpen(false)}
+                onKeyDown={() => setDrawerOpen(false)}
+              >
+                <Typography
+                  variant="h6"
+                  sx={{
+                    fontFamily: "albert sans",
+                    fontWeight: "bold",
+                    mb: 2,
+                    color: "rgb(25, 174, 220)",
+                  }}
+                >
+                  Vendor Menu
+                </Typography>
+                {sidebarItems.map((item) => (
+                  <Button
+                    key={item.name}
+                    onClick={() => (window.location.href = item.path)}
+                    variant={item.active ? "contained" : "outlined"}
+                    fullWidth
+                    sx={{
+                      justifyContent: "flex-start",
+                      my: 1,
+                      paddingY: 1.5,
+                      borderRadius: "10px",
+                      borderColor: item.active ? "#19aedc" : "#ddd",
+                      bgcolor: item.active ? "#e3f2fd" : "white",
+                      color: item.active ? "#19aedc" : "black",
+                      textTransform: "none",
+                      fontWeight: item.active ? "bold" : "normal",
+                      gap: 2,
+                      fontSize: "16px",
+                      fontFamily: "albert sans",
+                    }}
+                    startIcon={item.icon}
+                  >
+                    {item.name}
+                  </Button>
+                ))}
+              </Box>
+            </Drawer>
           </>
         )}
         <Box flex={1}>
@@ -749,6 +759,37 @@ const VendorScanner = () => {
             </Container>
           </Box>
         </Box>
+        <Dialog
+          open={showCancelledDialog}
+          onClose={() => setShowCancelledDialog(false)}
+          aria-labelledby="cancelled-dialog-title"
+          aria-describedby="cancelled-dialog-description"
+        >
+          <DialogTitle
+            id="cancelled-dialog-title"
+            sx={{ fontFamily: "albert sans" }}
+          >
+            Invalid QR Code
+          </DialogTitle>
+          <DialogContent>
+            <DialogContentText
+              id="cancelled-dialog-description"
+              sx={{ fontFamily: "albert sans" }}
+            >
+              This ticket has been cancelled and is no longer valid.
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button
+              onClick={() => setShowCancelledDialog(false)}
+              color="primary"
+              autoFocus
+              sx={{ fontFamily: "albert sans", textTransform: "none" }}
+            >
+              Close
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Box>
     </div>
   );
