@@ -35,17 +35,17 @@ const SignIn = ({
   const [checkPass, setCheckPassword] = useState(false);
   const navigate = useNavigate();
   const isMobile = useMediaQuery("(max-width:600px)");
-  
+
   const isFormValid =
     email.trim() !== "" &&
     password.trim() !== "" &&
     confirmPassword.trim() !== "" &&
     password === confirmPassword;
-    
+
   const [isLoading, setIsLoading] = useState(false);
   const [dialogState, setDialogState] = useState({
     open: false,
-    message: ""
+    message: "",
   });
 
   // Optimized dialog handler
@@ -59,10 +59,10 @@ const SignIn = ({
 
   const handleEmailSignIn = async () => {
     if (isLoading) return;
-    
+
     const username = email.split("@")[0];
     setIsLoading(true);
-    
+
     try {
       const userCredential = await createUserWithEmailAndPassword(
         auth,
@@ -73,9 +73,12 @@ const SignIn = ({
       setCheckPassword(true);
 
       // Send verification email
-      await sendEmailVerification(user, {
-        url: process.env.REACT_APP_API_BASE_URL || window.location.origin,
-      });
+            await sendEmailVerification(user, {
+      url:
+          process.env.NODE_ENV === "production"
+            ? process.env.REACT_APP_API_BASE_URL_EMAIL
+            : undefined,      });
+      //await sendEmailVerification(user);
 
       // Save user data to Firestore
       await setDoc(doc(db, "users", user.uid), {
@@ -92,13 +95,14 @@ const SignIn = ({
       await auth.signOut();
 
       handleClose(); // Close modal first
-      showDialog("Verification email sent! Please verify your email before logging in.");
-      
+      showDialog(
+        "Verification email sent! Please verify your email before logging in."
+      );
     } catch (err) {
       console.error("Error during sign-in:", err);
-      
+
       handleClose(); // Close modal first
-      
+
       if (err.code === "auth/email-already-in-use") {
         showDialog("This email is already registered. Please log in.");
       } else {
@@ -136,11 +140,10 @@ const SignIn = ({
       if (onSigninSuccess) {
         onSigninSuccess();
       }
-      
+
       handleClose(); // Close modal first
       navigate("/");
       showDialog("Google Sign-in successful!");
-      
     } catch (err) {
       console.error("Google Sign-in error:", err);
       handleClose(); // Close modal first
@@ -292,7 +295,9 @@ const SignIn = ({
               }
             />
 
-            <Box sx={{ display: "flex", justifyContent: "space-between", mb: 2 }}>
+            <Box
+              sx={{ display: "flex", justifyContent: "space-between", mb: 2 }}
+            >
               <Typography variant="body2" color="gray" fontFamily="albert sans">
                 Remember me
               </Typography>
@@ -364,8 +369,8 @@ const SignIn = ({
       </Modal>
 
       {/* Dialog moved outside Modal for better performance */}
-      <Dialog 
-        open={dialogState.open} 
+      <Dialog
+        open={dialogState.open}
         onClose={closeDialog}
         sx={{ zIndex: 9999 }} // Ensure it appears above everything
       >
