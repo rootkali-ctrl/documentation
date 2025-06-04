@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   TextField,
   Button,
@@ -7,6 +7,11 @@ import {
   IconButton,
   InputAdornment,
   CircularProgress,
+  Dialog,
+  DialogTitle,
+  DialogContentText,
+  DialogContent,
+  DialogActions,
 } from "@mui/material";
 import { Visibility, VisibilityOff } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
@@ -31,6 +36,19 @@ const VendorRegister = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [dialogState, setDialogState] = useState({
+    open: false,
+    message: "",
+  });
+
+  // Optimized dialog handler
+  const showDialog = useCallback((message) => {
+    setDialogState({ open: true, message });
+  }, []);
+
+  const closeDialog = useCallback(() => {
+    setDialogState({ open: false, message: "" });
+  }, []);
 
   const [formData, setFormData] = useState({
     username: "",
@@ -193,7 +211,8 @@ const VendorRegister = () => {
         navigate("/vendor/organization");
       } catch (error) {
         console.error("Error submitting form:", error.message);
-        alert("Something went wrong");
+
+        showDialog("Something went wrong.  Please try again.");
       } finally {
         setLoading(false);
       }
@@ -281,30 +300,35 @@ const VendorRegister = () => {
                 fontSize: "45px",
                 fontWeight: "600",
                 mb: "1rem",
-
               }}
             >
               Ticketb
             </Typography>
 
             {leftSection.map((item, index) => (
-              <Box key={index} sx={{margin:'0 0 0 3%'}}>
-                <Box sx={{ display: "flex", gap: "3%",margin:'2% 0' }}>
-                  <Box mt='0.5%'> {item.icon}</Box>
+              <Box key={index} sx={{ margin: "0 0 0 3%" }}>
+                <Box sx={{ display: "flex", gap: "3%", margin: "2% 0" }}>
+                  <Box mt="0.5%"> {item.icon}</Box>
                   <Box>
                     <Typography
                       sx={{
                         fontFamily: "albert sans",
                         fontWeight: "600",
                         fontSize: "18px",
-                        color:"#47536B"
+                        color: "#47536B",
                       }}
                     >
                       {item.heading}
                     </Typography>
-                    <Typography sx={{fontFamily: "albert sans",
+                    <Typography
+                      sx={{
+                        fontFamily: "albert sans",
                         fontSize: "14px",
-                        color:"#47536B"}}>{item.content}</Typography>
+                        color: "#47536B",
+                      }}
+                    >
+                      {item.content}
+                    </Typography>
                   </Box>
                 </Box>
               </Box>
@@ -323,7 +347,7 @@ const VendorRegister = () => {
             justifyContent: "center",
             boxSizing: "border-box",
             boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)",
-            padding: {lg:"3% 2%",md:"3% 2%",sm:"10% 6%",xs:"10% 6%"},
+            padding: { lg: "3% 2%", md: "3% 2%", sm: "10% 6%", xs: "10% 6%" },
             borderRadius: "10px",
             backgroundColor: "#fff",
           }}
@@ -577,6 +601,28 @@ const VendorRegister = () => {
           </Box>
         </Box>
       </Box>
+
+      <Dialog
+        open={dialogState.open}
+        onClose={closeDialog}
+        sx={{ zIndex: 9999 }} // Ensure it appears above everything
+      >
+        <DialogTitle sx={{ fontFamily: "albert sans" }}>Notice</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ fontFamily: "albert sans" }}>
+            {dialogState.message}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={closeDialog}
+            color="primary"
+            sx={{ fontFamily: "albert sans" }}
+          >
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

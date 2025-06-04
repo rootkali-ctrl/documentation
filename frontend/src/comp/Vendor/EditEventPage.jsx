@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
 
 import {
@@ -15,6 +15,11 @@ import {
   Grid,
   CircularProgress,
   useMediaQuery,
+  Dialog,
+  DialogTitle,
+  DialogContentText,
+  DialogContent,
+  DialogActions,
 } from "@mui/material";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { LocalizationProvider, DateTimePicker } from "@mui/x-date-pickers";
@@ -108,6 +113,20 @@ const EditEventPage = () => {
   const [newBannerImages, setNewBannerImages] = useState([]);
   const [removedImages, setRemovedImages] = useState([]);
   const [userProfile, setUserProfile] = useState(null);
+  const [dialogState, setDialogState] = useState({
+    open: false,
+    message: "",
+  });
+
+  // Optimized dialog handler
+  const showDialog = useCallback((message) => {
+    setDialogState({ open: true, message });
+  }, []);
+
+  const closeDialog = useCallback(() => {
+    setDialogState({ open: false, message: "" });
+  }, []);
+
   // Category options
   const categoryOptions = [
     "Music",
@@ -200,7 +219,8 @@ const EditEventPage = () => {
       navigate("/");
     } catch (error) {
       console.error("Logout error:", error);
-      alert("Failed to log out. Please try again.");
+
+      showDialog("Failed to log out. Please try again.");
     }
   };
 
@@ -359,40 +379,40 @@ const EditEventPage = () => {
     }));
   };
 
- // Handle change in speaker name or role
-const handleSpeakerChange = (index, field, value) => {
-  setEventData((prev) => {
-    const updatedSpeakers = [...prev.speaker];
-    updatedSpeakers[index] = {
-      ...updatedSpeakers[index],
-      [field]: value,
-    };
-    return {
-      ...prev,
-      speaker: updatedSpeakers,
-    };
-  });
-};
+  // Handle change in speaker name or role
+  const handleSpeakerChange = (index, field, value) => {
+    setEventData((prev) => {
+      const updatedSpeakers = [...prev.speaker];
+      updatedSpeakers[index] = {
+        ...updatedSpeakers[index],
+        [field]: value,
+      };
+      return {
+        ...prev,
+        speaker: updatedSpeakers,
+      };
+    });
+  };
 
-// Add new speaker object
-const addSpeaker = () => {
-  setEventData((prev) => ({
-    ...prev,
-    speaker: [...(prev.speaker || []), { name: "", role: "" }],
-  }));
-};
-
-// Remove speaker
-const removeSpeaker = (index) => {
-  setEventData((prev) => {
-    const updatedSpeakers = [...prev.speaker];
-    updatedSpeakers.splice(index, 1);
-    return {
+  // Add new speaker object
+  const addSpeaker = () => {
+    setEventData((prev) => ({
       ...prev,
-      speaker: updatedSpeakers,
-    };
-  });
-};
+      speaker: [...(prev.speaker || []), { name: "", role: "" }],
+    }));
+  };
+
+  // Remove speaker
+  const removeSpeaker = (index) => {
+    setEventData((prev) => {
+      const updatedSpeakers = [...prev.speaker];
+      updatedSpeakers.splice(index, 1);
+      return {
+        ...prev,
+        speaker: updatedSpeakers,
+      };
+    });
+  };
 
   // Updated handlePerkChange function
   const handlePerkChange = async (index, field, value) => {
@@ -593,7 +613,8 @@ const removeSpeaker = (index) => {
       });
     } finally {
       setSubmitting(false);
-      alert("Submitted successfully");
+
+      showDialog("Updated successfully");
     }
   };
 
@@ -685,18 +706,21 @@ const removeSpeaker = (index) => {
                 value={eventData.name}
                 onChange={handleChange}
                 required
-                sx={{ width: isMobile ? "80%" : "50%" , "& .MuiInputBase-root": {
-      fontFamily: "Albert Sans",
-    },
-    "& .MuiInputLabel-root": {
-      fontFamily: "Albert Sans",
-    },
-    "& .MuiFormHelperText-root": {
-      fontFamily: "Albert Sans",
-    },
-    "& input::placeholder": {
-      fontFamily: "Albert Sans",
-    },}}
+                sx={{
+                  width: isMobile ? "80%" : "50%",
+                  "& .MuiInputBase-root": {
+                    fontFamily: "Albert Sans",
+                  },
+                  "& .MuiInputLabel-root": {
+                    fontFamily: "Albert Sans",
+                  },
+                  "& .MuiFormHelperText-root": {
+                    fontFamily: "Albert Sans",
+                  },
+                  "& input::placeholder": {
+                    fontFamily: "Albert Sans",
+                  },
+                }}
               />
               <TextField
                 fullWidth
@@ -706,18 +730,21 @@ const removeSpeaker = (index) => {
                 onChange={handleChange}
                 multiline
                 rows={4}
-                sx={{ width: isMobile ? "80%" : "50%", "& .MuiInputBase-root": {
-      fontFamily: "Albert Sans",
-    },
-    "& .MuiInputLabel-root": {
-      fontFamily: "Albert Sans",
-    },
-    "& .MuiFormHelperText-root": {
-      fontFamily: "Albert Sans",
-    },
-    "& input::placeholder": {
-      fontFamily: "Albert Sans",
-    }, }}
+                sx={{
+                  width: isMobile ? "80%" : "50%",
+                  "& .MuiInputBase-root": {
+                    fontFamily: "Albert Sans",
+                  },
+                  "& .MuiInputLabel-root": {
+                    fontFamily: "Albert Sans",
+                  },
+                  "& .MuiFormHelperText-root": {
+                    fontFamily: "Albert Sans",
+                  },
+                  "& input::placeholder": {
+                    fontFamily: "Albert Sans",
+                  },
+                }}
                 required
               />
 
@@ -755,18 +782,21 @@ const removeSpeaker = (index) => {
                   name="tags"
                   value={eventData.tags}
                   onChange={handleChange}
-                  sx={{ width: isMobile ? "80%" : "24%", "& .MuiInputBase-root": {
-      fontFamily: "Albert Sans",
-    },
-    "& .MuiInputLabel-root": {
-      fontFamily: "Albert Sans",
-    },
-    "& .MuiFormHelperText-root": {
-      fontFamily: "Albert Sans",
-    },
-    "& input::placeholder": {
-      fontFamily: "Albert Sans",
-    }, }}
+                  sx={{
+                    width: isMobile ? "80%" : "24%",
+                    "& .MuiInputBase-root": {
+                      fontFamily: "Albert Sans",
+                    },
+                    "& .MuiInputLabel-root": {
+                      fontFamily: "Albert Sans",
+                    },
+                    "& .MuiFormHelperText-root": {
+                      fontFamily: "Albert Sans",
+                    },
+                    "& input::placeholder": {
+                      fontFamily: "Albert Sans",
+                    },
+                  }}
                 />
               </Box>
 
@@ -778,18 +808,25 @@ const removeSpeaker = (index) => {
                     value={eventData.eventDate}
                     onChange={(date) => handleDateChange("eventDate", date)}
                     renderInput={(params) => (
-                      <TextField {...params} fullWidth required sx={{ "& .MuiInputBase-root": {
-      fontFamily: "Albert Sans",
-    },
-    "& .MuiInputLabel-root": {
-      fontFamily: "Albert Sans",
-    },
-    "& .MuiFormHelperText-root": {
-      fontFamily: "Albert Sans",
-    },
-    "& input::placeholder": {
-      fontFamily: "Albert Sans",
-    },}} />
+                      <TextField
+                        {...params}
+                        fullWidth
+                        required
+                        sx={{
+                          "& .MuiInputBase-root": {
+                            fontFamily: "Albert Sans",
+                          },
+                          "& .MuiInputLabel-root": {
+                            fontFamily: "Albert Sans",
+                          },
+                          "& .MuiFormHelperText-root": {
+                            fontFamily: "Albert Sans",
+                          },
+                          "& input::placeholder": {
+                            fontFamily: "Albert Sans",
+                          },
+                        }}
+                      />
                     )}
                   />
                 </LocalizationProvider>
@@ -802,17 +839,17 @@ const removeSpeaker = (index) => {
                   onChange={handleChange}
                   sx={{
                     "& .MuiInputBase-root": {
-      fontFamily: "Albert Sans",
-    },
-    "& .MuiInputLabel-root": {
-      fontFamily: "Albert Sans",
-    },
-    "& .MuiFormHelperText-root": {
-      fontFamily: "Albert Sans",
-    },
-    "& input::placeholder": {
-      fontFamily: "Albert Sans",
-    },
+                      fontFamily: "Albert Sans",
+                    },
+                    "& .MuiInputLabel-root": {
+                      fontFamily: "Albert Sans",
+                    },
+                    "& .MuiFormHelperText-root": {
+                      fontFamily: "Albert Sans",
+                    },
+                    "& input::placeholder": {
+                      fontFamily: "Albert Sans",
+                    },
                     width: isMobile ? "80%" : "24%",
                     mt: isMobile ? 1 : null,
                   }}
@@ -827,18 +864,21 @@ const removeSpeaker = (index) => {
                 value={eventData.contact}
                 onChange={handleChange}
                 required
-                sx={{ width: isMobile ? "80%" : "25%", "& .MuiInputBase-root": {
-      fontFamily: "Albert Sans",
-    },
-    "& .MuiInputLabel-root": {
-      fontFamily: "Albert Sans",
-    },
-    "& .MuiFormHelperText-root": {
-      fontFamily: "Albert Sans",
-    },
-    "& input::placeholder": {
-      fontFamily: "Albert Sans",
-    }, }}
+                sx={{
+                  width: isMobile ? "80%" : "25%",
+                  "& .MuiInputBase-root": {
+                    fontFamily: "Albert Sans",
+                  },
+                  "& .MuiInputLabel-root": {
+                    fontFamily: "Albert Sans",
+                  },
+                  "& .MuiFormHelperText-root": {
+                    fontFamily: "Albert Sans",
+                  },
+                  "& input::placeholder": {
+                    fontFamily: "Albert Sans",
+                  },
+                }}
               />
             </Box>
           </Box>
@@ -892,18 +932,21 @@ const removeSpeaker = (index) => {
                   value={eventData.venueDetails[field.name.split(".")[1]]}
                   onChange={handleChange}
                   required={field.required}
-                  sx={{ width: isMobile ? "90%" : "45%", "& .MuiInputBase-root": {
-      fontFamily: "Albert Sans",
-    },
-    "& .MuiInputLabel-root": {
-      fontFamily: "Albert Sans",
-    },
-    "& .MuiFormHelperText-root": {
-      fontFamily: "Albert Sans",
-    },
-    "& input::placeholder": {
-      fontFamily: "Albert Sans",
-    },}}
+                  sx={{
+                    width: isMobile ? "90%" : "45%",
+                    "& .MuiInputBase-root": {
+                      fontFamily: "Albert Sans",
+                    },
+                    "& .MuiInputLabel-root": {
+                      fontFamily: "Albert Sans",
+                    },
+                    "& .MuiFormHelperText-root": {
+                      fontFamily: "Albert Sans",
+                    },
+                    "& input::placeholder": {
+                      fontFamily: "Albert Sans",
+                    },
+                  }}
                 />
               ))}
             </Box>
@@ -940,14 +983,17 @@ const removeSpeaker = (index) => {
                   variant="outlined"
                   component="span"
                   startIcon={<AddIcon />}
-                  sx={{ mb: 2, color: "#19AEDC",fontFamily:'albert sans' }}
+                  sx={{ mb: 2, color: "#19AEDC", fontFamily: "albert sans" }}
                 >
                   Add Images
                 </Button>
               </label>
             </Box>
 
-            <Typography variant="subtitle2" sx={{ mb: 1,fontFamily:'albert sans' }}>
+            <Typography
+              variant="subtitle2"
+              sx={{ mb: 1, fontFamily: "albert sans" }}
+            >
               Current Images:
             </Typography>
 
@@ -1060,18 +1106,20 @@ const removeSpeaker = (index) => {
                     onChange={(e) =>
                       handlePricingChange(index, "ticketType", e.target.value)
                     }
-                    sx={{"& .MuiInputBase-root": {
-      fontFamily: "Albert Sans",
-    },
-    "& .MuiInputLabel-root": {
-      fontFamily: "Albert Sans",
-    },
-    "& .MuiFormHelperText-root": {
-      fontFamily: "Albert Sans",
-    },
-    "& input::placeholder": {
-      fontFamily: "Albert Sans",
-    },}}
+                    sx={{
+                      "& .MuiInputBase-root": {
+                        fontFamily: "Albert Sans",
+                      },
+                      "& .MuiInputLabel-root": {
+                        fontFamily: "Albert Sans",
+                      },
+                      "& .MuiFormHelperText-root": {
+                        fontFamily: "Albert Sans",
+                      },
+                      "& input::placeholder": {
+                        fontFamily: "Albert Sans",
+                      },
+                    }}
                     required
                   />
                   <TextField
@@ -1086,37 +1134,45 @@ const removeSpeaker = (index) => {
                         Number(e.target.value)
                       )
                     }
-                    sx={{ "& .MuiInputBase-root": {
-      fontFamily: "Albert Sans",
-    },
-    "& .MuiInputLabel-root": {
-      fontFamily: "Albert Sans",
-    },
-    "& .MuiFormHelperText-root": {
-      fontFamily: "Albert Sans",
-    },
-    "& input::placeholder": {
-      fontFamily: "Albert Sans",
-    },}}
+                    sx={{
+                      "& .MuiInputBase-root": {
+                        fontFamily: "Albert Sans",
+                      },
+                      "& .MuiInputLabel-root": {
+                        fontFamily: "Albert Sans",
+                      },
+                      "& .MuiFormHelperText-root": {
+                        fontFamily: "Albert Sans",
+                      },
+                      "& input::placeholder": {
+                        fontFamily: "Albert Sans",
+                      },
+                    }}
                     disabled={tier.free}
                     InputProps={{
-                      startAdornment: <Typography sx={{ mr: 1,fontFamily:'albert sans' }}>₹</Typography>,
+                      startAdornment: (
+                        <Typography sx={{ mr: 1, fontFamily: "albert sans" }}>
+                          ₹
+                        </Typography>
+                      ),
                     }}
                   />
                   <TextField
                     fullWidth
-                    sx={{ "& .MuiInputBase-root": {
-      fontFamily: "Albert Sans",
-    },
-    "& .MuiInputLabel-root": {
-      fontFamily: "Albert Sans",
-    },
-    "& .MuiFormHelperText-root": {
-      fontFamily: "Albert Sans",
-    },
-    "& input::placeholder": {
-      fontFamily: "Albert Sans",
-    },}}
+                    sx={{
+                      "& .MuiInputBase-root": {
+                        fontFamily: "Albert Sans",
+                      },
+                      "& .MuiInputLabel-root": {
+                        fontFamily: "Albert Sans",
+                      },
+                      "& .MuiFormHelperText-root": {
+                        fontFamily: "Albert Sans",
+                      },
+                      "& input::placeholder": {
+                        fontFamily: "Albert Sans",
+                      },
+                    }}
                     label="Seats"
                     type="number"
                     value={tier.seats}
@@ -1134,18 +1190,20 @@ const removeSpeaker = (index) => {
                     label="Tax %"
                     type="number"
                     value={tier.tax}
-                    sx={{"& .MuiInputBase-root": {
-      fontFamily: "Albert Sans",
-    },
-    "& .MuiInputLabel-root": {
-      fontFamily: "Albert Sans",
-    },
-    "& .MuiFormHelperText-root": {
-      fontFamily: "Albert Sans",
-    },
-    "& input::placeholder": {
-      fontFamily: "Albert Sans",
-    },}}
+                    sx={{
+                      "& .MuiInputBase-root": {
+                        fontFamily: "Albert Sans",
+                      },
+                      "& .MuiInputLabel-root": {
+                        fontFamily: "Albert Sans",
+                      },
+                      "& .MuiFormHelperText-root": {
+                        fontFamily: "Albert Sans",
+                      },
+                      "& input::placeholder": {
+                        fontFamily: "Albert Sans",
+                      },
+                    }}
                     onChange={(e) =>
                       handlePricingChange(index, "tax", Number(e.target.value))
                     }
@@ -1166,7 +1224,7 @@ const removeSpeaker = (index) => {
               variant="outlined"
               onClick={addPricingTier}
               startIcon={<AddIcon />}
-              sx={{ color: "#19AEDC",fontFamily:'albert sans'}}
+              sx={{ color: "#19AEDC", fontFamily: "albert sans" }}
             >
               Add Tier
             </Button>
@@ -1226,18 +1284,21 @@ const removeSpeaker = (index) => {
                       InputProps={{
                         inputProps: { min: 0 },
                       }}
-                      sx={{ mb: 2, "& .MuiInputBase-root": {
-      fontFamily: "Albert Sans",
-    },
-    "& .MuiInputLabel-root": {
-      fontFamily: "Albert Sans",
-    },
-    "& .MuiFormHelperText-root": {
-      fontFamily: "Albert Sans",
-    },
-    "& input::placeholder": {
-      fontFamily: "Albert Sans",
-    }, }}
+                      sx={{
+                        mb: 2,
+                        "& .MuiInputBase-root": {
+                          fontFamily: "Albert Sans",
+                        },
+                        "& .MuiInputLabel-root": {
+                          fontFamily: "Albert Sans",
+                        },
+                        "& .MuiFormHelperText-root": {
+                          fontFamily: "Albert Sans",
+                        },
+                        "& input::placeholder": {
+                          fontFamily: "Albert Sans",
+                        },
+                      }}
                     />
                   </Grid>
 
@@ -1261,7 +1322,6 @@ const removeSpeaker = (index) => {
 
                   <Grid item xs={12} md={4}>
                     <TextField
-                    
                       fullWidth
                       label={
                         eventData.deductionType === "percentage"
@@ -1276,25 +1336,36 @@ const removeSpeaker = (index) => {
                         inputProps: { min: 0 },
                         startAdornment:
                           eventData.deductionType === "fixed" ? (
-                            <Typography sx={{ mr: 1,fontFamily:'albert sans' }}>₹</Typography>
+                            <Typography
+                              sx={{ mr: 1, fontFamily: "albert sans" }}
+                            >
+                              ₹
+                            </Typography>
                           ) : null,
                         endAdornment:
                           eventData.deductionType === "percentage" ? (
-                            <Typography sx={{ ml: 1 ,fontFamily:'albert sans' }}>%</Typography>
+                            <Typography
+                              sx={{ ml: 1, fontFamily: "albert sans" }}
+                            >
+                              %
+                            </Typography>
                           ) : null,
                       }}
-                      sx={{ mb: 2 , "& .MuiInputBase-root": {
-      fontFamily: "Albert Sans",
-    },
-    "& .MuiInputLabel-root": {
-      fontFamily: "Albert Sans",
-    },
-    "& .MuiFormHelperText-root": {
-      fontFamily: "Albert Sans",
-    },
-    "& input::placeholder": {
-      fontFamily: "Albert Sans",
-    },}}
+                      sx={{
+                        mb: 2,
+                        "& .MuiInputBase-root": {
+                          fontFamily: "Albert Sans",
+                        },
+                        "& .MuiInputLabel-root": {
+                          fontFamily: "Albert Sans",
+                        },
+                        "& .MuiFormHelperText-root": {
+                          fontFamily: "Albert Sans",
+                        },
+                        "& input::placeholder": {
+                          fontFamily: "Albert Sans",
+                        },
+                      }}
                     />
                   </Grid>
                 </>
@@ -1303,85 +1374,98 @@ const removeSpeaker = (index) => {
           </Box>
 
           {/* Speakers */}
-         <Box
-  sx={{
-    backgroundColor: "white",
-    borderRadius: 2,
-    boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.1)",
-    p: 3,
-    mb: 3,
-  }}
->
-  <Typography
-    variant="h6"
-    sx={{ fontFamily: "Albert Sans", fontWeight: 600, mb: 2 }}
-  >
-    Speakers
-  </Typography>
+          <Box
+            sx={{
+              backgroundColor: "white",
+              borderRadius: 2,
+              boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.1)",
+              p: 3,
+              mb: 3,
+            }}
+          >
+            <Typography
+              variant="h6"
+              sx={{ fontFamily: "Albert Sans", fontWeight: 600, mb: 2 }}
+            >
+              Speakers
+            </Typography>
 
-  {eventData.speaker?.map((speaker, index) => (
-    <Box
-      key={index}
-      sx={{
-        display: "flex",
-        flexDirection: isMobile ? "column" : "row",
-        alignItems: "center",
-        gap: 2,
-        mb: 2,
-        width: isMobile ? "100%" : "80%",
-      }}
-    >
-      <TextField
-        fullWidth
-        label={`Speaker ${index + 1} Name`}
-        value={speaker.name}
-        onChange={(e) => handleSpeakerChange(index, "name", e.target.value)}
-        sx={{ "& .MuiInputBase-root": {
-      fontFamily: "Albert Sans",
-    },
-    "& .MuiInputLabel-root": {
-      fontFamily: "Albert Sans",
-    },
-    "& .MuiFormHelperText-root": {
-      fontFamily: "Albert Sans",
-    },
-    "& input::placeholder": {
-      fontFamily: "Albert Sans",
-    },}}
-      />
-      <TextField
-        fullWidth
-        label={`Speaker ${index + 1} Role/Designation`}
-        value={speaker.role}
-        onChange={(e) => handleSpeakerChange(index, "role", e.target.value)}
-        sx={{ "& .MuiInputBase-root": {
-      fontFamily: "Albert Sans",
-    },
-    "& .MuiInputLabel-root": {
-      fontFamily: "Albert Sans",
-    },
-    "& .MuiFormHelperText-root": {
-      fontFamily: "Albert Sans",
-    },
-    "& input::placeholder": {
-      fontFamily: "Albert Sans",
-    },}}
-      />
-      <IconButton color="error" onClick={() => removeSpeaker(index)}>
-        <DeleteIcon />
-      </IconButton>
-    </Box>
-  ))}
+            {eventData.speaker?.map((speaker, index) => (
+              <Box
+                key={index}
+                sx={{
+                  display: "flex",
+                  flexDirection: isMobile ? "column" : "row",
+                  alignItems: "center",
+                  gap: 2,
+                  mb: 2,
+                  width: isMobile ? "100%" : "80%",
+                }}
+              >
+                <TextField
+                  fullWidth
+                  label={`Speaker ${index + 1} Name`}
+                  value={speaker.name}
+                  onChange={(e) =>
+                    handleSpeakerChange(index, "name", e.target.value)
+                  }
+                  sx={{
+                    "& .MuiInputBase-root": {
+                      fontFamily: "Albert Sans",
+                    },
+                    "& .MuiInputLabel-root": {
+                      fontFamily: "Albert Sans",
+                    },
+                    "& .MuiFormHelperText-root": {
+                      fontFamily: "Albert Sans",
+                    },
+                    "& input::placeholder": {
+                      fontFamily: "Albert Sans",
+                    },
+                  }}
+                />
+                <TextField
+                  fullWidth
+                  label={`Speaker ${index + 1} Role/Designation`}
+                  value={speaker.role}
+                  onChange={(e) =>
+                    handleSpeakerChange(index, "role", e.target.value)
+                  }
+                  sx={{
+                    "& .MuiInputBase-root": {
+                      fontFamily: "Albert Sans",
+                    },
+                    "& .MuiInputLabel-root": {
+                      fontFamily: "Albert Sans",
+                    },
+                    "& .MuiFormHelperText-root": {
+                      fontFamily: "Albert Sans",
+                    },
+                    "& input::placeholder": {
+                      fontFamily: "Albert Sans",
+                    },
+                  }}
+                />
+                <IconButton color="error" onClick={() => removeSpeaker(index)}>
+                  <DeleteIcon />
+                </IconButton>
+              </Box>
+            ))}
 
-  <Button
-    variant="outlined"
-    startIcon={<AddIcon />}
-    onClick={addSpeaker}
-    sx={{ mb: 2, color: "#19AEDC", borderColor: "#19AEDC",fontFamily:'albert sans' }}
-  >
-    Add Speaker
-  </Button>
-</Box>
+            <Button
+              variant="outlined"
+              startIcon={<AddIcon />}
+              onClick={addSpeaker}
+              sx={{
+                mb: 2,
+                color: "#19AEDC",
+                borderColor: "#19AEDC",
+                fontFamily: "albert sans",
+              }}
+            >
+              Add Speaker
+            </Button>
+          </Box>
 
           {/* Perks */}
           <Box
@@ -1420,18 +1504,21 @@ const removeSpeaker = (index) => {
                   onChange={(e) =>
                     handlePerkChange(index, "itemName", e.target.value)
                   }
-                  sx={{ width: isMobile ? "100%" : "25%", "& .MuiInputBase-root": {
-      fontFamily: "Albert Sans",
-    },
-    "& .MuiInputLabel-root": {
-      fontFamily: "Albert Sans",
-    },
-    "& .MuiFormHelperText-root": {
-      fontFamily: "Albert Sans",
-    },
-    "& input::placeholder": {
-      fontFamily: "Albert Sans",
-    }, }}
+                  sx={{
+                    width: isMobile ? "100%" : "25%",
+                    "& .MuiInputBase-root": {
+                      fontFamily: "Albert Sans",
+                    },
+                    "& .MuiInputLabel-root": {
+                      fontFamily: "Albert Sans",
+                    },
+                    "& .MuiFormHelperText-root": {
+                      fontFamily: "Albert Sans",
+                    },
+                    "& input::placeholder": {
+                      fontFamily: "Albert Sans",
+                    },
+                  }}
                 />
                 <TextField
                   label="Price"
@@ -1444,18 +1531,21 @@ const removeSpeaker = (index) => {
                       parseFloat(e.target.value) || 0
                     )
                   }
-                  sx={{ width: isMobile ? "100%" : "20%" , "& .MuiInputBase-root": {
-      fontFamily: "Albert Sans",
-    },
-    "& .MuiInputLabel-root": {
-      fontFamily: "Albert Sans",
-    },
-    "& .MuiFormHelperText-root": {
-      fontFamily: "Albert Sans",
-    },
-    "& input::placeholder": {
-      fontFamily: "Albert Sans",
-    },}}
+                  sx={{
+                    width: isMobile ? "100%" : "20%",
+                    "& .MuiInputBase-root": {
+                      fontFamily: "Albert Sans",
+                    },
+                    "& .MuiInputLabel-root": {
+                      fontFamily: "Albert Sans",
+                    },
+                    "& .MuiFormHelperText-root": {
+                      fontFamily: "Albert Sans",
+                    },
+                    "& input::placeholder": {
+                      fontFamily: "Albert Sans",
+                    },
+                  }}
                 />
                 <TextField
                   label="Limit"
@@ -1468,18 +1558,21 @@ const removeSpeaker = (index) => {
                       parseInt(e.target.value, 10) || 0
                     )
                   }
-                  sx={{ width: isMobile ? "100%" : "20%", "& .MuiInputBase-root": {
-      fontFamily: "Albert Sans",
-    },
-    "& .MuiInputLabel-root": {
-      fontFamily: "Albert Sans",
-    },
-    "& .MuiFormHelperText-root": {
-      fontFamily: "Albert Sans",
-    },
-    "& input::placeholder": {
-      fontFamily: "Albert Sans",
-    }, }}
+                  sx={{
+                    width: isMobile ? "100%" : "20%",
+                    "& .MuiInputBase-root": {
+                      fontFamily: "Albert Sans",
+                    },
+                    "& .MuiInputLabel-root": {
+                      fontFamily: "Albert Sans",
+                    },
+                    "& .MuiFormHelperText-root": {
+                      fontFamily: "Albert Sans",
+                    },
+                    "& input::placeholder": {
+                      fontFamily: "Albert Sans",
+                    },
+                  }}
                 />
 
                 {/* Image preview */}
@@ -1515,7 +1608,7 @@ const removeSpeaker = (index) => {
               variant="outlined"
               startIcon={<AddIcon />}
               onClick={addPerk}
-              sx={{ mb: 2, color: "#19AEDC",fontFamily:'albert sans' }}
+              sx={{ mb: 2, color: "#19AEDC", fontFamily: "albert sans" }}
             >
               Add Perk
             </Button>
@@ -1550,29 +1643,29 @@ const removeSpeaker = (index) => {
                 }}
               >
                 <TextField
-  fullWidth
-  label="Question"
-  value={faq.question || ""}
-  onChange={(e) =>
-    handleFAQChange(index, "question", e.target.value)
-  }
-  placeholder="Enter your question"
-  sx={{
-    mb: 2,
-    "& .MuiInputBase-root": {
-      fontFamily: "Albert Sans",
-    },
-    "& .MuiInputLabel-root": {
-      fontFamily: "Albert Sans",
-    },
-    "& .MuiFormHelperText-root": {
-      fontFamily: "Albert Sans",
-    },
-    "& input::placeholder": {
-      fontFamily: "Albert Sans",
-    },
-  }}
-/>
+                  fullWidth
+                  label="Question"
+                  value={faq.question || ""}
+                  onChange={(e) =>
+                    handleFAQChange(index, "question", e.target.value)
+                  }
+                  placeholder="Enter your question"
+                  sx={{
+                    mb: 2,
+                    "& .MuiInputBase-root": {
+                      fontFamily: "Albert Sans",
+                    },
+                    "& .MuiInputLabel-root": {
+                      fontFamily: "Albert Sans",
+                    },
+                    "& .MuiFormHelperText-root": {
+                      fontFamily: "Albert Sans",
+                    },
+                    "& input::placeholder": {
+                      fontFamily: "Albert Sans",
+                    },
+                  }}
+                />
 
                 <TextField
                   fullWidth
@@ -1583,18 +1676,21 @@ const removeSpeaker = (index) => {
                   }
                   multiline
                   rows={2}
-                  sx={{ mb: 2, "& .MuiInputBase-root": {
-      fontFamily: "Albert Sans",
-    },
-    "& .MuiInputLabel-root": {
-      fontFamily: "Albert Sans",
-    },
-    "& .MuiFormHelperText-root": {
-      fontFamily: "Albert Sans",
-    },
-    "& input::placeholder": {
-      fontFamily: "Albert Sans",
-    }, }}
+                  sx={{
+                    mb: 2,
+                    "& .MuiInputBase-root": {
+                      fontFamily: "Albert Sans",
+                    },
+                    "& .MuiInputLabel-root": {
+                      fontFamily: "Albert Sans",
+                    },
+                    "& .MuiFormHelperText-root": {
+                      fontFamily: "Albert Sans",
+                    },
+                    "& input::placeholder": {
+                      fontFamily: "Albert Sans",
+                    },
+                  }}
                 />
                 <IconButton color="error" onClick={() => removeFAQ(index)}>
                   <DeleteIcon />
@@ -1606,7 +1702,12 @@ const removeSpeaker = (index) => {
               variant="outlined"
               startIcon={<AddIcon />}
               onClick={addFAQ}
-              sx={{ mb: 2, color: "#19AEDC", borderColor: "#19AEDC",fontFamily:'albert sans' }}
+              sx={{
+                mb: 2,
+                color: "#19AEDC",
+                borderColor: "#19AEDC",
+                fontFamily: "albert sans",
+              }}
             >
               Add FAQ
             </Button>
@@ -1617,7 +1718,7 @@ const removeSpeaker = (index) => {
               variant="outlined"
               color="error"
               onClick={() => navigate(`/vendor/${vendorId}`)}
-              sx={{ fontWeight: 600,fontFamily:'albert sans' }}
+              sx={{ fontWeight: 600, fontFamily: "albert sans" }}
             >
               Cancel
             </Button>
@@ -1628,7 +1729,7 @@ const removeSpeaker = (index) => {
                 backgroundColor: "#19AEDC",
                 color: "white",
                 fontWeight: 600,
-                fontFamily:'albert sans',
+                fontFamily: "albert sans",
                 "&:hover": { backgroundColor: "#0E91B9" },
               }}
               disabled={submitting}
@@ -1644,6 +1745,27 @@ const removeSpeaker = (index) => {
             </Button>
           </Box>
         </form>
+        <Dialog
+          open={dialogState.open}
+          onClose={closeDialog}
+          sx={{ zIndex: 9999 }} // Ensure it appears above everything
+        >
+          <DialogTitle sx={{ fontFamily: "albert sans" }}>Notice</DialogTitle>
+          <DialogContent>
+            <DialogContentText sx={{ fontFamily: "albert sans" }}>
+              {dialogState.message}
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button
+              onClick={closeDialog}
+              color="primary"
+              sx={{ fontFamily: "albert sans" }}
+            >
+              Close
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Box>
     </div>
   );

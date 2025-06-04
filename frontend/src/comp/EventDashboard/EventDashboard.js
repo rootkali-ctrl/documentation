@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import HeaderVendorLogged from "../Header/HeaderVendorLogged";
 import {
   Box,
@@ -14,6 +14,11 @@ import {
   Grid,
   LinearProgress,
   useMediaQuery,
+  Dialog,
+  DialogTitle,
+  DialogContentText,
+  DialogContent,
+  DialogActions,
 } from "@mui/material";
 import DownloadIcon from "@mui/icons-material/Download";
 import InsertChartIcon from "@mui/icons-material/InsertChart";
@@ -65,6 +70,19 @@ const EventDashboard = () => {
   const [username, setUsername] = useState("");
   const [csvData, setCsvData] = useState([]);
   const csvLink = React.createRef();
+  const [dialogState, setDialogState] = useState({
+    open: false,
+    message: "",
+  });
+
+  // Optimized dialog handler
+  const showDialog = useCallback((message) => {
+    setDialogState({ open: true, message });
+  }, []);
+
+  const closeDialog = useCallback(() => {
+    setDialogState({ open: false, message: "" });
+  }, []);
 
   const ordersPerPage = 10;
   const [currentPage, setCurrentPage] = useState(1);
@@ -126,7 +144,8 @@ const EventDashboard = () => {
       navigate("/");
     } catch (error) {
       console.error("Logout error:", error);
-      alert("Failed to log out. Please try again.");
+
+      showDialog("Failed to log out. Please try again.");
     }
   };
 
@@ -1410,6 +1429,27 @@ const EventDashboard = () => {
             </Card>
           </Box>
         </Box>
+        <Dialog
+          open={dialogState.open}
+          onClose={closeDialog}
+          sx={{ zIndex: 9999 }} // Ensure it appears above everything
+        >
+          <DialogTitle sx={{ fontFamily: "albert sans" }}>Notice</DialogTitle>
+          <DialogContent>
+            <DialogContentText sx={{ fontFamily: "albert sans" }}>
+              {dialogState.message}
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button
+              onClick={closeDialog}
+              color="primary"
+              sx={{ fontFamily: "albert sans" }}
+            >
+              Close
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Box>
     </div>
   );

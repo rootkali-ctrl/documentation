@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext, useEffect, useState, useCallback } from "react";
 import {
   Box,
   Card,
@@ -8,16 +8,16 @@ import {
   Avatar,
   Chip,
   CircularProgress,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogContentText,
-  DialogActions,
   useMediaQuery,
   CardMedia,
   Divider,
   TextField,
-  Snackbar
+  Dialog,
+  DialogTitle,
+  DialogContentText,
+  DialogContent,
+  DialogActions,
+  Snackbar,
 } from "@mui/material";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 import EventIcon from "@mui/icons-material/Event";
@@ -33,7 +33,7 @@ const EventPage = () => {
   const navigate = useNavigate();
   const { eventId, userUID } = useParams();
   const isMobile = useMediaQuery("(max-width:900px)");
-  
+
   // State management
   const [submitting, setSubmitting] = useState(false);
   const [openDialog, setOpenDialog] = useState(false);
@@ -42,15 +42,31 @@ const EventPage = () => {
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [previewUrls, setPreviewUrls] = useState([]);
   const [paddingBottom, setPaddingBottom] = useState(20);
+  const [dialogState, setDialogState] = useState({
+    open: false,
+    message: "",
+  });
 
-  const { formData, shouldRedirectToStep1, stepCompletion } = useContext(EventContext);
+  // Optimized dialog handler
+  const showDialog = useCallback((message) => {
+    setDialogState({ open: true, message });
+  }, []);
+
+  const closeDialog = useCallback(() => {
+    setDialogState({ open: false, message: "" });
+  }, []);
+
+  const { formData, shouldRedirectToStep1, stepCompletion } =
+    useContext(EventContext);
   const { resetForm } = useEventContext();
 
   // Mock data - replace with actual data from your context/API
   const event = formData?.eventDetails || {};
   const speakers = formData?.eventDetails?.speaker || [];
   const faqs = formData?.finalSetup?.FAQ || [];
-  const tagsList = formData?.finalSetup?.tags ? formData.finalSetup.tags.split(',').map(tag => tag.trim()) : [];
+  const tagsList = formData?.finalSetup?.tags
+    ? formData.finalSetup.tags.split(",").map((tag) => tag.trim())
+    : [];
   const youtubeVideoId = extractYouTubeId(formData?.eventDetails?.mediaLink);
 
   // Helper functions
@@ -68,7 +84,10 @@ const EventPage = () => {
 
   const getEventCapacity = (pricing) => {
     if (!pricing?.tickets) return "N/A";
-    return pricing.tickets.reduce((acc, ticket) => acc + Number(ticket.seats || 0), 0);
+    return pricing.tickets.reduce(
+      (acc, ticket) => acc + Number(ticket.seats || 0),
+      0
+    );
   };
 
   const getShareUrl = () => {
@@ -77,7 +96,9 @@ const EventPage = () => {
 
   function extractYouTubeId(url) {
     if (!url) return null;
-    const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/);
+    const match = url.match(
+      /(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/
+    );
     return match ? match[1] : null;
   }
 
@@ -92,7 +113,10 @@ const EventPage = () => {
 
   const handlePlayVideo = () => {
     if (youtubeVideoId) {
-      window.open(`https://www.youtube.com/watch?v=${youtubeVideoId}`, '_blank');
+      window.open(
+        `https://www.youtube.com/watch?v=${youtubeVideoId}`,
+        "_blank"
+      );
     }
   };
 
@@ -103,11 +127,14 @@ const EventPage = () => {
       return;
     }
 
-    if (!stepCompletion?.step1 || !stepCompletion?.step2 ||
-        !formData.eventDetails?.name ||
-        !formData.pricing?.tickets?.length ||
-        Object.keys(formData.eventDetails || {}).length === 0 ||
-        !formData.eventDetails?.banner?.length) {
+    if (
+      !stepCompletion?.step1 ||
+      !stepCompletion?.step2 ||
+      !formData.eventDetails?.name ||
+      !formData.pricing?.tickets?.length ||
+      Object.keys(formData.eventDetails || {}).length === 0 ||
+      !formData.eventDetails?.banner?.length
+    ) {
       navigate(`/createevent/${formData.eventDetails?.vendorId}/step1`);
       return;
     }
@@ -119,7 +146,7 @@ const EventPage = () => {
       try {
         const urls = formData.eventDetails.banner.map((file) => {
           if (!(file instanceof File) && !(file instanceof Blob)) {
-            throw new Error('Invalid file object');
+            throw new Error("Invalid file object");
           }
           return URL.createObjectURL(file);
         });
@@ -129,25 +156,31 @@ const EventPage = () => {
           urls.forEach((url) => URL.revokeObjectURL(url));
         };
       } catch (error) {
-        console.error('Error creating object URLs:', error);
+        console.error("Error creating object URLs:", error);
         navigate(`/createevent/${formData.eventDetails?.vendorId}/step1`);
       }
     }
-  }, [formData.eventDetails?.banner, navigate, formData.eventDetails?.vendorId]);
+  }, [
+    formData.eventDetails?.banner,
+    navigate,
+    formData.eventDetails?.vendorId,
+  ]);
 
   // Handle safe area for mobile devices
   useEffect(() => {
     if (isMobile) {
       const updatePadding = () => {
         const safeAreaBottom = parseInt(
-          getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-bottom') || '0'
+          getComputedStyle(document.documentElement).getPropertyValue(
+            "--safe-area-inset-bottom"
+          ) || "0"
         );
         setPaddingBottom(Math.max(20, safeAreaBottom));
       };
 
       updatePadding();
-      window.addEventListener('resize', updatePadding);
-      return () => window.removeEventListener('resize', updatePadding);
+      window.addEventListener("resize", updatePadding);
+      return () => window.removeEventListener("resize", updatePadding);
     }
   }, [isMobile]);
 
@@ -247,7 +280,10 @@ const EventPage = () => {
     };
 
     Object.entries(payload).forEach(([key, value]) => {
-      form.append(key, typeof value === "object" ? JSON.stringify(value) : value);
+      form.append(
+        key,
+        typeof value === "object" ? JSON.stringify(value) : value
+      );
     });
 
     try {
@@ -267,7 +303,8 @@ const EventPage = () => {
       navigate(`/vendorhome/${formData.eventDetails.vendorId}`);
       setTimeout(() => resetForm(), 100);
     } catch (error) {
-      alert("Failed to create event.");
+      showDialog("Failed to create event.");
+
       console.error(error);
     } finally {
       setSubmitting(false);
@@ -275,22 +312,29 @@ const EventPage = () => {
   };
 
   // Early return for redirects
-  if (shouldRedirectToStep1() ||
-      !stepCompletion?.step1 || !stepCompletion?.step2 ||
-      !formData.eventDetails?.name ||
-      !formData.pricing?.tickets?.length ||
-      Object.keys(formData.eventDetails || {}).length === 0 ||
-      !formData.eventDetails?.banner?.length) {
+  if (
+    shouldRedirectToStep1() ||
+    !stepCompletion?.step1 ||
+    !stepCompletion?.step2 ||
+    !formData.eventDetails?.name ||
+    !formData.pricing?.tickets?.length ||
+    Object.keys(formData.eventDetails || {}).length === 0 ||
+    !formData.eventDetails?.banner?.length
+  ) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="100vh">
+      <Box
+        display="flex"
+        justifyContent="center"
+        alignItems="center"
+        minHeight="100vh"
+      >
         <CircularProgress />
       </Box>
     );
   }
 
   return (
-
-      <Box sx={{ minHeight: "100vh", bgcolor: "#F9FAFB" }}>
+    <Box sx={{ minHeight: "100vh", bgcolor: "#F9FAFB" }}>
       {/* Header */}
       {/* <Header/> */}
       <Box
@@ -305,7 +349,7 @@ const EventPage = () => {
         <Typography
           sx={{
             fontFamily: "albert sans",
-            fontSize:isMobile?"20px": "30px",
+            fontSize: isMobile ? "20px" : "30px",
             fontWeight: "700",
           }}
         >
@@ -357,16 +401,18 @@ const EventPage = () => {
           pt: isMobile ? 1 : 4,
           backgroundColor: "#f9f9f9",
           maxWidth: "100%",
-          width:'98%',
+          width: "98%",
           boxSizing: "border-box",
         }}
       >
         {/* Left Section */}
-        <Box sx={{ 
-          flex: { md: 2, xs: 1 }, 
-          width: { lg: "70%", md: "70%", xs: "100%" },
-          maxWidth: "100%",
-        }}>
+        <Box
+          sx={{
+            flex: { md: 2, xs: 1 },
+            width: { lg: "70%", md: "70%", xs: "100%" },
+            maxWidth: "100%",
+          }}
+        >
           {/* Hero Image Card */}
           <Card
             sx={{
@@ -461,9 +507,9 @@ const EventPage = () => {
 
               <Typography
                 variant="h6"
-                sx={{ 
-                  fontWeight: "bold", 
-                  fontFamily: "albert sans", 
+                sx={{
+                  fontWeight: "bold",
+                  fontFamily: "albert sans",
                   mb: 1,
                   mt: 3,
                 }}
@@ -485,36 +531,35 @@ const EventPage = () => {
                   "No description available for this event."}
               </Typography>
 
-              {formData.pricing?.addons && formData.pricing.addons.length > 0 && (
-                <>
-                  <Typography
-                    variant="h6"
-                    sx={{
-                      fontWeight: "bold",
-                      mt: 3,
-                      mb: 1,
-                      fontFamily: "albert sans",
-                    }}
-                  >
-                    Event Perks
-                  </Typography>
-                  <Box
-                    sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}
-                  >
-                    {formData.pricing.addons.map((perk, index) => (
-                      <Chip
-                        key={index}
-                        label={`${perk.itemName} (Limit: ${perk.limit})`}
-                        sx={{ 
-                          backgroundColor: "#F0F9FF", 
-                          color: "#475569",
-                          fontFamily: "albert sans",
-                        }}
-                      />
-                    ))}
-                  </Box>
-                </>
-              )}
+              {formData.pricing?.addons &&
+                formData.pricing.addons.length > 0 && (
+                  <>
+                    <Typography
+                      variant="h6"
+                      sx={{
+                        fontWeight: "bold",
+                        mt: 3,
+                        mb: 1,
+                        fontFamily: "albert sans",
+                      }}
+                    >
+                      Event Perks
+                    </Typography>
+                    <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+                      {formData.pricing.addons.map((perk, index) => (
+                        <Chip
+                          key={index}
+                          label={`${perk.itemName} (Limit: ${perk.limit})`}
+                          sx={{
+                            backgroundColor: "#F0F9FF",
+                            color: "#475569",
+                            fontFamily: "albert sans",
+                          }}
+                        />
+                      ))}
+                    </Box>
+                  </>
+                )}
             </CardContent>
           </Card>
 
@@ -538,7 +583,7 @@ const EventPage = () => {
               >
                 Location
               </Typography>
-              
+
               {formData.eventDetails?.venueDetails?.gmapLink ? (
                 <Box
                   sx={{
@@ -572,12 +617,14 @@ const EventPage = () => {
                     alignItems: "center",
                   }}
                 >
-                  <Typography sx={{ fontFamily: "albert sans", color: "#6B7280" }}>
+                  <Typography
+                    sx={{ fontFamily: "albert sans", color: "#6B7280" }}
+                  >
                     Map not available
                   </Typography>
                 </Box>
               )}
-              
+
               <Typography
                 color="text.secondary"
                 sx={{
@@ -586,23 +633,28 @@ const EventPage = () => {
                   lineHeight: 1.5,
                 }}
               >
-                {formData.eventDetails?.venueDetails ? (() => {
-                  const { streetName, area, city, state, pincode } = formData.eventDetails.venueDetails;
-                  const parts = [];
+                {formData.eventDetails?.venueDetails
+                  ? (() => {
+                      const { streetName, area, city, state, pincode } =
+                        formData.eventDetails.venueDetails;
+                      const parts = [];
 
-                  if (streetName) parts.push(streetName);
-                  if (area) parts.push(area);
-                  if (city && pincode) {
-                    parts.push(`${city} - ${pincode}`);
-                  } else if (city) {
-                    parts.push(city);
-                  } else if (pincode) {
-                    parts.push(pincode);
-                  }
-                  if (state) parts.push(state);
+                      if (streetName) parts.push(streetName);
+                      if (area) parts.push(area);
+                      if (city && pincode) {
+                        parts.push(`${city} - ${pincode}`);
+                      } else if (city) {
+                        parts.push(city);
+                      } else if (pincode) {
+                        parts.push(pincode);
+                      }
+                      if (state) parts.push(state);
 
-                  return parts.length > 0 ? parts.join(", ") : "Address not provided";
-                })() : "Address not provided"}
+                      return parts.length > 0
+                        ? parts.join(", ")
+                        : "Address not provided";
+                    })()
+                  : "Address not provided"}
               </Typography>
             </CardContent>
           </Card>
@@ -673,7 +725,9 @@ const EventPage = () => {
           {/* Event Info Card */}
           <Card sx={{ borderRadius: "20px", boxShadow: "none" }}>
             <CardContent>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
+              <Box
+                sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}
+              >
                 <EventIcon sx={{ color: "#19AEDC" }} />
                 <Box>
                   <Typography
@@ -690,8 +744,10 @@ const EventPage = () => {
                   </Typography>
                 </Box>
               </Box>
-              
-              <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
+
+              <Box
+                sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}
+              >
                 <LocationOnIcon sx={{ color: "#19AEDC" }} />
                 <Box>
                   <Typography
@@ -704,11 +760,12 @@ const EventPage = () => {
                   <Typography
                     sx={{ fontWeight: "bold", fontFamily: "albert sans" }}
                   >
-                    {formData.eventDetails?.venueDetails?.venueName || "Venue not specified"}
+                    {formData.eventDetails?.venueDetails?.venueName ||
+                      "Venue not specified"}
                   </Typography>
                 </Box>
               </Box>
-              
+
               <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
                 <PeopleIcon sx={{ color: "#19AEDC" }} />
                 <Box>
@@ -871,11 +928,13 @@ const EventPage = () => {
 
           {/* YouTube Video Section */}
           {youtubeVideoId && (
-            <Card sx={{ 
-              mt: { xs: 2, md: 3 }, 
-              borderRadius: "20px", 
-              boxShadow: "none" 
-            }}>
+            <Card
+              sx={{
+                mt: { xs: 2, md: 3 },
+                borderRadius: "20px",
+                boxShadow: "none",
+              }}
+            >
               <CardContent>
                 <Typography
                   variant="h6"
@@ -943,9 +1002,9 @@ const EventPage = () => {
                 <Typography
                   variant="body2"
                   color="text.secondary"
-                  sx={{ 
-                    mt: 1, 
-                    textAlign: "center", 
+                  sx={{
+                    mt: 1,
+                    textAlign: "center",
                     fontStyle: "italic",
                     fontFamily: "albert sans",
                   }}
@@ -963,8 +1022,7 @@ const EventPage = () => {
                 mt: { xs: 2, md: 3 },
                 borderRadius: "20px",
                 boxShadow: "none",
-                                  mb:isMobile ?'5em' : 0,
-
+                mb: isMobile ? "5em" : 0,
               }}
             >
               <CardContent>
@@ -996,29 +1054,27 @@ const EventPage = () => {
                     autoplaySpeed={5000}
                     adaptiveHeight={false}
                   >
-
-                {previewUrls.slice(2, 5).map((imgUrl, index) => (
-            <div key={index} style={{ height: "200px" }}>
-              <img
-                src={imgUrl}
-                alt={`Event Slide ${index + 4}`}
-                style={{
-                  width: "100%",
-                  height: "200px",
-                  objectFit: "cover", // Changed from "contain" to "cover"
-                  objectPosition: "center",
-                  display: "block",
-                  borderRadius: "10px",
-                }}
-              />
-            </div>
-          ))}
-        </Slider>
-      </Box>
-    </CardContent>
-  </Card>
-)}
-        
+                    {previewUrls.slice(2, 5).map((imgUrl, index) => (
+                      <div key={index} style={{ height: "200px" }}>
+                        <img
+                          src={imgUrl}
+                          alt={`Event Slide ${index + 4}`}
+                          style={{
+                            width: "100%",
+                            height: "200px",
+                            objectFit: "cover", // Changed from "contain" to "cover"
+                            objectPosition: "center",
+                            display: "block",
+                            borderRadius: "10px",
+                          }}
+                        />
+                      </div>
+                    ))}
+                  </Slider>
+                </Box>
+              </CardContent>
+            </Card>
+          )}
         </Box>
       </Box>
 
@@ -1035,7 +1091,7 @@ const EventPage = () => {
             padding: `10px 0 ${paddingBottom}px 0`,
             zIndex: 1300,
             display: "flex",
-            
+
             justifyContent: "center",
             alignItems: "center",
             transition: "padding 0.3s ease-in-out",
@@ -1070,6 +1126,27 @@ const EventPage = () => {
         onClose={handleSnackbarClose}
         message={snackbarMessage}
       />
+      <Dialog
+        open={dialogState.open}
+        onClose={closeDialog}
+        sx={{ zIndex: 9999 }} // Ensure it appears above everything
+      >
+        <DialogTitle sx={{ fontFamily: "albert sans" }}>Notice</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ fontFamily: "albert sans" }}>
+            {dialogState.message}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={closeDialog}
+            color="primary"
+            sx={{ fontFamily: "albert sans" }}
+          >
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

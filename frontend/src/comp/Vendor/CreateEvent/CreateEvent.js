@@ -1,4 +1,4 @@
-import { useEffect, useRef, useMemo, useState } from "react";
+import { useEffect, useRef, useCallback, useState } from "react";
 import {
   Box,
   Typography,
@@ -11,6 +11,11 @@ import {
   Select,
   useMediaQuery,
   IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContentText,
+  DialogContent,
+  DialogActions,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { useTheme } from "@mui/material/styles";
@@ -55,6 +60,20 @@ const CreateEvent = () => {
     pincode: "",
     area: "",
   });
+
+  const [dialogState, setDialogState] = useState({
+    open: false,
+    message: "",
+  });
+
+  // Optimized dialog handler
+  const showDialog = useCallback((message) => {
+    setDialogState({ open: true, message });
+  }, []);
+
+  const closeDialog = useCallback(() => {
+    setDialogState({ open: false, message: "" });
+  }, []);
 
   useEffect(() => {
     if (formData.eventDetails) {
@@ -279,9 +298,10 @@ const CreateEvent = () => {
   // Your existing handleNext function remains the same
   const handleNext = () => {
     if (!isFormValid()) {
-      alert(
+      showDialog(
         "Please fill all required fields and upload exactly 6 banner images."
       );
+
       return;
     }
 
@@ -960,8 +980,6 @@ const CreateEvent = () => {
                   }}
                 ></Box>
               </Box>
-
-              
             </Box>
           </Box>
 
@@ -979,27 +997,65 @@ const CreateEvent = () => {
               boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
             }}
           >
-
-          <FormControl fullWidth variant="outlined">
-                <Typography
-                  variant="subtitle2"
-                  sx={{
-                    marginBottom: "6px",
-                    color: "#666",
-                    fontWeight: 500,
+            <FormControl fullWidth variant="outlined">
+              <Typography
+                variant="subtitle2"
+                sx={{
+                  marginBottom: "6px",
+                  color: "#666",
+                  fontWeight: 500,
+                  fontFamily: "Albert Sans",
+                }}
+              >
+                Event title
+              </Typography>
+              <OutlinedInput
+                name="name"
+                value={localData.name}
+                onChange={handleChange}
+                placeholder="Enter a catchy title"
+                sx={{
+                  width: "90%",
+                  height: "40px",
+                  fontFamily: "Albert Sans",
+                  "&::placeholder": {
                     fontFamily: "Albert Sans",
-                  }}
-                >
-                  Event title
-                </Typography>
-                <OutlinedInput
-                  name="name"
-                  value={localData.name}
-                  onChange={handleChange}
-                  placeholder="Enter a catchy title"
-                  sx={{
+                  },
+                  "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                    borderColor: "#19AEDC",
+                  },
+                  "& .MuiOutlinedInput-notchedOutline": {
+                    borderColor: "#ccc",
+                  },
+                }}
+              />
+            </FormControl>
+
+            <FormControl fullWidth variant="outlined" sx={{ mt: "2%" }}>
+              <Typography
+                variant="subtitle2"
+                sx={{
+                  marginBottom: "6px",
+                  color: "#666",
+                  fontWeight: 500,
+                  fontFamily: "Albert Sans",
+                }}
+              >
+                Event Description
+              </Typography>
+
+              <TextField
+                name="description"
+                value={localData.description}
+                onChange={handleChange}
+                placeholder="Describe your event..."
+                variant="outlined"
+                multiline
+                minRows={3}
+                fullWidth
+                InputProps={{
+                  sx: {
                     width: "90%",
-                    height: "40px",
                     fontFamily: "Albert Sans",
                     "&::placeholder": {
                       fontFamily: "Albert Sans",
@@ -1010,51 +1066,12 @@ const CreateEvent = () => {
                     "& .MuiOutlinedInput-notchedOutline": {
                       borderColor: "#ccc",
                     },
-                  }}
-                />
-              </FormControl>
+                  },
+                }}
+              />
 
-              <FormControl fullWidth variant="outlined" sx={{ mt: "2%" }}>
-                <Typography
-                  variant="subtitle2"
-                  sx={{
-                    marginBottom: "6px",
-                    color: "#666",
-                    fontWeight: 500,
-                    fontFamily: "Albert Sans",
-                  }}
-                >
-                  Event Description
-                </Typography>
-
-                <TextField
-                  name="description"
-                  value={localData.description}
-                  onChange={handleChange}
-                  placeholder="Describe your event..."
-                  variant="outlined"
-                  multiline
-                  minRows={3}
-                  fullWidth
-                  InputProps={{
-                    sx: {
-                      width: "90%",
-                      fontFamily: "Albert Sans",
-                      "&::placeholder": {
-                        fontFamily: "Albert Sans",
-                      },
-                      "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-                        borderColor: "#19AEDC",
-                      },
-                      "& .MuiOutlinedInput-notchedOutline": {
-                        borderColor: "#ccc",
-                      },
-                    },
-                  }}
-                />
-
-                {/* Word count display */}
-                {/* <Typography
+              {/* Word count display */}
+              {/* <Typography
                 variant="caption"
                 sx={{
                   mt: '4px',
@@ -1065,94 +1082,92 @@ const CreateEvent = () => {
               >
                 {countWords(desp)} / 1000 words
               </Typography> */}
-              </FormControl>
+            </FormControl>
 
-              <FormControl fullWidth variant="outlined">
-                <Typography
-                  variant="subtitle2"
-                  sx={{
-                    mt: "2%",
-                    color: "#666",
-                    fontWeight: 500,
+            <FormControl fullWidth variant="outlined">
+              <Typography
+                variant="subtitle2"
+                sx={{
+                  mt: "2%",
+                  color: "#666",
+                  fontWeight: 500,
+                  fontFamily: "Albert Sans",
+                }}
+              >
+                Upload media link
+              </Typography>
+              <OutlinedInput
+                name="mediaLink"
+                value={mediaLink}
+                onChange={(e) => setMediaLink(e.target.value)}
+                fullWidth
+                placeholder="https://youtube.com/..."
+                sx={{
+                  width: "90%",
+                  height: "40px",
+                  fontFamily: "Albert Sans",
+                  "&::placeholder": {
                     fontFamily: "Albert Sans",
-                  }}
-                >
-                  Upload media link
-                </Typography>
-                <OutlinedInput
-                  name="mediaLink"
-                  value={mediaLink}
-                  onChange={(e) => setMediaLink(e.target.value)}
-                  fullWidth
-                  placeholder="https://youtube.com/..."
-                  sx={{
-                    width: "90%",
-                    height: "40px",
-                    fontFamily: "Albert Sans",
-                    "&::placeholder": {
-                      fontFamily: "Albert Sans",
-                    },
-                    "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-                      borderColor: "#19AEDC",
-                    },
-                    "& .MuiOutlinedInput-notchedOutline": {
-                      borderColor: "#ccc",
-                    },
-                  }}
-                />
-              </FormControl>
+                  },
+                  "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                    borderColor: "#19AEDC",
+                  },
+                  "& .MuiOutlinedInput-notchedOutline": {
+                    borderColor: "#ccc",
+                  },
+                }}
+              />
+            </FormControl>
 
-              <FormControl sx={{ width: "90%" }}>
-                <Typography
-                  variant="subtitle2"
-                  sx={{
-                    mt: "2%",
-                    color: "#666",
-                    fontWeight: 500,
-                    fontFamily: "Albert Sans",
-                  }}
-                >
-                  Event Category
-                </Typography>
-                <Select
-                  sx={{
-                    height: "50px",
-                    mt: "1%",
-                    fontFamily: "albert sans",
-                    "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-                      borderColor: "#19AEDC",
-                    },
-                    "& .MuiOutlinedInput-notchedOutline": {
-                      borderColor: "#ccc",
-                    },
-                  }}
-                  labelId="category-chip-label"
-                  id="category-chip"
-                  multiple
-                  value={selectedCategories || []}
-                  onChange={handleCategoryChange}
-                  renderValue={(selected) =>
-                    selected?.length
-                      ? selected.join(" • ")
-                      : "Select categories"
-                  }
-                  MenuProps={MenuProps}
-                  input={<OutlinedInput id="select-multiple-chip" />}
-                  displayEmpty
-                >
-                  {categoryFields.map((name) => (
-                    <MenuItem
-                      sx={{ fontFamily: "albert sans" }}
-                      key={name}
-                      value={name}
-                      style={getStyles(name, selectedCategories, theme)}
-                    >
-                      {name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-              </Box>
+            <FormControl sx={{ width: "90%" }}>
+              <Typography
+                variant="subtitle2"
+                sx={{
+                  mt: "2%",
+                  color: "#666",
+                  fontWeight: 500,
+                  fontFamily: "Albert Sans",
+                }}
+              >
+                Event Category
+              </Typography>
+              <Select
+                sx={{
+                  height: "50px",
+                  mt: "1%",
+                  fontFamily: "albert sans",
+                  "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                    borderColor: "#19AEDC",
+                  },
+                  "& .MuiOutlinedInput-notchedOutline": {
+                    borderColor: "#ccc",
+                  },
+                }}
+                labelId="category-chip-label"
+                id="category-chip"
+                multiple
+                value={selectedCategories || []}
+                onChange={handleCategoryChange}
+                renderValue={(selected) =>
+                  selected?.length ? selected.join(" • ") : "Select categories"
+                }
+                MenuProps={MenuProps}
+                input={<OutlinedInput id="select-multiple-chip" />}
+                displayEmpty
+              >
+                {categoryFields.map((name) => (
+                  <MenuItem
+                    sx={{ fontFamily: "albert sans" }}
+                    key={name}
+                    value={name}
+                    style={getStyles(name, selectedCategories, theme)}
+                  >
+                    {name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Box>
 
           {/*Speaker and hosts*/}
           <Box
@@ -1541,6 +1556,27 @@ const CreateEvent = () => {
             Save and continue
           </Button>
         </Box>
+        <Dialog
+          open={dialogState.open}
+          onClose={closeDialog}
+          sx={{ zIndex: 9999 }} // Ensure it appears above everything
+        >
+          <DialogTitle sx={{ fontFamily: "albert sans" }}>Notice</DialogTitle>
+          <DialogContent>
+            <DialogContentText sx={{ fontFamily: "albert sans" }}>
+              {dialogState.message}
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button
+              onClick={closeDialog}
+              color="primary"
+              sx={{ fontFamily: "albert sans" }}
+            >
+              Close
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Box>
     </div>
   );

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { db, auth } from "../../firebase/firebase_config";
@@ -11,6 +11,11 @@ import {
   CircularProgress,
   Container,
   Divider,
+  Dialog,
+  DialogTitle,
+  DialogContentText,
+  DialogContent,
+  DialogActions,
 } from "@mui/material";
 import qrimage from "../QR image/QRimage.png";
 
@@ -21,6 +26,19 @@ const BookingDetailsPage = () => {
   const [error, setError] = useState("");
   const navigate = useNavigate();
   const { bookingId, vendorId } = useParams();
+  const [dialogState, setDialogState] = useState({
+    open: false,
+    message: "",
+  });
+
+  // Optimized dialog handler
+  const showDialog = useCallback((message) => {
+    setDialogState({ open: true, message });
+  }, []);
+
+  const closeDialog = useCallback(() => {
+    setDialogState({ open: false, message: "" });
+  }, []);
 
   useEffect(() => {
     fetchBookingDetails();
@@ -110,10 +128,10 @@ const BookingDetailsPage = () => {
         checkedIn: true,
         checkedInTime: new Date().toISOString(),
       }));
-      navigate(`/vendorprofile/vendorscanner/${vendorId}`)
+      navigate(`/vendorprofile/vendorscanner/${vendorId}`);
     } catch (error) {
       console.error("Error checking in:", error);
-      alert("Failed to check in. Please try again.");
+      showDialog("Failed to check in. Please try again.");
     } finally {
       setCheckingIn(false);
     }
@@ -535,6 +553,27 @@ const BookingDetailsPage = () => {
           </Button>
         )}
       </Container>
+      <Dialog
+        open={dialogState.open}
+        onClose={closeDialog}
+        sx={{ zIndex: 9999 }} // Ensure it appears above everything
+      >
+        <DialogTitle sx={{ fontFamily: "albert sans" }}>Notice</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ fontFamily: "albert sans" }}>
+            {dialogState.message}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={closeDialog}
+            color="primary"
+            sx={{ fontFamily: "albert sans" }}
+          >
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

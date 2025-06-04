@@ -225,7 +225,7 @@ const EventCard = ({ event, userUID }) => {
               WebkitLineClamp: 2,
               WebkitBoxOrient: "vertical",
               mb: 1,
-              fontSize: isMobile ? "13px" : "15px",
+              fontSize: isMobile ? "16px" : "15px",
               fontFamily: "albert sans",
             }}
           >
@@ -235,13 +235,13 @@ const EventCard = ({ event, userUID }) => {
             sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 0.5 }}
           >
             <CalendarTodayIcon
-              sx={{ fontSize: isMobile ? 12 : 14, color: "text.secondary" }}
+              sx={{ fontSize: isMobile ? 14 : 14, color: "text.secondary" }}
             />
             <Typography
               variant="body2"
               color="text.secondary"
               sx={{
-                fontSize: isMobile ? "11px" : "12px",
+                fontSize: isMobile ? "14px" : "12px",
                 overflow: "hidden",
                 textOverflow: "ellipsis",
                 fontFamily: "albert sans",
@@ -253,7 +253,7 @@ const EventCard = ({ event, userUID }) => {
           </Box>
           <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 1 }}>
             <LocationOnIcon
-              sx={{ fontSize: isMobile ? 12 : 14, color: "text.secondary" }}
+              sx={{ fontSize: isMobile ? 14 : 14, color: "text.secondary" }}
             />
             <Typography
               variant="body2"
@@ -263,7 +263,7 @@ const EventCard = ({ event, userUID }) => {
                 overflow: "hidden",
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
-                fontSize: isMobile ? "11px" : "12px",
+                fontSize: isMobile ? "14px" : "12px",
                 fontFamily: "albert sans",
               }}
             >
@@ -293,7 +293,7 @@ const EventCard = ({ event, userUID }) => {
             variant="body2"
             sx={{
               fontWeight: "600",
-              fontSize: isMobile ? "11px" : "12px",
+              fontSize: isMobile ? "14px" : "12px",
               fontFamily: "albert sans",
             }}
           >
@@ -303,7 +303,7 @@ const EventCard = ({ event, userUID }) => {
             variant="body2"
             sx={{
               fontWeight: "600",
-              fontSize: isMobile ? "11px" : "12px",
+              fontSize: isMobile ? "14px" : "12px",
               fontFamily: "albert sans",
             }}
           >

@@ -1,4 +1,4 @@
-import { React, useEffect, useState } from "react";
+import { React, useEffect, useState, useCallback } from "react";
 import {
   Box,
   Typography,
@@ -8,7 +8,12 @@ import {
   MenuItem,
   FormControl,
   Select,
-  Card
+  Dialog,
+  DialogTitle,
+  DialogContentText,
+  DialogContent,
+  DialogActions,
+  Card,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EventIcon from "@mui/icons-material/Event";
@@ -23,7 +28,7 @@ import { useParams } from "react-router-dom";
 import axios from "axios";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { db, auth } from "../../firebase_config";
-import { Snackbar, Alert ,useMediaQuery} from "@mui/material";
+import { Snackbar, Alert, useMediaQuery } from "@mui/material";
 import HeaderVendorLogged from "../Header/HeaderVendorLogged";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 
@@ -50,8 +55,21 @@ const VendorHome = () => {
   const [eventsGrowth, setEventsGrowth] = useState(12);
   const [ticketsGrowth, setTicketsGrowth] = useState(8);
   const [salesGrowth, setSalesGrowth] = useState(15);
+  const [dialogState, setDialogState] = useState({
+    open: false,
+    message: "",
+  });
 
-  const eventsPerPage = isMobile?4:8;
+  // Optimized dialog handler
+  const showDialog = useCallback((message) => {
+    setDialogState({ open: true, message });
+  }, []);
+
+  const closeDialog = useCallback(() => {
+    setDialogState({ open: false, message: "" });
+  }, []);
+
+  const eventsPerPage = isMobile ? 4 : 8;
 
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [passvendorId, passsetVendorId] = useState(null);
@@ -75,11 +93,14 @@ const VendorHome = () => {
         });
 
         try {
-          const res = await fetch(`${process.env.REACT_APP_API_BASE_URL}/api/user/post-email`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email: user.email }),
-          });
+          const res = await fetch(
+            `${process.env.REACT_APP_API_BASE_URL}/api/user/post-email`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ email: user.email }),
+            }
+          );
 
           const data = await res.json();
           if (res.ok) {
@@ -109,7 +130,8 @@ const VendorHome = () => {
       navigate("/");
     } catch (error) {
       console.error("Logout error:", error);
-      alert("Failed to log out. Please try again.");
+
+      showDialog("Failed to log out. Please try again.");
     }
   };
 
@@ -280,7 +302,9 @@ const VendorHome = () => {
   };
 
   const handleEventClick = (eventData) => {
-    navigate(`/eventdashboard/${eventData.eventId}/${vendorId}`, { state: { eventData } });
+    navigate(`/eventdashboard/${eventData.eventId}/${vendorId}`, {
+      state: { eventData },
+    });
   };
 
   const handleUpdateEvent = (e) => {
@@ -325,7 +349,7 @@ const VendorHome = () => {
         }
       } catch (err) {
         console.error("Error deleting event:", err);
-        alert("Failed to delete event. Please try again.");
+        showDialog("Failed to delete event. Please try again.");
       }
     }
   };
@@ -357,7 +381,7 @@ const VendorHome = () => {
       <Box sx={{ display: "flex", flexDirection: "column", width: "100%" }}>
         <Box
           sx={{
-            width: !isMobile?"90%":"95%",
+            width: !isMobile ? "90%" : "95%",
             margin: "0 auto",
             height: "auto",
             mt: "4%",
@@ -366,20 +390,19 @@ const VendorHome = () => {
             backgroundColor: "#fff",
             padding: "2%",
             border: "none",
-            display: !isMobile?"flex":"block",
+            display: !isMobile ? "flex" : "block",
             justifyContent: "space-between",
             boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.1)",
             borderRadius: "10px",
-            
           }}
         >
           <Box>
             <Typography
               sx={{
                 fontFamily: "Albert Sans",
-                fontSize: !isMobile?"28px":"20px",
+                fontSize: !isMobile ? "28px" : "20px",
                 fontWeight: "800",
-                mb:isMobile?1:0,
+                mb: isMobile ? 1 : 0,
               }}
             >
               Welcome back,{" "}
@@ -388,35 +411,43 @@ const VendorHome = () => {
             <Typography
               sx={{
                 fontFamily: "Albert Sans",
-                fontSize: !isMobile?"18px":"14px",
+                fontSize: !isMobile ? "18px" : "14px",
                 fontWeight: "300",
-                mb:isMobile?3:0,
+                mb: isMobile ? 3 : 0,
               }}
             >
               Here's what's happening with your events today.
             </Typography>
           </Box>
-          <Box sx={{ display: "flex", gap: "2%",width: !isMobile?"30%":"100%",mb:isMobile?2:0,justifyContent: isMobile?null:"flex-end", }}>
-          <Box>
-            <Button
-              variant="contained"
-              sx={{
-                backgroundColor: "#19AEDC",
-                color: "white",
-                padding: !isMobile?"8px 16px":"4px 4px",
-                fontWeight: "600",
-                fontFamily: "Albert Sans",
-                textTransform: "none",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-              }}
-              onClick={handleCreateEvent}
-            >
-              <AddIcon sx={{ fontSize: "20px" }} /> Create Event
-            </Button>
-          </Box>
-          {/* <Box>
+          <Box
+            sx={{
+              display: "flex",
+              gap: "2%",
+              width: !isMobile ? "30%" : "100%",
+              mb: isMobile ? 2 : 0,
+              justifyContent: isMobile ? null : "flex-end",
+            }}
+          >
+            <Box>
+              <Button
+                variant="contained"
+                sx={{
+                  backgroundColor: "#19AEDC",
+                  color: "white",
+                  padding: !isMobile ? "8px 16px" : "4px 4px",
+                  fontWeight: "600",
+                  fontFamily: "Albert Sans",
+                  textTransform: "none",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                }}
+                onClick={handleCreateEvent}
+              >
+                <AddIcon sx={{ fontSize: "20px" }} /> Create Event
+              </Button>
+            </Box>
+            {/* <Box>
             <Button
               variant="contained"
               sx={{
@@ -439,357 +470,378 @@ const VendorHome = () => {
           </Box> */}
           </Box>
         </Box>
-        
+
         {!isMobile && (
-        <Box
-          sx={{
-            display: "flex",
-            width: "90%",
-            margin: "0 auto",
-            mt: "2%",
-            gap: "2%",
-          }}
-        >
           <Box
             sx={{
-              boxSizing: "border-box",
-              backgroundColor: "white",
-              boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.1)",
-              borderRadius: "10px",
-              height: "auto",
-              width: "24%",
               display: "flex",
-              flexDirection: "column",
-              padding: "1.5%",
+              width: "90%",
+              margin: "0 auto",
+              mt: "2%",
+              gap: "2%",
             }}
           >
             <Box
               sx={{
+                boxSizing: "border-box",
+                backgroundColor: "white",
+                boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.1)",
+                borderRadius: "10px",
+                height: "auto",
+                width: "24%",
                 display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
+                flexDirection: "column",
+                padding: "1.5%",
               }}
             >
-              <Typography sx={{ fontFamily: "albert sans", fontSize: "17px" }}>
-                Total Events
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
+                <Typography
+                  sx={{ fontFamily: "albert sans", fontSize: "17px" }}
+                >
+                  Total Events
+                </Typography>
+                <EventIcon />
+              </Box>
+              <Typography
+                sx={{
+                  fontFamily: "albert sans",
+                  fontSize: "28px",
+                  fontWeight: "700",
+                  mt: "2%",
+                }}
+              >
+                {totalEvents}
               </Typography>
-              <EventIcon />
             </Box>
-            <Typography
-              sx={{
-                fontFamily: "albert sans",
-                fontSize: "28px",
-                fontWeight: "700",
-                mt: "2%",
-              }}
-            >
-              {totalEvents}
-            </Typography>
-            
-          </Box>
 
-          <Box
-            sx={{
-              boxSizing: "border-box",
-              backgroundColor: "white",
-              boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.1)",
-              borderRadius: "10px",
-              height: "auto",
-              width: "24%",
-              display: "flex",
-              flexDirection: "column",
-              padding: "1.5%",
-            }}
-          >
             <Box
               sx={{
+                boxSizing: "border-box",
+                backgroundColor: "white",
+                boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.1)",
+                borderRadius: "10px",
+                height: "auto",
+                width: "24%",
                 display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
+                flexDirection: "column",
+                padding: "1.5%",
               }}
             >
-              <Typography sx={{ fontFamily: "albert sans", fontSize: "17px" }}>
-                Tickets Sold
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
+                <Typography
+                  sx={{ fontFamily: "albert sans", fontSize: "17px" }}
+                >
+                  Tickets Sold
+                </Typography>
+                <ConfirmationNumberIcon />
+              </Box>
+              <Typography
+                sx={{
+                  fontFamily: "albert sans",
+                  fontSize: "28px",
+                  fontWeight: "700",
+                  mt: "2%",
+                }}
+              >
+                {ticketsSold.toLocaleString()}
               </Typography>
-              <ConfirmationNumberIcon />
             </Box>
-            <Typography
-              sx={{
-                fontFamily: "albert sans",
-                fontSize: "28px",
-                fontWeight: "700",
-                mt: "2%",
-              }}
-            >
-              {ticketsSold.toLocaleString()}
-            </Typography>
-  
-          </Box>
 
-          <Box
-            sx={{
-              boxSizing: "border-box",
-              backgroundColor: "white",
-              boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.1)",
-              borderRadius: "10px",
-              height: "auto",
-              width: "24%",
-              display: "flex",
-              flexDirection: "column",
-              padding: "1.5%",
-            }}
-          >
             <Box
               sx={{
+                boxSizing: "border-box",
+                backgroundColor: "white",
+                boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.1)",
+                borderRadius: "10px",
+                height: "auto",
+                width: "24%",
                 display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
+                flexDirection: "column",
+                padding: "1.5%",
               }}
             >
-              <Typography sx={{ fontFamily: "albert sans", fontSize: "17px" }}>
-                Gross Sales
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
+                <Typography
+                  sx={{ fontFamily: "albert sans", fontSize: "17px" }}
+                >
+                  Gross Sales
+                </Typography>
+                <CurrencyRupeeOutlinedIcon />
+              </Box>
+              <Typography
+                sx={{
+                  fontFamily: "albert sans",
+                  fontSize: "28px",
+                  fontWeight: "700",
+                  mt: "2%",
+                }}
+              >
+                ₹{grossSales.toLocaleString()}
               </Typography>
-              <CurrencyRupeeOutlinedIcon />
             </Box>
-            <Typography
-              sx={{
-                fontFamily: "albert sans",
-                fontSize: "28px",
-                fontWeight: "700",
-                mt: "2%",
-              }}
-            >
-              ₹{grossSales.toLocaleString()}
-            </Typography>
-           
-          </Box>
 
-          <Box
-            sx={{
-              boxSizing: "border-box",
-              backgroundColor: "white",
-              boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.1)",
-              borderRadius: "10px",
-              height: "auto",
-              width: "24%",
-              display: "flex",
-              flexDirection: "column",
-              padding: "1.5%",
-            }}
-          >
             <Box
               sx={{
+                boxSizing: "border-box",
+                backgroundColor: "white",
+                boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.1)",
+                borderRadius: "10px",
+                height: "auto",
+                width: "24%",
                 display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
+                flexDirection: "column",
+                padding: "1.5%",
               }}
             >
-              <Typography sx={{ fontFamily: "albert sans", fontSize: "17px" }}>
-                Active Events
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
+                <Typography
+                  sx={{ fontFamily: "albert sans", fontSize: "17px" }}
+                >
+                  Active Events
+                </Typography>
+                <CheckCircleIcon />
+              </Box>
+              <Typography
+                sx={{
+                  fontFamily: "albert sans",
+                  fontSize: "28px",
+                  fontWeight: "700",
+                  mt: "2%",
+                }}
+              >
+                {activeEvents}
               </Typography>
-              <CheckCircleIcon />
-            </Box>
-            <Typography
-              sx={{
-                fontFamily: "albert sans",
-                fontSize: "28px",
-                fontWeight: "700",
-                mt: "2%",
-              }}
-            >
-              {activeEvents}
-            </Typography>
-            <Box sx={{ display: "flex", mt: "2%", ml: "-1%", gap: "2%" }}>
-              <Typography sx={{ fontFamily: "albert sans", fontSize: "17px" }}>
-                Currently live
-              </Typography>
+              <Box sx={{ display: "flex", mt: "2%", ml: "-1%", gap: "2%" }}>
+                <Typography
+                  sx={{ fontFamily: "albert sans", fontSize: "17px" }}
+                >
+                  Currently live
+                </Typography>
+              </Box>
             </Box>
           </Box>
-        </Box>
         )}
         {isMobile && (
-        <Box sx={{display:"block",width:"95%",margin:"0 auto",mt:"2%",p:1}}>
-        <Box
-          sx={{
-            display: "flex",
-            width: "100%",
-            margin: "0 auto",
-            mt: "2%",
-            gap: "2%",
-          }}
-        >
           <Box
             sx={{
-              boxSizing: "border-box",
-              backgroundColor: "white",
-              boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.1)",
-              borderRadius: "10px",
-              height: 120,
-              width: "50%",
-              display: "flex",
-              flexDirection: "column",
-              padding: "2%",
+              display: "block",
+              width: "95%",
+              margin: "0 auto",
+              mt: "2%",
+              p: 1,
             }}
           >
             <Box
               sx={{
                 display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-              }}
-            >
-              <Typography sx={{ fontFamily: "albert sans", fontSize: "14px" }}>
-                Total Events
-              </Typography>
-              <EventIcon sx={{fontSize: "20px"}} />
-            </Box>
-            <Typography
-              sx={{
-                fontFamily: "albert sans",
-                fontSize: "24px",
-                fontWeight: "700",
+                width: "100%",
+                margin: "0 auto",
                 mt: "2%",
+                gap: "2%",
               }}
             >
-              {totalEvents}
-            </Typography>
-           
-          </Box>
+              <Box
+                sx={{
+                  boxSizing: "border-box",
+                  backgroundColor: "white",
+                  boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.1)",
+                  borderRadius: "10px",
+                  height: 120,
+                  width: "50%",
+                  display: "flex",
+                  flexDirection: "column",
+                  padding: "2%",
+                }}
+              >
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <Typography
+                    sx={{ fontFamily: "albert sans", fontSize: "14px" }}
+                  >
+                    Total Events
+                  </Typography>
+                  <EventIcon sx={{ fontSize: "20px" }} />
+                </Box>
+                <Typography
+                  sx={{
+                    fontFamily: "albert sans",
+                    fontSize: "24px",
+                    fontWeight: "700",
+                    mt: "2%",
+                  }}
+                >
+                  {totalEvents}
+                </Typography>
+              </Box>
 
-          <Box
-            sx={{
-              boxSizing: "border-box",
-              backgroundColor: "white",
-              boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.1)",
-              borderRadius: "10px",
-              height: 120,
-              width: "50%",
-              display: "flex",
-              flexDirection: "column",
-              padding: "2%",
-            }}
-          >
+              <Box
+                sx={{
+                  boxSizing: "border-box",
+                  backgroundColor: "white",
+                  boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.1)",
+                  borderRadius: "10px",
+                  height: 120,
+                  width: "50%",
+                  display: "flex",
+                  flexDirection: "column",
+                  padding: "2%",
+                }}
+              >
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <Typography
+                    sx={{ fontFamily: "albert sans", fontSize: "14px" }}
+                  >
+                    Tickets Sold
+                  </Typography>
+                  <ConfirmationNumberIcon sx={{ fontSize: "20px" }} />
+                </Box>
+                <Typography
+                  sx={{
+                    fontFamily: "albert sans",
+                    fontSize: "24px",
+                    fontWeight: "700",
+                    mt: "2%",
+                  }}
+                >
+                  {ticketsSold.toLocaleString()}
+                </Typography>
+              </Box>
+            </Box>
             <Box
               sx={{
                 display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-              }}
-            >
-              <Typography sx={{ fontFamily: "albert sans", fontSize: "14px" }}>
-                Tickets Sold
-              </Typography>
-              <ConfirmationNumberIcon  sx={{fontSize: "20px"}}/>
-            </Box>
-            <Typography
-              sx={{
-                fontFamily: "albert sans",
-                fontSize: "24px",
-                fontWeight: "700",
+                width: "100%",
+                margin: "0 auto",
                 mt: "2%",
+                gap: "2%",
               }}
             >
-              {ticketsSold.toLocaleString()}
-            </Typography>
-          
-          </Box>
-          </Box>
-          <Box
-          sx={{
-            display: "flex",
-            width: "100%",
-            margin: "0 auto",
-            mt: "2%",
-            gap: "2%",
-          }}
-        >
-          <Box
-            sx={{
-              boxSizing: "border-box",
-              backgroundColor: "white",
-              boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.1)",
-              borderRadius: "10px",
-              height: 120,
-              width: "50%",
-              display: "flex",
-              flexDirection: "column",
-              padding: "2%",
-            }}
-          >
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-              }}
-            >
-              <Typography sx={{ fontFamily: "albert sans", fontSize: "14px" }}>
-                Gross Sales
-              </Typography>
-              <CurrencyRupeeOutlinedIcon sx={{fontSize: "20px"}}/>
-            </Box>
-            <Typography
-              sx={{
-                fontFamily: "albert sans",
-                fontSize: "24px",
-                fontWeight: "700",
-                mt: "2%",
-              }}
-            >
-              ₹{grossSales.toLocaleString()}
-            </Typography>
-    
-          </Box>
+              <Box
+                sx={{
+                  boxSizing: "border-box",
+                  backgroundColor: "white",
+                  boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.1)",
+                  borderRadius: "10px",
+                  height: 120,
+                  width: "50%",
+                  display: "flex",
+                  flexDirection: "column",
+                  padding: "2%",
+                }}
+              >
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <Typography
+                    sx={{ fontFamily: "albert sans", fontSize: "14px" }}
+                  >
+                    Gross Sales
+                  </Typography>
+                  <CurrencyRupeeOutlinedIcon sx={{ fontSize: "20px" }} />
+                </Box>
+                <Typography
+                  sx={{
+                    fontFamily: "albert sans",
+                    fontSize: "24px",
+                    fontWeight: "700",
+                    mt: "2%",
+                  }}
+                >
+                  ₹{grossSales.toLocaleString()}
+                </Typography>
+              </Box>
 
-          <Box
-            sx={{
-              boxSizing: "border-box",
-              backgroundColor: "white",
-              boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.1)",
-              borderRadius: "10px",
-              height: 120,
-              width: "50%",
-              display: "flex",
-              flexDirection: "column",
-              padding: "2%",
-            }}
-          >
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-              }}
-            >
-              <Typography sx={{ fontFamily: "albert sans", fontSize: "14px" }}>
-                Active Events
-              </Typography>
-              <CheckCircleIcon  sx={{fontSize: "20px"}} />
-            </Box>
-            <Typography
-              sx={{
-                fontFamily: "albert sans",
-                fontSize: "24px",
-                fontWeight: "700",
-                mt: "2%",
-              }}
-            >
-              {activeEvents}
-            </Typography>
-            <Box sx={{ display: "flex", mt: "2%", ml: "-1%", gap: "2%" }}>
-              <Typography sx={{ fontFamily: "albert sans", fontSize: "14px" }}>
-                Currently live
-              </Typography>
+              <Box
+                sx={{
+                  boxSizing: "border-box",
+                  backgroundColor: "white",
+                  boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.1)",
+                  borderRadius: "10px",
+                  height: 120,
+                  width: "50%",
+                  display: "flex",
+                  flexDirection: "column",
+                  padding: "2%",
+                }}
+              >
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <Typography
+                    sx={{ fontFamily: "albert sans", fontSize: "14px" }}
+                  >
+                    Active Events
+                  </Typography>
+                  <CheckCircleIcon sx={{ fontSize: "20px" }} />
+                </Box>
+                <Typography
+                  sx={{
+                    fontFamily: "albert sans",
+                    fontSize: "24px",
+                    fontWeight: "700",
+                    mt: "2%",
+                  }}
+                >
+                  {activeEvents}
+                </Typography>
+                <Box sx={{ display: "flex", mt: "2%", ml: "-1%", gap: "2%" }}>
+                  <Typography
+                    sx={{ fontFamily: "albert sans", fontSize: "14px" }}
+                  >
+                    Currently live
+                  </Typography>
+                </Box>
+              </Box>
             </Box>
           </Box>
-        </Box>
-        </Box>
-        
         )}
         <Box
           sx={{
             display: "flex",
-            width: isMobile?"95%":"90%",
+            width: isMobile ? "95%" : "90%",
             margin: "0 auto",
             mt: "2%",
             mb: "2%",
@@ -802,21 +854,19 @@ const VendorHome = () => {
         >
           <Box
             sx={{
-              display: isMobile?"block":"flex",
+              display: isMobile ? "block" : "flex",
               justifyContent: "space-between",
-              padding: isMobile?2:"2% 2% 1% 2%",
-              width: isMobile?"90%":"96%",
-              alignItems:isMobile?"center":null
+              padding: isMobile ? 2 : "2% 2% 1% 2%",
+              width: isMobile ? "90%" : "96%",
+              alignItems: isMobile ? "center" : null,
             }}
           >
             <Typography
               sx={{
                 fontFamily: "Albert Sans",
-                fontSize: isMobile?"20px":"25px",
+                fontSize: isMobile ? "20px" : "25px",
                 fontWeight: "800",
-                width:"40%",
-               
-                
+                width: "40%",
               }}
             >
               Your Events
@@ -826,9 +876,9 @@ const VendorHome = () => {
                 display: "flex",
                 alignItems: "center",
                 gap: "2%",
-                width: isMobile?"95%":"70%",
-                justifyContent: isMobile?"flex-start":"flex-end",
-                mt:isMobile?1.5:0,
+                width: isMobile ? "95%" : "70%",
+                justifyContent: isMobile ? "flex-start" : "flex-end",
+                mt: isMobile ? 1.5 : 0,
               }}
             >
               <Box
@@ -859,7 +909,7 @@ const VendorHome = () => {
               </Box>
               <FormControl
                 sx={{
-                  width:isMobile?"30%": "20%",
+                  width: isMobile ? "30%" : "20%",
                   "& .MuiOutlinedInput-root": {
                     borderRadius: "10px",
                     transition: "border-color 0.3s ease",
@@ -911,404 +961,535 @@ const VendorHome = () => {
           </Box>
           {isMobile ? (
             // ------------------ MOBILE CARD VIEW ------------------
-            <Box sx={{ width: "93%", backgroundColor: "rgba(248, 247, 250, 1)", padding: 2, margin: "0 auto" }}>
-  {paginatedEvents.length > 0 ? (
-    paginatedEvents.map((event, index) => (
-      <Card
-        key={event.eventId || index}
-        
-        sx={{
-          marginBottom: 2,
-          borderRadius: 2,
-          boxShadow: 1,
-          padding: 2,
-          cursor: "pointer",
-          "&:hover": { backgroundColor: "#F9FAFB" },
-        }}
-      >
-        {/* Top: Title and Status */}
-        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 1 }} onClick={() => handleEventClick(event)}>
-          <Typography variant="h6" sx={{ fontWeight: "bold", fontFamily:'albert sans' }}>
-            {event.name}
-          </Typography>
-          <Box
-            sx={{
-              backgroundColor: "#D1FAE5",
-              color: "#059669",
-              fontWeight: "bold",
-              fontSize: "14px",
-              padding: "4px 12px",
-              borderRadius: "999px",
-            }}
-            onClick={() => handleEventClick(event)}
-          >
-            {getEventStatus(event)}
-          </Box>
-        </Box>
-
-        {/* Bottom: Event Details */}
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }} onClick={() => handleEventClick(event)}>
-          <Box sx={{ display: "flex", justifyContent: "space-between" }} onClick={() => handleEventClick(event)}>
-            <Typography sx={{ color: "#6B7280" , fontFamily:'albert sans'}}>Date</Typography>
-            <Typography sx={{ fontFamily:'albert sans'}}>
-              {event.eventDate
-                ? new Date(event.eventDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-                : "N/A"}
-            </Typography>
-          </Box>
-          <Box sx={{ display: "flex", justifyContent: "space-between" }}>
-            <Typography sx={{ color: "#6B7280", fontFamily:'albert sans' }}>Tickets Sold</Typography>
-            <Typography sx={{ fontFamily:'albert sans'}}>
-              {event.ticketsSold || 0}/{getMaxTickets(event)}
-            </Typography>
-          </Box>
-          <Box sx={{ display: "flex", justifyContent: "space-between" }}>
-            <Typography sx={{ color: "#6B7280" , fontFamily:'albert sans'}}>Revenue</Typography>
-            <Typography sx={{ color: "#059669", fontWeight: "bold", fontFamily:'albert sans' }}>
-              ₹{(event.gross || 0).toLocaleString()}
-            </Typography>
-          </Box>
-        </Box>
-        
-
-        {/* Optional Edit Button (Keep if needed) */}
-        <Box sx={{ mt: 1 }} onClick={(e) => handleClick(e, event)}>
-          <Typography
-              sx={{
-                        color: "#19AEDC",
-                        cursor: "pointer", fontFamily:'albert sans',
-                        "&:hover": { textDecoration: "underline" },
-                      }}
-                      onClick={(e) => handleClick(e, event)}
-                    >
-                      Edit
-                    </Typography>
-                    <Popover
-                                open={
-                                  Boolean(anchorEl) &&
-                                  selectedEvent?.eventId === event.eventId
-                                }
-                                anchorEl={anchorEl}
-                                onClose={handleClose}
-                                anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
-                                transformOrigin={{ vertical: "top", horizontal: "right" }}
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <Box
-                                  sx={{
-                                    display: "flex",
-                                    flexDirection: "column",
-                                    p: 1,
-                                    minWidth: "150px",
-                                    bgcolor: "white",
-                                    borderRadius: "5px",
-                                    boxShadow: 1,
-                                  }}
-                                >
-                                  <MenuItem onClick={handleUpdateEvent} sx={{fontFamily:'albert sans'}}>
-                                    Update Event
-                                  </MenuItem>
-                                  <MenuItem
-                                    onClick={handleDeleteEvent}
-                                    sx={{ color: "red", fontFamily:'albert sans' }}
-                                  >
-                                    Delete Event
-                                  </MenuItem>
-                                </Box>
-                              </Popover>
-        </Box>
-      </Card>
-    ))
-  ) : (
-    <Typography sx={{ textAlign: "center", padding: 3, color: "#6B7280", width: "90%", margin: "0 auto" ,fontFamily:'albert sans'}}>
-      No events found. Create your first event to get started!
-    </Typography>
-  )}
-</Box>
-
-          ) : (
             <Box
+              sx={{
+                width: "93%",
+                backgroundColor: "rgba(248, 247, 250, 1)",
+                padding: 2,
+                margin: "0 auto",
+              }}
+            >
+              {paginatedEvents.length > 0 ? (
+                paginatedEvents.map((event, index) => (
+                  <Card
+                    key={event.eventId || index}
+                    sx={{
+                      marginBottom: 2,
+                      borderRadius: 2,
+                      boxShadow: 1,
+                      padding: 2,
+                      cursor: "pointer",
+                      "&:hover": { backgroundColor: "#F9FAFB" },
+                    }}
+                  >
+                    {/* Top: Title and Status */}
+                    <Box
                       sx={{
-                        borderTop: "1px solid #dcdcdc",
-                        backgroundColor: "rgba(248, 247, 250, 1)",
-                        width: "100%",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        marginBottom: 1,
                       }}
+                      onClick={() => handleEventClick(event)}
                     >
-                      <Box sx={{ display: "flex", width: "96%", padding: "1% 2%" }}>
+                      <Typography
+                        variant="h6"
+                        sx={{ fontWeight: "bold", fontFamily: "albert sans" }}
+                      >
+                        {event.name}
+                      </Typography>
+                      <Box
+                        sx={{
+                          backgroundColor: "#D1FAE5",
+                          color: "#059669",
+                          fontWeight: "bold",
+                          fontSize: "14px",
+                          padding: "4px 12px",
+                          borderRadius: "999px",
+                        }}
+                        onClick={() => handleEventClick(event)}
+                      >
+                        {getEventStatus(event)}
+                      </Box>
+                    </Box>
+
+                    {/* Bottom: Event Details */}
+                    <Box
+                      sx={{ display: "flex", flexDirection: "column", gap: 1 }}
+                      onClick={() => handleEventClick(event)}
+                    >
+                      <Box
+                        sx={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                        }}
+                        onClick={() => handleEventClick(event)}
+                      >
                         <Typography
-                          sx={{
-                            width: "40%",
-                            fontFamily: "Albert Sans",
-                            color: "#6B7280",
-                            fontWeight: "600",
-                          }}
-                        >
-                          Event Name
-                        </Typography>
-                        <Typography
-                          sx={{
-                            width: "12%",
-                            fontWeight: "600",
-                            fontFamily: "Albert Sans",
-                            color: "#6B7280",
-                            textAlign: "center",
-                          }}
+                          sx={{ color: "#6B7280", fontFamily: "albert sans" }}
                         >
                           Date
                         </Typography>
+                        <Typography sx={{ fontFamily: "albert sans" }}>
+                          {event.eventDate
+                            ? new Date(event.eventDate).toLocaleDateString(
+                                "en-US",
+                                {
+                                  month: "short",
+                                  day: "numeric",
+                                  year: "numeric",
+                                }
+                              )
+                            : "N/A"}
+                        </Typography>
+                      </Box>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                        }}
+                      >
                         <Typography
-                          sx={{
-                            width: "12%",
-                            fontWeight: "600",
-                            fontFamily: "Albert Sans",
-                            color: "#6B7280",
-                            textAlign: "center",
-                          }}
+                          sx={{ color: "#6B7280", fontFamily: "albert sans" }}
                         >
                           Tickets Sold
                         </Typography>
-                        <Typography
-                          sx={{
-                            width: "12%",
-                            fontWeight: "600",
-                            fontFamily: "Albert Sans",
-                            color: "#6B7280",
-                            textAlign: "center",
-                          }}
-                        >
-                          Gross
-                        </Typography>
-                        <Typography
-                          sx={{
-                            width: "12%",
-                            fontWeight: "600",
-                            fontFamily: "Albert Sans",
-                            color: "#6B7280",
-                            textAlign: "center",
-                          }}
-                        >
-                          Status
-                        </Typography>
-                        <Typography
-                          sx={{
-                            width: "12%",
-                            fontWeight: "600",
-                            fontFamily: "Albert Sans",
-                            color: "#6B7280",
-                            textAlign: "center",
-                          }}
-                        >
-                          Actions
+                        <Typography sx={{ fontFamily: "albert sans" }}>
+                          {event.ticketsSold || 0}/{getMaxTickets(event)}
                         </Typography>
                       </Box>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                        }}
+                      >
+                        <Typography
+                          sx={{ color: "#6B7280", fontFamily: "albert sans" }}
+                        >
+                          Revenue
+                        </Typography>
+                        <Typography
+                          sx={{
+                            color: "#059669",
+                            fontWeight: "bold",
+                            fontFamily: "albert sans",
+                          }}
+                        >
+                          ₹{(event.gross || 0).toLocaleString()}
+                        </Typography>
+                      </Box>
+                    </Box>
 
-                      {paginatedEvents.length > 0 ? (
-                        paginatedEvents.map((event, index) => (
-                          <Box
-                            key={event.eventId || index}
-                            onClick={() => handleEventClick(event)}
-                            sx={{
-                              display: "flex",
-                              cursor: "pointer",
-                              "&:hover": { backgroundColor: "#E5E7EB" },
-                              alignItems: "center",
-                              width: "96%",
-                              padding: "1% 2%",
-                              borderTop: "1px solid #dcdcdc",
-                              backgroundColor: "white",
-                            }}
-                          >
-                            <Box
-                              sx={{ display: "flex", width: "40%", alignItems: "center" }}
-                            >
-                              <Box sx={{ ml: 0 }}>
-                                <Typography sx={{ fontWeight: "600" ,fontFamily:'albert sans'}}>
-                                  {event.name}
-                                </Typography>
-                                <Typography sx={{ fontSize: "14px", color: "gray",fontFamily:'albert sans' }}>
-                                  {event.venueDetails?.area ||
-                                    event.venueDetails?.venueName ||
-                                    "Venue not specified"}
-                                </Typography>
-                              </Box>
-                            </Box>
-
-                            <Typography sx={{ width: "12%", textAlign: "center",fontFamily:'albert sans' }}>
-                              {event.eventDate
-                                ? new Date(event.eventDate).toLocaleString("en-IN", {
-                                    dateStyle: "medium",
-                                    timeStyle: "short",
-                                  })
-                                : "N/A"}
-                            </Typography>
-
-                            <Typography sx={{ width: "12%", textAlign: "center" ,fontFamily:'albert sans'}}>
-                              {event.ticketsSold || 0}/{getMaxTickets(event)}
-                            </Typography>
-
-                            <Typography sx={{ width: "12%", textAlign: "center",fontFamily:'albert sans' }}>
-                              ₹{(event.gross || 0).toLocaleString()}
-                            </Typography>
-
-                            <Box
-                              sx={{
-                                width: "12%",
-                                display: "flex",
-                                justifyContent: "center",
-                              }}
-                            >
-                              <Typography
-                                sx={{fontFamily:'albert sans',
-                                  backgroundColor:
-                                    getEventStatus(event) === "On Sale"
-                                      ? "#DBEAFE"
-                                      : getEventStatus(event) === "Ticket Full"
-                                      ? "#FEE2E2"
-                                      : getEventStatus(event) === "Almost Full"
-                                      ? "#FEF3C7"
-                                      : "#F3F4F6",
-                                  color:
-                                    getEventStatus(event) === "On Sale"
-                                      ? "#1E40AF"
-                                      : getEventStatus(event) === "Ticket Full"
-                                      ? "#991B1B"
-                                      : getEventStatus(event) === "Almost Full"
-                                      ? "#92400E"
-                                      : "#4B5563",
-                                  ml: 1,
-                                  px: 2,
-                                  py: 0.5,
-                                  borderRadius: "10px",
-                                  fontSize: "14px",
-                                  fontWeight: "bold",
-                                  textAlign: "center",
-                                }}
-                              >
-                                {getEventStatus(event)}
-                              </Typography>
-                            </Box>
-
-                            <Box
-                              sx={{
-                                width: "12%",
-                                display: "flex",
-                                justifyContent: "center",
-                              }}
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <Typography
-                                sx={{
-                                  color: "#19AEDC",
-                                  cursor: "pointer",
-                                  "&:hover": { textDecoration: "underline" },
-                                  fontFamily:'albert sans'
-                                }}
-                                onClick={(e) => handleClick(e, event)}
-                              >
-                                Edit
-                              </Typography>
-                              <Popover
-                                open={
-                                  Boolean(anchorEl) &&
-                                  selectedEvent?.eventId === event.eventId
-                                }
-                                anchorEl={anchorEl}
-                                onClose={handleClose}
-                                anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-                                transformOrigin={{ vertical: "top", horizontal: "right" }}
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <Box
-                                  sx={{
-                                    display: "flex",
-                                    flexDirection: "column",
-                                    p: 1,
-                                    minWidth: "150px",
-                                    bgcolor: "white",
-                                    borderRadius: "5px",
-                                    boxShadow: 1,
-                                  }}
-                                >
-                                  <MenuItem onClick={handleUpdateEvent} sx={{fontFamily:'albert sans'}}>
-                                    Update Event
-                                  </MenuItem>
-                                  <MenuItem
-                                    onClick={handleDeleteEvent}
-                                    sx={{ color: "red",fontFamily:'albert sans' }}
-                                  >
-                                    Delete Event
-                                  </MenuItem>
-                                </Box>
-                              </Popover>
-                            </Box>
-                          </Box>
-                        ))
-                      ) : (
+                    {/* Optional Edit Button (Keep if needed) */}
+                    <Box sx={{ mt: 1 }} onClick={(e) => handleClick(e, event)}>
+                      <Typography
+                        sx={{
+                          color: "#19AEDC",
+                          cursor: "pointer",
+                          fontFamily: "albert sans",
+                          "&:hover": { textDecoration: "underline" },
+                        }}
+                        onClick={(e) => handleClick(e, event)}
+                      >
+                        Edit
+                      </Typography>
+                      <Popover
+                        open={
+                          Boolean(anchorEl) &&
+                          selectedEvent?.eventId === event.eventId
+                        }
+                        anchorEl={anchorEl}
+                        onClose={handleClose}
+                        anchorOrigin={{
+                          vertical: "bottom",
+                          horizontal: "left",
+                        }}
+                        transformOrigin={{
+                          vertical: "top",
+                          horizontal: "right",
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <Box
                           sx={{
                             display: "flex",
-                            justifyContent: "center",
-                            alignItems: "center",
-                            padding: "3% 0",
-                            borderTop: "1px solid #dcdcdc",
-                            backgroundColor: "white",
+                            flexDirection: "column",
+                            p: 1,
+                            minWidth: "150px",
+                            bgcolor: "white",
+                            borderRadius: "5px",
+                            boxShadow: 1,
                           }}
                         >
-                          <Typography sx={{ color: "#6B7280",fontFamily:'albert sans' }}>
-                            No events found. Create your first event to get started!
-                          </Typography>
+                          <MenuItem
+                            onClick={handleUpdateEvent}
+                            sx={{ fontFamily: "albert sans" }}
+                          >
+                            Update Event
+                          </MenuItem>
+                          <MenuItem
+                            onClick={handleDeleteEvent}
+                            sx={{ color: "red", fontFamily: "albert sans" }}
+                          >
+                            Delete Event
+                          </MenuItem>
                         </Box>
-                      )}
+                      </Popover>
                     </Box>
+                  </Card>
+                ))
+              ) : (
+                <Typography
+                  sx={{
+                    textAlign: "center",
+                    padding: 3,
+                    color: "#6B7280",
+                    width: "90%",
+                    margin: "0 auto",
+                    fontFamily: "albert sans",
+                  }}
+                >
+                  No events found. Create your first event to get started!
+                </Typography>
+              )}
+            </Box>
+          ) : (
+            <Box
+              sx={{
+                borderTop: "1px solid #dcdcdc",
+                backgroundColor: "rgba(248, 247, 250, 1)",
+                width: "100%",
+              }}
+            >
+              <Box sx={{ display: "flex", width: "96%", padding: "1% 2%" }}>
+                <Typography
+                  sx={{
+                    width: "40%",
+                    fontFamily: "Albert Sans",
+                    color: "#6B7280",
+                    fontWeight: "600",
+                  }}
+                >
+                  Event Name
+                </Typography>
+                <Typography
+                  sx={{
+                    width: "12%",
+                    fontWeight: "600",
+                    fontFamily: "Albert Sans",
+                    color: "#6B7280",
+                    textAlign: "center",
+                  }}
+                >
+                  Date
+                </Typography>
+                <Typography
+                  sx={{
+                    width: "12%",
+                    fontWeight: "600",
+                    fontFamily: "Albert Sans",
+                    color: "#6B7280",
+                    textAlign: "center",
+                  }}
+                >
+                  Tickets Sold
+                </Typography>
+                <Typography
+                  sx={{
+                    width: "12%",
+                    fontWeight: "600",
+                    fontFamily: "Albert Sans",
+                    color: "#6B7280",
+                    textAlign: "center",
+                  }}
+                >
+                  Gross
+                </Typography>
+                <Typography
+                  sx={{
+                    width: "12%",
+                    fontWeight: "600",
+                    fontFamily: "Albert Sans",
+                    color: "#6B7280",
+                    textAlign: "center",
+                  }}
+                >
+                  Status
+                </Typography>
+                <Typography
+                  sx={{
+                    width: "12%",
+                    fontWeight: "600",
+                    fontFamily: "Albert Sans",
+                    color: "#6B7280",
+                    textAlign: "center",
+                  }}
+                >
+                  Actions
+                </Typography>
+              </Box>
+
+              {paginatedEvents.length > 0 ? (
+                paginatedEvents.map((event, index) => (
+                  <Box
+                    key={event.eventId || index}
+                    onClick={() => handleEventClick(event)}
+                    sx={{
+                      display: "flex",
+                      cursor: "pointer",
+                      "&:hover": { backgroundColor: "#E5E7EB" },
+                      alignItems: "center",
+                      width: "96%",
+                      padding: "1% 2%",
+                      borderTop: "1px solid #dcdcdc",
+                      backgroundColor: "white",
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        display: "flex",
+                        width: "40%",
+                        alignItems: "center",
+                      }}
+                    >
+                      <Box sx={{ ml: 0 }}>
+                        <Typography
+                          sx={{ fontWeight: "600", fontFamily: "albert sans" }}
+                        >
+                          {event.name}
+                        </Typography>
+                        <Typography
+                          sx={{
+                            fontSize: "14px",
+                            color: "gray",
+                            fontFamily: "albert sans",
+                          }}
+                        >
+                          {event.venueDetails?.area ||
+                            event.venueDetails?.venueName ||
+                            "Venue not specified"}
+                        </Typography>
+                      </Box>
+                    </Box>
+
+                    <Typography
+                      sx={{
+                        width: "12%",
+                        textAlign: "center",
+                        fontFamily: "albert sans",
+                      }}
+                    >
+                      {event.eventDate
+                        ? new Date(event.eventDate).toLocaleString("en-IN", {
+                            dateStyle: "medium",
+                            timeStyle: "short",
+                          })
+                        : "N/A"}
+                    </Typography>
+
+                    <Typography
+                      sx={{
+                        width: "12%",
+                        textAlign: "center",
+                        fontFamily: "albert sans",
+                      }}
+                    >
+                      {event.ticketsSold || 0}/{getMaxTickets(event)}
+                    </Typography>
+
+                    <Typography
+                      sx={{
+                        width: "12%",
+                        textAlign: "center",
+                        fontFamily: "albert sans",
+                      }}
+                    >
+                      ₹{(event.gross || 0).toLocaleString()}
+                    </Typography>
+
+                    <Box
+                      sx={{
+                        width: "12%",
+                        display: "flex",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <Typography
+                        sx={{
+                          fontFamily: "albert sans",
+                          backgroundColor:
+                            getEventStatus(event) === "On Sale"
+                              ? "#DBEAFE"
+                              : getEventStatus(event) === "Ticket Full"
+                              ? "#FEE2E2"
+                              : getEventStatus(event) === "Almost Full"
+                              ? "#FEF3C7"
+                              : "#F3F4F6",
+                          color:
+                            getEventStatus(event) === "On Sale"
+                              ? "#1E40AF"
+                              : getEventStatus(event) === "Ticket Full"
+                              ? "#991B1B"
+                              : getEventStatus(event) === "Almost Full"
+                              ? "#92400E"
+                              : "#4B5563",
+                          ml: 1,
+                          px: 2,
+                          py: 0.5,
+                          borderRadius: "10px",
+                          fontSize: "14px",
+                          fontWeight: "bold",
+                          textAlign: "center",
+                        }}
+                      >
+                        {getEventStatus(event)}
+                      </Typography>
+                    </Box>
+
+                    <Box
+                      sx={{
+                        width: "12%",
+                        display: "flex",
+                        justifyContent: "center",
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Typography
+                        sx={{
+                          color: "#19AEDC",
+                          cursor: "pointer",
+                          "&:hover": { textDecoration: "underline" },
+                          fontFamily: "albert sans",
+                        }}
+                        onClick={(e) => handleClick(e, event)}
+                      >
+                        Edit
+                      </Typography>
+                      <Popover
+                        open={
+                          Boolean(anchorEl) &&
+                          selectedEvent?.eventId === event.eventId
+                        }
+                        anchorEl={anchorEl}
+                        onClose={handleClose}
+                        anchorOrigin={{
+                          vertical: "bottom",
+                          horizontal: "right",
+                        }}
+                        transformOrigin={{
+                          vertical: "top",
+                          horizontal: "right",
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Box
+                          sx={{
+                            display: "flex",
+                            flexDirection: "column",
+                            p: 1,
+                            minWidth: "150px",
+                            bgcolor: "white",
+                            borderRadius: "5px",
+                            boxShadow: 1,
+                          }}
+                        >
+                          <MenuItem
+                            onClick={handleUpdateEvent}
+                            sx={{ fontFamily: "albert sans" }}
+                          >
+                            Update Event
+                          </MenuItem>
+                          <MenuItem
+                            onClick={handleDeleteEvent}
+                            sx={{ color: "red", fontFamily: "albert sans" }}
+                          >
+                            Delete Event
+                          </MenuItem>
+                        </Box>
+                      </Popover>
+                    </Box>
+                  </Box>
+                ))
+              ) : (
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    padding: "3% 0",
+                    borderTop: "1px solid #dcdcdc",
+                    backgroundColor: "white",
+                  }}
+                >
+                  <Typography
+                    sx={{ color: "#6B7280", fontFamily: "albert sans" }}
+                  >
+                    No events found. Create your first event to get started!
+                  </Typography>
+                </Box>
+              )}
+            </Box>
           )}
 
-{paginatedEvents.length > 0 && (
-  <Box
-    sx={{
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-      mt: 2,
-      padding: "1% 2%",
-      width: "96%",
-      margin: "0 auto",
-      borderTop: "1px solid #dcdcdc",
-    }}
-  >
-    <Typography sx={{ fontSize: "14px", color: "#6B7280",fontFamily:'albert sans' }}>
-      Showing {startIndex + 1} to {Math.min(endIndex, filteredEvents.length)} of {filteredEvents.length} entries
-    </Typography>
-    <Box>
-      <Button
-        onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-        disabled={currentPage === 1}
-        sx={{
-          mr: 1,
-          color: currentPage === 1 ? "#BDBDBD" : "#19AEDC",
-          fontFamily: "albert sans",
-          textTransform: "none",
-          fontSize: "16px",
-        }}
-      >
-        Previous
-      </Button>
-      <Button
-        onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-        disabled={currentPage === totalPages}
-        sx={{
-          color: currentPage === totalPages ? "#BDBDBD" : "#19AEDC",
-          fontFamily: "albert sans",
-          textTransform: "none",
-          fontSize: "16px",
-        }}
-      >
-        Next
-      </Button>
-    </Box>
-  </Box>
-)}
+          {paginatedEvents.length > 0 && (
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                mt: 2,
+                padding: "1% 2%",
+                width: "96%",
+                margin: "0 auto",
+                borderTop: "1px solid #dcdcdc",
+              }}
+            >
+              <Typography
+                sx={{
+                  fontSize: "14px",
+                  color: "#6B7280",
+                  fontFamily: "albert sans",
+                }}
+              >
+                Showing {startIndex + 1} to{" "}
+                {Math.min(endIndex, filteredEvents.length)} of{" "}
+                {filteredEvents.length} entries
+              </Typography>
+              <Box>
+                <Button
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.max(prev - 1, 1))
+                  }
+                  disabled={currentPage === 1}
+                  sx={{
+                    mr: 1,
+                    color: currentPage === 1 ? "#BDBDBD" : "#19AEDC",
+                    fontFamily: "albert sans",
+                    textTransform: "none",
+                    fontSize: "16px",
+                  }}
+                >
+                  Previous
+                </Button>
+                <Button
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                  }
+                  disabled={currentPage === totalPages}
+                  sx={{
+                    color: currentPage === totalPages ? "#BDBDBD" : "#19AEDC",
+                    fontFamily: "albert sans",
+                    textTransform: "none",
+                    fontSize: "16px",
+                  }}
+                >
+                  Next
+                </Button>
+              </Box>
+            </Box>
+          )}
 
-         
           {/* {paginatedEvents.length > 0 && (
             <Box
               sx={{
@@ -1361,6 +1542,27 @@ const VendorHome = () => {
             </Box>
           )} */}
         </Box>
+        <Dialog
+          open={dialogState.open}
+          onClose={closeDialog}
+          sx={{ zIndex: 9999 }} // Ensure it appears above everything
+        >
+          <DialogTitle sx={{ fontFamily: "albert sans" }}>Notice</DialogTitle>
+          <DialogContent>
+            <DialogContentText sx={{ fontFamily: "albert sans" }}>
+              {dialogState.message}
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button
+              onClick={closeDialog}
+              color="primary"
+              sx={{ fontFamily: "albert sans" }}
+            >
+              Close
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Box>
     </div>
   );

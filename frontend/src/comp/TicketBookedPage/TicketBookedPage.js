@@ -18,7 +18,7 @@ import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
 import PhoneIcon from "@mui/icons-material/Phone";
 import EmailIcon from "@mui/icons-material/Email";
 import DownloadIcon from "@mui/icons-material/Download";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, useParams } from "react-router-dom";
 import Header from "../Header/MainHeaderWOS";
 import Footer from "../Footer/Footer.js";
 import {
@@ -37,23 +37,41 @@ import jsPDF from "jspdf";
 import { auth, db, storage } from "../../firebase_config";
 
 // Format date and time from ISO string to IST
-const formatEventDateTime = (isoDateString) => {
-  if (!isoDateString) return { formattedDate: "N/A", eventTime: "N/A" };
+const formatEventDateTime = (isoDateInput) => {
+  if (!isoDateInput) return { formattedDate: "N/A", eventTime: "N/A" };
 
   try {
-    const eventDateTime = new Date(isoDateString);
+    // Convert Firestore Timestamp or string to JS Date
+    let eventDateTime;
+
+    if (typeof isoDateInput?.toDate === "function") {
+      // Firestore Timestamp
+      eventDateTime = isoDateInput.toDate();
+    } else if (typeof isoDateInput === "string" || isoDateInput instanceof String) {
+      // ISO string
+      eventDateTime = new Date(isoDateInput);
+    } else if (isoDateInput instanceof Date) {
+      // JS Date
+      eventDateTime = isoDateInput;
+    } else {
+      console.warn("Unsupported date format:", isoDateInput);
+      return { formattedDate: "N/A", eventTime: "N/A" };
+    }
+
     const formattedDate = eventDateTime.toLocaleDateString("en-US", {
       month: "long",
       day: "numeric",
       year: "numeric",
       timeZone: "Asia/Kolkata",
     });
+
     const eventTime = eventDateTime.toLocaleTimeString("en-US", {
       hour: "2-digit",
       minute: "2-digit",
       hour12: true,
       timeZone: "Asia/Kolkata",
     });
+
     return { formattedDate, eventTime };
   } catch (error) {
     console.error("Error formatting date/time:", error);
@@ -79,6 +97,7 @@ const TicketBookedPage = () => {
   const qrRef = useRef(null);
   const ticketRef = useRef(null);
   const isMobile = useMediaQuery("(max-width:600px)");
+  const {eventId} = useParams();
 
   const {
     event = {},
@@ -106,6 +125,15 @@ const TicketBookedPage = () => {
         return `#${randomChars}${timestamp}`;
       })()
   );
+
+  useEffect(() => {
+  if (!event || !event.id) {
+    console.warn("No event data in location.state — fetching from Firestore...");
+    fetchEventData(); // fallback fetch
+  } else {
+    setEventData(event); // use provided
+  }
+}, []);
 
   const { formattedDate, eventTime } = event.eventDate
     ? formatEventDateTime(event.eventDate)
@@ -246,6 +274,30 @@ const TicketBookedPage = () => {
       return false;
     }
   };
+useEffect(() => {
+  const fetchEventById = async () => {
+    try {
+      if (!eventId) {
+        console.warn("No eventId in URL.");
+        return;
+      }
+
+      const eventDocRef = doc(db, "events", eventId);
+      const eventSnap = await getDoc(eventDocRef);
+
+      if (eventSnap.exists()) {
+        const eventData = eventSnap.data();
+        setEventData(eventData);
+      } else {
+        console.error("Event not found in Firestore for eventId:", eventId);
+      }
+    } catch (error) {
+      console.error("Error fetching event by ID:", error);
+    }
+  };
+
+  fetchEventById();
+}, [eventId]);
 
   // Save ticket to database
   const saveTicketToDatabase = async (currentUser) => {
@@ -1036,6 +1088,9 @@ const TicketBookedPage = () => {
     });
   }
 };
+console.log("Event data received:", event);
+console.log("event.eventDate:", event.eventDate);
+console.log("event.date:", event.date);
 
   
   const handleRetry = () => {

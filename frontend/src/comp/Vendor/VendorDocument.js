@@ -133,7 +133,7 @@ const VendorDocument = () => {
         navigate("/vendor/confirmation");
       } catch (error) {
         console.error(error);
-        alert("Error submitting vendor details");
+        alert("Error loading vendor details");
       } finally {
         setSubmitting(false);
       }
@@ -188,7 +188,6 @@ const VendorDocument = () => {
         overflow: "hidden",
       }}
     >
-
       <Typography
         sx={{
           fontSize: { lg: "40px", md: "36px", sm: "32px", xs: "26px" },
@@ -197,14 +196,14 @@ const VendorDocument = () => {
           color: "#1a1033",
           textAlign: "center",
           width: "95%",
-          margin: '0 auto',
+          margin: "0 auto",
           fontFamily: "Albert Sans",
         }}
       >
         Vendor Documentation Details
       </Typography>
       <Typography
-         sx={{
+        sx={{
           fontWeight: "light",
           color: "#1a1033",
           textAlign: "center",
@@ -1053,7 +1052,7 @@ const VendorDocument = () => {
               </Box>
             )}
 
-{/*Enter your bank account details */}
+            {/*Enter your bank account details */}
             <Box
               sx={{
                 width: "75%",
@@ -1239,7 +1238,7 @@ const VendorDocument = () => {
               />
               {errors.IFSCNumber && (
                 <Typography
-                   sx={{
+                  sx={{
                     color: "red",
                     fontSize: "14px",
                     marginTop: "5px",

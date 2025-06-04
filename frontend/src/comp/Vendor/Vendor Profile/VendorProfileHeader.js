@@ -8,15 +8,14 @@ const VendorProfileHeader = ({ vendorId }) => {
   const isMobile = useMediaQuery(theme.breakpoints.down("sm")); // true if screen width is <600px
 
   useEffect(() => {
-    if (!vendorId || vendorId === "undefined" || vendorId === "null") return;
+    if (!vendorId) return;
 
     const fetchLastLogin = async () => {
       try {
         const res = await axios.get(
-          `http://localhost:8080/api/vendor/vendorLastLogin/${vendorId}`
+          `${process.env.REACT_APP_API_BASE_URL}/api/vendor/vendorLastLogin/${vendorId}`
         );
         setLastLogin(res.data);
-        console.log("DatalastLogin:", res.data);
       } catch (err) {
         console.log("Error fetching last login:", err);
       }
@@ -30,12 +29,12 @@ const VendorProfileHeader = ({ vendorId }) => {
       <Box
         sx={{
           display: "flex",
-          flexDirection:"row",
+          flexDirection: "row",
           justifyContent: "space-between",
           alignItems: "center",
           width: "95%",
           margin: "0 auto",
-          gap: { xs:2, sm: 0 },
+          gap: { xs: 2, sm: 0 },
         }}
       >
         {/* Left Section */}
@@ -67,8 +66,8 @@ const VendorProfileHeader = ({ vendorId }) => {
             flexDirection: "row",
             gap: "5px",
             width: { xs: "100%", sm: "45%" },
-            justifyContent:"flex-end",
-            ml:{ xs: 15, sm: 0}
+            justifyContent: "flex-end",
+            ml: { xs: 15, sm: 0 },
           }}
         >
           <Typography fontFamily="Albert Sans" fontSize={{ xs: 14, sm: 16 }}>
