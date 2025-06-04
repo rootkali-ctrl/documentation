@@ -772,26 +772,47 @@ const TicketBookedPage = () => {
   // };
  const handleDownloadTicket = async () => {
   try {
+    // Notify the user that ticket preparation has started
     setBookingStatus({
       status: bookingStatus.status,
       message: "Preparing your ticket for download...",
     });
 
+    // Initialize jsPDF with A4 portrait layout
     const pdf = new jsPDF({
       orientation: "portrait",
       unit: "mm",
       format: "a4",
     });
 
+    // PDF page dimensions
     const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = pdf.internal.pageSize.getHeight();
     const margin = 20;
+
+    // Ticket card dimensions
     const ticketWidth = pdfWidth - 2 * margin;
+    const ticketHeight = 250;
     const startY = 10;
 
-    // Temporarily store the yOffset to calculate height later
-    let yOffset = startY + 12;
+    // Light gray background for the entire page
+    pdf.setFillColor(245, 245, 245);
+    pdf.rect(0, 0, pdfWidth, pdfHeight, 'F');
 
-    // Event name
+    // White background for the ticket section
+    pdf.setFillColor(255, 255, 255);
+    pdf.roundedRect(margin, startY, ticketWidth, ticketHeight, 6, 6, 'F');
+
+    // Simulate left and right rounded notches
+    const cutoutY = startY + ticketHeight * 0.32;
+    const cutoutSize = 8;
+    pdf.setFillColor(245, 245, 245);
+    pdf.circle(margin, cutoutY + 12, cutoutSize, 'F');
+    pdf.circle(margin + ticketWidth, cutoutY + 12, cutoutSize, 'F');
+
+    let yOffset = startY + 15;
+
+    // Title: Event Name
     pdf.setFont("helvetica", "bold");
     pdf.setFontSize(16);
     pdf.setTextColor(0, 0, 0);
@@ -799,7 +820,7 @@ const TicketBookedPage = () => {
     pdf.text(eventName, margin + 10, yOffset);
     yOffset += 12;
 
-    // Event details
+    // Event Date & Time
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(11);
     pdf.setTextColor(102, 102, 102);
@@ -807,51 +828,59 @@ const TicketBookedPage = () => {
     pdf.text(`Time: ${eventTime}`, margin + 100, yOffset);
     yOffset += 8;
 
+    // Event Venue
     const venueText = eventData?.venueDetails?.venueName || event.location || "N/A";
     pdf.text(`Venue: ${venueText}`, margin + 10, yOffset);
     yOffset += 8;
 
+    // Ticket Summary
     const ticketSummaryText = `${totalTickets} Tickets (${ticketSummary.map((t) => `${t.type} x${t.quantity}`).join(", ")})`;
     const ticketLines = pdf.splitTextToSize(ticketSummaryText, ticketWidth - 20);
     pdf.text(`Tickets: ${ticketLines.join(' ')}`, margin + 10, yOffset);
     yOffset += 15;
 
+    // Divider Line
     pdf.setDrawColor(220, 220, 220);
     pdf.setLineWidth(0.5);
     pdf.line(margin + 10, yOffset, margin + ticketWidth - 10, yOffset);
     yOffset += 15;
 
-    // QR section
+    // QR Code Section Background
     const qrSectionY = yOffset;
     const qrSectionHeight = 55;
     pdf.setFillColor(245, 245, 245);
     pdf.roundedRect(margin + 10, qrSectionY, ticketWidth - 20, qrSectionHeight, 2, 2, 'F');
 
+    // Embed QR Code if available
     const qrCanvas = qrRef.current.querySelector("canvas");
     if (qrCanvas) {
       const qrDataUrl = qrCanvas.toDataURL("image/png");
       const qrSize = 30;
 
+      // White background for QR code
       pdf.setFillColor(255, 255, 255);
       pdf.rect(margin + 15, qrSectionY + 5, qrSize + 4, qrSize + 4, 'F');
+
+      // Insert QR image
       pdf.addImage(qrDataUrl, "PNG", margin + 17, qrSectionY + 7, qrSize, qrSize);
     }
 
+    // Booking ID and Ticket Details
     const detailsX = margin + 60;
     let detailsY = qrSectionY + 12;
-
     pdf.setFont("helvetica", "bold");
     pdf.setFontSize(11);
-    pdf.setTextColor(0, 0, 0);
     pdf.text(`Booking ID: ${bookingId}`, detailsX, detailsY);
     pdf.text(`Tickets: ${ticketLines.join(' ')}`, detailsX, detailsY + 10);
     detailsY += 8;
 
+    // QR Scan Instructions
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(9);
     pdf.text("Present this QR code at", margin + 15, qrSectionY + qrSectionHeight - 8);
     pdf.text("the venue for validation", margin + 15, qrSectionY + qrSectionHeight - 4);
 
+    // Food note (if applicable)
     if (foodNote) {
       pdf.setFont("helvetica", "normal");
       pdf.setFontSize(9);
@@ -862,28 +891,29 @@ const TicketBookedPage = () => {
 
     yOffset = qrSectionY + qrSectionHeight + 15;
 
-    // Order Summary
+    // Order Summary Section
     pdf.setFont("helvetica", "bold");
     pdf.setFontSize(14);
     pdf.setTextColor(0, 0, 0);
     pdf.text("ORDER SUMMARY", margin + 10, yOffset);
     yOffset += 8;
 
-    pdf.setFont("helvetica", "bold");
+    // Table Headers
     pdf.setFontSize(9);
     pdf.text("ITEM", margin + 10, yOffset);
     pdf.text("QTY", margin + 110, yOffset);
     pdf.text("AMOUNT", margin + 140, yOffset);
     yOffset += 5;
 
+    // Underline headers
     pdf.setDrawColor(220, 220, 220);
     pdf.setLineWidth(0.5);
     pdf.line(margin + 10, yOffset, margin + ticketWidth - 10, yOffset);
-    yOffset += 15;
+    yOffset += 10;
 
+    // Ticket Items Loop
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(9);
-
     ticketSummary.forEach((ticket) => {
       const itemName = pdf.splitTextToSize(ticket.type, 90);
       pdf.text(itemName, margin + 10, yOffset);
@@ -893,6 +923,7 @@ const TicketBookedPage = () => {
       yOffset += itemName.length * 4 + 2;
     });
 
+    // Food Items Loop
     if (foodSummary && foodSummary.length > 0) {
       foodSummary.forEach((food) => {
         const itemName = pdf.splitTextToSize(food.name, 90);
@@ -905,6 +936,7 @@ const TicketBookedPage = () => {
 
     yOffset += 5;
 
+    // Fees, Discounts, Taxes
     if (!financial.isFreeEvent) {
       const financialItems = [
         { label: "Convenience Fee:", amount: formatCurrency(financial.convenienceFee || 0) },
@@ -919,10 +951,17 @@ const TicketBookedPage = () => {
       });
 
       yOffset += 3;
+
+      // Divider above total
+      pdf.setDrawColor(0, 0, 0);
+      pdf.setLineWidth(0.5);
+      pdf.line(margin + 85, yOffset, margin + ticketWidth - 10, yOffset);
+      yOffset += 5;
     }
 
+    // Final Total Section
     const totalSectionHeight = 15;
-    pdf.setFillColor(255, 255, 255);
+    pdf.setFillColor(255,255,255); // Light gray background
     pdf.rect(margin + 10, yOffset, ticketWidth - 20, totalSectionHeight, 'F');
 
     pdf.setFont("helvetica", "bold");
@@ -934,7 +973,7 @@ const TicketBookedPage = () => {
 
     yOffset += totalSectionHeight + 15;
 
-    // Booking Info
+    // Booking Information
     pdf.setFont("helvetica", "bold");
     pdf.setFontSize(14);
     pdf.text("BOOKING INFORMATION", margin + 10, yOffset);
@@ -942,7 +981,6 @@ const TicketBookedPage = () => {
 
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(10);
-
     const bookingInfo = [
       { label: "Booking Date:", value: `${currentDate} ${currentTime}` },
       { label: "Email:", value: user?.email || "N/A" },
@@ -954,10 +992,11 @@ const TicketBookedPage = () => {
       pdf.text(info.label, margin + 10, yOffset);
       pdf.setFont("helvetica", "normal");
       pdf.text(info.value, margin + 45, yOffset);
-      yOffset += 3;
+      yOffset += 6;
     });
 
-    yOffset += 1;
+    // Footer Notes
+    yOffset += 15;
     pdf.setFont("helvetica", "italic");
     pdf.setFontSize(8);
     pdf.setTextColor(102, 102, 102);
@@ -965,20 +1004,12 @@ const TicketBookedPage = () => {
     pdf.text("Please present this ticket (digital or printed) at the venue entrance.", centerX, yOffset, { align: "center" });
     pdf.text("For support, contact us through the app or website.", centerX, yOffset + 4, { align: "center" });
 
-    // Calculate final ticket height and draw rounded rectangle last
-    const finalTicketHeight = yOffset - startY + 12;
-    pdf.setFillColor(255, 255, 255);
-    pdf.roundedRect(margin, startY, ticketWidth, finalTicketHeight, 6, 6, 'F');
-
-    // Background for entire page
-    pdf.setFillColor(245, 245, 245);
-    pdf.rect(0, 0, pdfWidth, pdf.internal.pageSize.getHeight(), 'F');
-
-    // Save
+    // Generate filename and save PDF
     const cleanBookingId = bookingId.replace("#", "");
     const cleanEventName = (event.name || "Event").replace(/[^a-zA-Z0-9\s]/g, "").replace(/\s+/g, "_");
     pdf.save(`${cleanEventName}_Ticket_${cleanBookingId}.pdf`);
 
+    // Notify user on successful download
     setBookingStatus({
       status: bookingStatus.status,
       message: "Ticket downloaded successfully!",
@@ -995,9 +1026,13 @@ const TicketBookedPage = () => {
   } catch (error) {
     console.error("Error with download function:", error);
     alert("There was an error downloading your ticket. Please try again or contact support.");
+
     setBookingStatus({
       status: bookingStatus.status,
-      message: bookingStatus.status === "success" ? "Ticket booked successfully!" : bookingStatus.message,
+      message:
+        bookingStatus.status === "success"
+          ? "Ticket booked successfully!"
+          : bookingStatus.message,
     });
   }
 };

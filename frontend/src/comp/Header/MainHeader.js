@@ -122,64 +122,125 @@ const MainHeader = () => {
   const renderDrawerMenu = () => (
     <Drawer anchor="right" open={drawerOpen} onClose={() => setDrawerOpen(false)}>
       <Box sx={{ width: 200, padding: 1 }}>
-      <Box mb={4} sx={{zIndex:10}}>
-        <IconButton onClick={() => setDrawerOpen(false)} sx={{ float: "right" }}>
-          <CloseIcon onClick={() => setDrawerOpen(false)} />   
-        </IconButton>
-      </Box>
-      <Box>
-        <List>
-        {isAuthenticated ? (
-            <>
-              <ListItem>
-                <ListItemText primary={username} sx={{color:"rgb(25, 174, 220)",fontFamily:'albert sans'}}/>
-              </ListItem>
-              <ListItem button onClick={handleProfileClick}>
-                <ListItemText sx={{fontFamily:'albert sans'}} primary="Profile" />
-              </ListItem>
-              <ListItem button onClick={handleSettingsClick}>
-                <ListItemText sx={{fontFamily:'albert sans'}} primary="Settings" />
-              </ListItem>
-              {/* <ListItem button onClick={handleLogout}>
-                <ListItemText primary="Logout" />
-              </ListItem> */}
-            </>
-          ) : (
-            <>
-              <ListItem button onClick={() => setOpenLogin(true)}>
-                <ListItemText primary="Log In" sx={{fontFamily:'albert sans'}} />
-              </ListItem>
-              <ListItem button onClick={() => setOpenSignin(true)}>
-                <ListItemText primary="Sign Up" sx={{fontFamily:'albert sans'}}  />
-              </ListItem>
-            </>
-          )}
-          <ListItem button onClick={handleRecentOrdersClick}>
-            <ListItemText primary="Recent Orders" sx={{fontFamily:'albert sans'}}  />
-          </ListItem>
-          <ListItem
-            button
-            onClick={() => {
-              if (!isAuthenticated) {
-                setOpenLogin(true);
-              } else {
-                const vendorId = localStorage.getItem("vendorId");
-                navigate(`/vendor/register/${vendorId}`);
-              }
-            }}
-            
-          >
-            <ListItemText primary="Create Events" sx={{fontFamily:'albert sans'}}  />
-          </ListItem>
-          {isAuthenticated ? (
-            <>
-              <ListItem button onClick={handleLogout}>
-                <ListItemText primary="Logout" sx={{fontFamily:'albert sans'}}  />
-              </ListItem>
-            </>
-          ) : null}
-        </List>
-      </Box>
+        <Box mb={4} sx={{zIndex:10}}>
+          <IconButton onClick={() => setDrawerOpen(false)} sx={{ float: "right" }}>
+            <CloseIcon onClick={() => setDrawerOpen(false)} />   
+          </IconButton>
+        </Box>
+        <Box>
+          <List>
+            {isAuthenticated ? (
+              <>
+                <ListItem>
+                  <ListItemText 
+                    primary={username} 
+                    sx={{
+                      color:"rgb(25, 174, 220)",
+                      fontFamily:'albert sans',
+                      '& .MuiListItemText-primary': {
+                        fontFamily: 'albert sans'
+                      }
+                    }}
+                  />
+                </ListItem>
+                <ListItem button onClick={handleProfileClick}>
+                  <ListItemText 
+                    sx={{
+                      fontFamily:'albert sans',
+                      '& .MuiListItemText-primary': {
+                        fontFamily: 'albert sans'
+                      }
+                    }} 
+                    primary="Profile" 
+                  />
+                </ListItem>
+                <ListItem button onClick={handleSettingsClick}>
+                  <ListItemText 
+                    sx={{
+                      fontFamily:'albert sans',
+                      '& .MuiListItemText-primary': {
+                        fontFamily: 'albert sans'
+                      }
+                    }} 
+                    primary="Settings" 
+                  />
+                </ListItem>
+              </>
+            ) : (
+              <>
+                <ListItem button onClick={() => setOpenLogin(true)}>
+                  <ListItemText 
+                    primary="Log In" 
+                    sx={{
+                      fontFamily:'albert sans',
+                      '& .MuiListItemText-primary': {
+                        fontFamily: 'albert sans'
+                      }
+                    }} 
+                  />
+                </ListItem>
+                <ListItem button onClick={() => setOpenSignin(true)}>
+                  <ListItemText 
+                    primary="Sign Up" 
+                    sx={{
+                      fontFamily:'albert sans',
+                      '& .MuiListItemText-primary': {
+                        fontFamily: 'albert sans'
+                      }
+                    }}  
+                  />
+                </ListItem>
+              </>
+            )}
+            <ListItem button onClick={handleRecentOrdersClick}>
+              <ListItemText 
+                primary="Recent Orders" 
+                sx={{
+                  fontFamily:'albert sans',
+                  '& .MuiListItemText-primary': {
+                    fontFamily: 'albert sans'
+                  }
+                }}  
+              />
+            </ListItem>
+            <ListItem
+              button
+              onClick={() => {
+                if (!isAuthenticated) {
+                  setOpenLogin(true);
+                } else {
+                  const vendorId = localStorage.getItem("vendorId");
+                  navigate(`/vendor/register/${vendorId}`);
+                }
+              }}
+            >
+              <ListItemText 
+                primary="Create Events" 
+                sx={{
+                  fontFamily:'albert sans',
+                  '& .MuiListItemText-primary': {
+                    fontFamily: 'albert sans'
+                  }
+                }}  
+              />
+            </ListItem>
+            {isAuthenticated ? (
+              <>
+                <ListItem button onClick={handleLogout}>
+                  <ListItemText 
+                    primary="Logout" 
+                    sx={{
+                      fontFamily:'albert sans',
+                      '& .MuiListItemText-primary': {
+                        fontFamily: 'albert sans'
+                      }
+                    }}  
+                  />
+                </ListItem>
+              </>
+            ) : null}
+          </List>
+        </Box>
       </Box>
     </Drawer>
   );
@@ -276,7 +337,14 @@ const MainHeader = () => {
             <Box sx={{ display: "flex", alignItems: "center", gap: 3 }}>
               <Typography
                 onClick={handleRecentOrdersClick}
-                sx={{ cursor: "pointer", fontFamily:'albert sans', "&:hover": { textDecoration: "underline", fontFamily:'albert sans' } }}
+                sx={{ 
+                  cursor: "pointer", 
+                  fontFamily:'albert sans', 
+                  "&:hover": { 
+                    textDecoration: "underline", 
+                    fontFamily:'albert sans' 
+                  } 
+                }}
               >
                 Recent Orders
               </Typography>
@@ -289,7 +357,14 @@ const MainHeader = () => {
                     navigate(`/vendor/register/${vendorId}`);
                   }
                 }}
-                sx={{ cursor: "pointer",fontFamily:'albert sans', "&:hover": { textDecoration: "underline" ,fontFamily:'albert sans'} }}
+                sx={{ 
+                  cursor: "pointer",
+                  fontFamily:'albert sans', 
+                  "&:hover": { 
+                    textDecoration: "underline",
+                    fontFamily:'albert sans'
+                  } 
+                }}
               >
                 Create Events
               </Typography>
@@ -316,13 +391,27 @@ const MainHeader = () => {
                 <>
                   <Typography
                     onClick={() => setOpenLogin(true)}
-                    sx={{ cursor: "pointer", fontFamily:'albert sans', "&:hover": { textDecoration: "underline", fontFamily:'albert sans' } }}
+                    sx={{ 
+                      cursor: "pointer", 
+                      fontFamily:'albert sans', 
+                      "&:hover": { 
+                        textDecoration: "underline", 
+                        fontFamily:'albert sans' 
+                      } 
+                    }}
                   >
                     Log In
                   </Typography>
                   <Typography
                     onClick={() => setOpenSignin(true)}
-                    sx={{ cursor: "pointer", fontFamily:'albert sans', "&:hover": { textDecoration: "underline", fontFamily:'albert sans' } }}
+                    sx={{ 
+                      cursor: "pointer", 
+                      fontFamily:'albert sans', 
+                      "&:hover": { 
+                        textDecoration: "underline", 
+                        fontFamily:'albert sans' 
+                      } 
+                    }}
                   >
                     Sign Up
                   </Typography>
@@ -356,7 +445,11 @@ const MainHeader = () => {
         }}
       >
         <MenuItem
-          sx={{ fontFamily: 'albert sans', fontWeight: "bold", color: "rgb(25, 174, 220)" }}
+          sx={{ 
+            fontFamily: 'albert sans', 
+            fontWeight: "bold", 
+            color: "rgb(25, 174, 220)" 
+          }}
         >
           {username}
         </MenuItem>
@@ -386,4 +479,3 @@ const MainHeader = () => {
 };
 
 export default MainHeader;
-

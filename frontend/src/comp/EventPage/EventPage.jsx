@@ -1194,7 +1194,7 @@ const EventPage = () => {
 
               borderRadius: "15px",
               width: "60%",
-              padding: "12px",
+              padding: 1,
               textTransform: "none",
               fontSize: "16px",
               "&:hover": {

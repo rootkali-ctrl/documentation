@@ -107,13 +107,27 @@ const MainHeader = () => {
     <>
       <Typography
         onClick={() => navigate("/recent-orders")}
-        sx={{ cursor: "pointer", "&:hover": { textDecoration: "underline", fontFamily:'albert sans' }, fontFamily: 'Albert Sans' }}
+        sx={{ 
+          cursor: "pointer", 
+          "&:hover": { 
+            textDecoration: "underline", 
+            fontFamily:'Albert Sans' 
+          }, 
+          fontFamily: 'Albert Sans' 
+        }}
       >
         Recent Orders
       </Typography>
       <Typography
         onClick={() => navigate("/vendor/register")}
-        sx={{ cursor: "pointer", "&:hover": { textDecoration: "underline" }, fontFamily: 'Albert Sans' }}
+        sx={{ 
+          cursor: "pointer", 
+          "&:hover": { 
+            textDecoration: "underline", 
+            fontFamily: 'Albert Sans' 
+          }, 
+          fontFamily: 'Albert Sans' 
+        }}
       >
         Create Events
       </Typography>
@@ -177,13 +191,27 @@ const MainHeader = () => {
               <>
                 <Typography
                   onClick={() => setOpenLogin(true)}
-                  sx={{ cursor: "pointer", "&:hover": { textDecoration: "underline" }, fontFamily: 'Albert Sans' }}
+                  sx={{ 
+                    cursor: "pointer", 
+                    "&:hover": { 
+                      textDecoration: "underline", 
+                      fontFamily: 'Albert Sans' 
+                    }, 
+                    fontFamily: 'Albert Sans' 
+                  }}
                 >
                   Log In
                 </Typography>
                 <Typography
                   onClick={() => setOpenSignin(true)}
-                  sx={{ cursor: "pointer", "&:hover": { textDecoration: "underline" }, fontFamily: 'Albert Sans' }}
+                  sx={{ 
+                    cursor: "pointer", 
+                    "&:hover": { 
+                      textDecoration: "underline", 
+                      fontFamily: 'Albert Sans' 
+                    }, 
+                    fontFamily: 'Albert Sans' 
+                  }}
                 >
                   Sign Up
                 </Typography>
@@ -233,36 +261,100 @@ const MainHeader = () => {
             {isAuthenticated && (
               <>
                 <ListItem>
-                  <ListItemText primary={`Hello, ${username}`} sx={{ fontFamily: 'Albert Sans' }} />
+                  <ListItemText 
+                    primary={`Hello, ${username}`} 
+                    sx={{ 
+                      fontFamily: 'Albert Sans',
+                      '& .MuiListItemText-primary': {
+                        fontFamily: 'Albert Sans'
+                      }
+                    }} 
+                  />
                 </ListItem>
                 <Divider />
               </>
             )}
-            <ListItem button onClick={() => navigate("/recent-orders")} sx={{ fontFamily: 'Albert Sans' }}>
-              <ListItemText primary="Recent Orders"  />
+            <ListItem button onClick={() => navigate("/recent-orders")}>
+              <ListItemText 
+                primary="Recent Orders" 
+                sx={{
+                  fontFamily: 'Albert Sans',
+                  '& .MuiListItemText-primary': {
+                    fontFamily: 'Albert Sans'
+                  }
+                }}
+              />
             </ListItem>
-            <ListItem button onClick={() => navigate("/vendor/register")} sx={{ fontFamily: 'Albert Sans' }}>
-              <ListItemText primary="Create Events"  />
+            <ListItem button onClick={() => navigate("/vendor/register")}>
+              <ListItemText 
+                primary="Create Events" 
+                sx={{
+                  fontFamily: 'Albert Sans',
+                  '& .MuiListItemText-primary': {
+                    fontFamily: 'Albert Sans'
+                  }
+                }}
+              />
             </ListItem>
             {isAuthenticated ? (
               <>
-                <ListItem button onClick={handleProfileClick}  sx={{ fontFamily: 'Albert Sans' }} >
-                  <ListItemText primary="Profile"/>
+                <ListItem button onClick={handleProfileClick}>
+                  <ListItemText 
+                    primary="Profile" 
+                    sx={{
+                      fontFamily: 'Albert Sans',
+                      '& .MuiListItemText-primary': {
+                        fontFamily: 'Albert Sans'
+                      }
+                    }}
+                  />
                 </ListItem>
-                <ListItem button onClick={handleSettingsClick}  sx={{ fontFamily: 'Albert Sans' }}>
-                  <ListItemText primary="Settings" />
+                <ListItem button onClick={handleSettingsClick}>
+                  <ListItemText 
+                    primary="Settings" 
+                    sx={{
+                      fontFamily: 'Albert Sans',
+                      '& .MuiListItemText-primary': {
+                        fontFamily: 'Albert Sans'
+                      }
+                    }}
+                  />
                 </ListItem>
-                <ListItem button onClick={handleLogout} sx={{ fontFamily: 'Albert Sans' }}>
-                  <ListItemText primary="Logout"  />
+                <ListItem button onClick={handleLogout}>
+                  <ListItemText 
+                    primary="Logout" 
+                    sx={{
+                      fontFamily: 'Albert Sans',
+                      '& .MuiListItemText-primary': {
+                        fontFamily: 'Albert Sans'
+                      }
+                    }}
+                  />
                 </ListItem>
               </>
             ) : (
               <>
-                <ListItem button onClick={() => setOpenLogin(true)} sx={{ fontFamily: 'Albert Sans' }}>
-                  <ListItemText primary="Log In"  />
+                <ListItem button onClick={() => setOpenLogin(true)}>
+                  <ListItemText 
+                    primary="Log In" 
+                    sx={{
+                      fontFamily: 'Albert Sans',
+                      '& .MuiListItemText-primary': {
+                        fontFamily: 'Albert Sans'
+                      }
+                    }}
+                  />
                 </ListItem>
-                <ListItem button onClick={() => setOpenSignin(true)} sx={{ fontFamily: 'Albert Sans' }}>
-                  <ListItemText primary="Sign Up"  />
+                <ListItem button onClick={() => setOpenSignin(true)}>
+                  <ListItemText 
+                    primary="Sign Up" 
+                    sx={{
+                      fontFamily: 'Albert Sans',
+                      '& .MuiListItemText-primary': {
+                        fontFamily: 'Albert Sans'
+                      }
+                    }}
+                  />
                 </ListItem>
               </>
             )}
