@@ -1,14 +1,9 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useNavigate, useLocation, useParams } from "react-router-dom";
-import {
-  Box,
-  Typography,
-  Button,
-  CircularProgress,
-  Alert,
-  Divider,
-} from "@mui/material";
+import { Box, Typography, Button, CircularProgress, Alert, Divider } from "@mui/material";
 import axios from "axios";
+import { doc, getDoc, deleteDoc, runTransaction } from "firebase/firestore";
+import { db } from "../../firebase_config";
 
 const RazorPayPage = () => {
   const navigate = useNavigate();
@@ -28,12 +23,141 @@ const RazorPayPage = () => {
   // Extract query parameters
   const queryParams = new URLSearchParams(location.search);
   const orderIdFromUrl = queryParams.get("orderId");
-  const eventIdFromUrl = queryParams.get("eventId");
 
   // State for the countdown timer (in seconds)
   const [timeLeft, setTimeLeft] = useState(10 * 60); // 10 minutes = 600 seconds
 
-  // Function to clear all timers
+  // State for tax percentage and tax inclusion
+  const [taxPercentage, setTaxPercentage] = useState(18);
+  const [taxIncluded, setTaxIncluded] = useState(false);
+
+  // Fetch tax data from Firestore
+  const fetchTaxData = async () => {
+    try {
+      let taxPercent = 18;
+      if (paymentData?.event?.id) {
+        const eventRef = doc(db, "events", paymentData.event.id);
+        const eventDoc = await getDoc(eventRef);
+        if (eventDoc.exists()) {
+          const eventData = eventDoc.data();
+          const taxBool = eventData.pricing?.[0]?.tax;
+          setTaxIncluded(!!taxBool);
+          if (eventData.taxPercentage) {
+            taxPercent = eventData.taxPercentage;
+          } else {
+            const globalTaxRef = doc(db, "settings", "globalTax");
+            const globalTaxDoc = await getDoc(globalTaxRef);
+            if (globalTaxDoc.exists()) {
+              taxPercent = globalTaxDoc.data().taxPercentage || 18;
+            }
+          }
+        }
+      }
+      setTaxPercentage(taxPercent);
+    } catch (err) {
+      console.error("Error fetching tax data:", err);
+      setError("Failed to fetch tax data. Please try again.");
+    }
+  };
+
+  // Unlock tickets
+  const unlockTickets = async (lockId) => {
+    if (!lockId) return;
+
+    try {
+      await runTransaction(db, async (transaction) => {
+        const lockRef = doc(db, "ticketLocks", lockId);
+        const lockDoc = await transaction.get(lockRef);
+
+        if (!lockDoc.exists()) {
+          return; // Lock already removed
+        }
+
+        const lockData = lockDoc.data();
+        const eventDocRef = doc(db, "events", eventId);
+        const eventDoc = await transaction.get(eventDocRef);
+
+        if (!eventDoc.exists()) {
+          throw new Error("Event not found");
+        }
+
+        const eventData = eventDoc.data();
+        const pricing = eventData.pricing || [];
+
+        // Release locked tickets
+        for (const ticketId of Object.keys(lockData.tickets)) {
+          const ticket = pricing.find((t) => t.id === ticketId);
+          if (ticket) {
+            ticket.locked = Math.max(0, (ticket.locked || 0) - lockData.tickets[ticketId]);
+          }
+        }
+
+        transaction.update(eventDocRef, { pricing });
+        transaction.delete(lockRef);
+      });
+    } catch (error) {
+      console.error("Error unlocking tickets:", error);
+      setError("Failed to unlock tickets. Please try again.");
+    }
+  };
+
+  // On component mount
+  useEffect(() => {
+    if (location.state) {
+      setPaymentData(location.state);
+    } else if (orderIdFromUrl) {
+      fetchPaymentDetails(orderIdFromUrl);
+    } else {
+      console.error("Missing payment data. Redirecting back to payment portal.");
+      setError("Payment information is missing. Redirecting back to payment portal.");
+
+      redirectTimerRef.current = setTimeout(() => {
+        navigate(`/paymentportalpage/${eventId}/${userUID}`, { replace: true });
+      }, 3000);
+
+      return () => clearAllTimers();
+    }
+
+    // Set up the 10-minute timeout
+    timeoutTimerRef.current = setTimeout(() => {
+      handleTimeoutRedirect();
+    }, 10 * 60 * 1000);
+
+    // Update the countdown timer every second
+    countdownIntervalRef.current = setInterval(() => {
+      setTimeLeft((prevTime) => {
+        if (prevTime <= 1) {
+          handleTimeoutRedirect();
+          return 0;
+        }
+        return prevTime - 1;
+      });
+    }, 1000);
+
+    return () => {
+      clearAllTimers();
+      closeRazorpayModal();
+    };
+  }, [location.state, orderIdFromUrl, navigate, eventId, userUID]);
+
+  // Fetch tax data once paymentData is available
+  useEffect(() => {
+    if (paymentData) {
+      fetchTaxData();
+    }
+  }, [paymentData]);
+
+  // Cleanup on component unmount
+  useEffect(() => {
+    return () => {
+      clearAllTimers();
+      closeRazorpayModal();
+      if (paymentData?.lockId) {
+        unlockTickets(paymentData.lockId);
+      }
+    };
+  }, [paymentData]);
+
   const clearAllTimers = () => {
     if (timeoutTimerRef.current) {
       clearTimeout(timeoutTimerRef.current);
@@ -49,21 +173,23 @@ const RazorPayPage = () => {
     }
   };
 
-  // Function to close Razorpay modal if open
   const closeRazorpayModal = () => {
     if (razorpayInstanceRef.current) {
       try {
         razorpayInstanceRef.current.close();
         razorpayInstanceRef.current = null;
       } catch (error) {
+        console.log("Error closing Razorpay modal:", error);
       }
     }
   };
 
-  // Function to handle timeout and redirect to main page
   const handleTimeoutRedirect = () => {
     clearAllTimers();
     closeRazorpayModal();
+    if (paymentData?.lockId) {
+      unlockTickets(paymentData.lockId);
+    }
     setError("Payment session timed out. Redirecting to the main page...");
 
     redirectTimerRef.current = setTimeout(() => {
@@ -71,7 +197,6 @@ const RazorPayPage = () => {
     }, 2000);
   };
 
-  // Function to fetch payment details from backend
   const fetchPaymentDetails = async (orderId) => {
     setFetchingData(true);
     try {
@@ -84,141 +209,139 @@ const RazorPayPage = () => {
       }
     } catch (err) {
       console.error("Error fetching payment details:", err);
-      setError(
-        "Failed to load payment details. Please try returning to the payment portal."
-      );
+      setError("Failed to load payment details. Please try returning to the payment portal.");
     } finally {
       setFetchingData(false);
     }
   };
 
-  // On component mount, check for payment data and start the timeout timer
-  useEffect(() => {
-    // Handle payment data
-    if (location.state) {
-      setPaymentData(location.state);
-    } else if (orderIdFromUrl) {
-      fetchPaymentDetails(orderIdFromUrl);
-    } else {
-      console.error(
-        "Missing payment data. Redirecting back to payment portal."
-      );
-      setError(
-        "Payment information is missing. Redirecting back to payment portal."
-      );
-
-      redirectTimerRef.current = setTimeout(() => {
-        navigate(`/paymentportalpage/${eventId}/${userUID}`, { replace: true });
-      }, 3000);
-
-      return () => clearAllTimers();
-    }
-
-    // Set up the 10-minute timeout
-    timeoutTimerRef.current = setTimeout(() => {
-      handleTimeoutRedirect();
-    }, 10 * 60 * 1000); // 10 minutes in milliseconds
-
-    // Update the countdown timer every second
-    countdownIntervalRef.current = setInterval(() => {
-      setTimeLeft((prevTime) => {
-        if (prevTime <= 1) {
-          handleTimeoutRedirect();
-          return 0;
-        }
-        return prevTime - 1;
-      });
-    }, 1000);
-
-    // Cleanup function
-    return () => {
-      clearAllTimers();
-      closeRazorpayModal();
-    };
-  }, [location.state, orderIdFromUrl, navigate, eventId, userUID]);
-
-  // Cleanup on component unmount
-  useEffect(() => {
-    return () => {
-      clearAllTimers();
-      closeRazorpayModal();
-    };
-  }, []);
-
-  // Extract data from payment data
   const {
-    event = {},
     ticketSummary = [],
     foodSummary = [],
     financial = {},
+    lockId,
   } = paymentData || {};
 
-  // Format date for display
-  const formattedDate = event?.date
-    ? new Date(event.date).toLocaleDateString("en-US", {
-        month: "long",
-        day: "numeric",
-        year: "numeric",
-      })
-    : "Date not available";
+  const isFreeEvent = ticketSummary.every((ticket) => ticket.price === 0);
+  const hasFoodItems =
+    foodSummary &&
+    foodSummary.length > 0 &&
+    foodSummary.some((food) => food.price * food.quantity > 0);
 
-  const formattedTime = event?.date
-    ? new Date(event.date).toLocaleTimeString("en-US", {
-        hour: "numeric",
-        minute: "2-digit",
-        hour12: true,
-      })
-    : "Time not available";
-  // Calculate total amount in paise (Razorpay requires amount in smallest currency unit)
-  const amountInPaise = Math.round((financial?.totalAmount || 0) * 100);
+  const calculateSubtotalAndTax = () => {
+    let subtotal = 0;
+    let totalTax = 0;
 
-  // Generate an order reference ID if we don't have one from URL
+    const ticketDetails = ticketSummary.map((ticket) => {
+      const price = ticket.price || 0;
+      const quantity = ticket.quantity || 0;
+      const ticket_total = price * quantity;
+
+      let tax_per_ticket = 0;
+      let base_price = price;
+
+      if (taxIncluded) {
+        base_price = price / (1 + taxPercentage / 100);
+        tax_per_ticket = price - base_price;
+
+        subtotal += ticket_total;
+      } else {
+        base_price = price;
+        tax_per_ticket = (price * taxPercentage) / 100;
+
+        subtotal += ticket_total;
+
+        const ticket_tax = tax_per_ticket * quantity;
+        totalTax += ticket_tax;
+      }
+
+      return {
+        ...ticket,
+        ticket_total,
+        tax_per_ticket: Math.round(tax_per_ticket * 100) / 100,
+        base_price: Math.round(base_price * 100) / 100,
+        taxIncluded,
+      };
+    });
+
+    const foodDetails = foodSummary.map((food) => {
+      const price = food.price || 0;
+      const quantity = food.quantity || 0;
+      const food_total = price * quantity;
+
+      subtotal += food_total;
+
+      const tax_per_food = (price * taxPercentage) / 100;
+      const food_tax = tax_per_food * quantity;
+
+      totalTax += food_tax;
+
+      return {
+        ...food,
+        food_total,
+        tax_per_food: Math.round(tax_per_food * 100) / 100,
+        base_price: price,
+        taxIncluded: false,
+      };
+    });
+
+    return {
+      ticketDetails,
+      foodDetails,
+      subtotal: Math.round(subtotal * 100) / 100,
+      totalTax: Math.round(totalTax * 100) / 100,
+    };
+  };
+
+  const { ticketDetails, foodDetails, subtotal, totalTax } = calculateSubtotalAndTax();
+
+  const bookingFee = isFreeEvent ? 0 : financial.convenienceFee || 40.0;
+  const discount = financial.discount || 0;
+  const totalAmount = subtotal + totalTax + bookingFee - discount;
+
+  const amountInPaise = Math.round(totalAmount * 100);
+
   const orderId =
-    orderIdFromUrl ||
-    `ORDER_${Math.random().toString(36).substring(2, 15)}_${Date.now()}`;
+    orderIdFromUrl || `ORDER_${Math.random().toString(36).substring(2, 15)}_${Date.now()}`;
 
-  // Function to save payment record to backend
   const savePaymentRecord = async (paymentRecord) => {
     try {
       await axios.post("/api/payment-records", paymentRecord);
+      console.log("Payment record saved successfully");
+      if (lockId) {
+        await deleteDoc(doc(db, "ticketLocks", lockId));
+      }
     } catch (err) {
       console.error("Error saving payment record:", err);
+      setError("Failed to save payment record.");
     }
   };
 
-  // Direct Razorpay checkout without server order creation
   const initiatePayment = () => {
     setLoading(true);
     setError(null);
 
     try {
-      // Make sure data is available before proceeding
-      if (!financial?.totalAmount) {
-        setError(
-          "Payment information is missing. Please go back and try again."
-        );
+      if (!totalAmount) {
+        setError("Payment information is missing. Please go back and try again.");
         setLoading(false);
         return;
       }
 
       if (!window.Razorpay) {
-        setError(
-          "Payment gateway not loaded properly. Please refresh the page."
-        );
+        setError("Payment gateway not loaded properly. Please refresh the page.");
         setLoading(false);
         return;
       }
 
-      // Close any existing Razorpay instance
       closeRazorpayModal();
 
-      // Razorpay configuration options
       const options = {
-        key: "rzp_test_Hq1wOkaE1A9FW3", // Replace with your actual Razorpay key
+        key: "rzp_test_Hq1wOkaE1A9FW3",
         amount: amountInPaise,
         currency: "INR",
-        name: "World of Show",
-        description: `Payment for ${event?.name || "Event Booking"}`,
+        name: "TicketB",
+        description: `Payment for Event Booking`,
         receipt: orderId,
         prefill: {
           name: "",
@@ -226,71 +349,67 @@ const RazorPayPage = () => {
           contact: "",
         },
         notes: {
-          eventName: event?.name,
-          eventDate: formattedDate,
-          eventTime: event?.time,
-          eventLocation: event?.location,
           ticketQuantity:
-            ticketSummary?.reduce((sum, ticket) => sum + ticket.quantity, 0) ||
-            0,
+            ticketSummary?.reduce((sum, ticket) => sum + ticket.quantity, 0) || 0,
+          lockId,
         },
         theme: {
           color: "#19AEDC",
         },
         handler: function (response) {
-          // Payment successful
+          console.log("Payment successful:", response);
 
-          // Clear all timers since payment is successful
           clearAllTimers();
 
-          // Create a complete payment record with all information
           const paymentRecord = {
             paymentId: response.razorpay_payment_id,
             clientOrderId: orderId,
             signature: response.razorpay_signature,
-            event: event,
-            ticketSummary: ticketSummary,
-            foodSummary: foodSummary,
-            financial: financial,
+            ticketSummary: ticketDetails,
+            foodSummary: foodDetails,
+            financial: {
+              ...financial,
+              subtotal,
+              tax: totalTax,
+              totalAmount,
+            },
             paymentDate: new Date().toISOString(),
+            lockId,
           };
 
-          // Save payment record to backend
           savePaymentRecord(paymentRecord);
 
-          // Navigate to success page with all payment details
           navigate(`/ticketbookedpage/${eventId}/${userUID}`, {
-            state: paymentRecord,
+            state: {
+              ...paymentRecord,
+              bookingId: `TICKET_${orderId}`,
+            },
             replace: true,
           });
         },
         modal: {
           ondismiss: function () {
-            // Modal dismissed without payment
             setLoading(false);
             razorpayInstanceRef.current = null;
+            console.log("Payment modal closed without completing payment");
+            unlockTickets(lockId);
           },
           onhidden: function () {
-            // Modal completely hidden
             razorpayInstanceRef.current = null;
           },
         },
       };
 
-      // Create and store Razorpay instance
       razorpayInstanceRef.current = new window.Razorpay(options);
 
-      // Add error handler for Razorpay instance
       razorpayInstanceRef.current.on("payment.failed", function (response) {
         console.error("Payment failed:", response.error);
-        setError(
-          `Payment failed: ${response.error.description || "Unknown error"}`
-        );
+        setError(`Payment failed: ${response.error.description || "Unknown error"}`);
         setLoading(false);
         razorpayInstanceRef.current = null;
+        unlockTickets(lockId);
       });
 
-      // Open the payment modal
       razorpayInstanceRef.current.open();
       setLoading(false);
     } catch (err) {
@@ -298,13 +417,13 @@ const RazorPayPage = () => {
       setError("Failed to initialize payment gateway. Please try again.");
       setLoading(false);
       razorpayInstanceRef.current = null;
+      unlockTickets(lockId);
     }
   };
 
-  // Load the Razorpay script when component mounts
   useEffect(() => {
-    // Check if script is already loaded
     if (window.Razorpay) {
+      console.log("Razorpay SDK already loaded");
       return;
     }
 
@@ -328,16 +447,21 @@ const RazorPayPage = () => {
     };
   }, []);
 
-  // Handle back navigation and page unload
   useEffect(() => {
     const handleBeforeUnload = (event) => {
       clearAllTimers();
       closeRazorpayModal();
+      if (lockId) {
+        unlockTickets(lockId);
+      }
     };
 
     const handlePopState = (event) => {
       clearAllTimers();
       closeRazorpayModal();
+      if (lockId) {
+        unlockTickets(lockId);
+      }
     };
 
     window.addEventListener("beforeunload", handleBeforeUnload);
@@ -347,9 +471,8 @@ const RazorPayPage = () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
       window.removeEventListener("popstate", handlePopState);
     };
-  }, []);
+  }, [lockId]);
 
-  // Show loading state when fetching data
   if (fetchingData) {
     return (
       <Box
@@ -365,7 +488,6 @@ const RazorPayPage = () => {
     );
   }
 
-  // Render nothing if no data available and still loading
   if (!paymentData && loading) {
     return (
       <Box
@@ -381,7 +503,6 @@ const RazorPayPage = () => {
     );
   }
 
-  // Helper function to format currency in INR
   const formatINR = (amount) => {
     return new Intl.NumberFormat("en-IN", {
       style: "currency",
@@ -390,17 +511,18 @@ const RazorPayPage = () => {
     }).format(amount || 0);
   };
 
-  // Helper function to format the remaining time
   const formatTimeLeft = (seconds) => {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
     return `${minutes}:${remainingSeconds < 10 ? "0" : ""}${remainingSeconds}`;
   };
 
-  // Handle cancel button click
   const handleCancel = () => {
     clearAllTimers();
     closeRazorpayModal();
+    if (lockId) {
+      unlockTickets(lockId);
+    }
     navigate(`/paymentportalpage/${eventId}/${userUID}`, {
       state: paymentData,
       replace: true,
@@ -414,21 +536,14 @@ const RazorPayPage = () => {
         minHeight: "100vh",
       }}
     >
-
       <Typography
         fontFamily="albert sans"
         variant="h6"
-        sx={{
-          textAlign: "center",
-          marginTop: "20px",
-          fontWeight: "bold",
-          fontSize: "30px",
-        }}
+        sx={{ textAlign: "center", marginTop: "20px", fontWeight: "bold", fontSize: "30px" }}
       >
         Complete Your Payment
       </Typography>
 
-      {/* Countdown Timer Display */}
       <Typography
         fontFamily="albert sans"
         variant="body2"
@@ -454,10 +569,7 @@ const RazorPayPage = () => {
         {error && (
           <Alert
             severity="error"
-            sx={{
-              width: { xs: "90%", sm: "70%", md: "50%", lg: "30%" },
-              mb: 2,
-            }}
+            sx={{ width: { xs: "90%", sm: "70%", md: "50%", lg: "30%" }, mb: 2 }}
           >
             {error}
           </Alert>
@@ -472,7 +584,6 @@ const RazorPayPage = () => {
             boxShadow: "0px 4px 12px rgba(0, 0, 0, 0.1)",
           }}
         >
-          {/* Event Summary */}
           <Typography fontFamily="albert sans" variant="h6" fontWeight="bold">
             Payment Summary
           </Typography>
@@ -486,175 +597,225 @@ const RazorPayPage = () => {
               marginBottom: "15px",
             }}
           >
-            <Typography
-              fontFamily="albert sans"
-              fontWeight="bold"
-              sx={{ color: "#19AEDC" }}
-            >
-              {event?.name || "Event Information Not Available"}
-            </Typography>
-            <Typography
-              fontFamily="albert sans"
-              variant="body2"
-              sx={{ color: "#4B5563", marginTop: "5px" }}
-            >
-              {formattedDate} at {formattedTime || "Time not available"}
-            </Typography>
-            <Typography
-              fontFamily="albert sans"
-              variant="body2"
-              sx={{ color: "#4B5563" }}
-            >
-              {event?.location || "Location not available"}
-            </Typography>
-
-            <Divider sx={{ my: 2 }} />
-
-            {/* Ticket Summary */}
-            {ticketSummary && ticketSummary.length > 0 ? (
-              <>
-                <Typography
-                  fontFamily="albert sans"
-                  variant="body2"
-                  fontWeight="bold"
-                >
-                  Tickets:
-                </Typography>
-                {ticketSummary.map((ticket, index) => (
+            {/* Removed the Divider above ticket type */}
+            {ticketDetails && ticketDetails.length > 0 ? (
+              ticketDetails.map((ticket, index) => (
+                <React.Fragment key={index}>
                   <Box
-                    key={index}
+                    mt={0.5}
                     sx={{
                       display: "flex",
                       justifyContent: "space-between",
-                      mt: 1,
+                      paddingTop: "3%",
                     }}
                   >
                     <Typography fontFamily="albert sans" variant="body2">
-                      {ticket.quantity}x {ticket.type}
+                      Ticket Type
                     </Typography>
-                    <Typography fontFamily="albert sans" variant="body2">
-                      {formatINR(ticket.price * ticket.quantity)}
+                    <Typography fontFamily="albert sans" variant="body2" fontWeight="bold">
+                      {ticket.type || "VIP Pass"}
                     </Typography>
                   </Box>
-                ))}
-              </>
-            ) : null}
+                  <Box
+                    mt={0.5}
+                    sx={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      paddingTop: "3%",
+                    }}
+                  >
+                    <Typography fontFamily="albert sans" variant="body2">
+                      Number of Tickets
+                    </Typography>
+                    <Typography fontFamily="albert sans" variant="body2" fontWeight="bold">
+                      {ticket.quantity || 2}
+                    </Typography>
+                  </Box>
+                  <Box
+                    mt={0.5}
+                    sx={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      paddingTop: "3%",
+                    }}
+                  >
+                    <Typography fontFamily="albert sans" variant="body2">
+                      Price per Ticket {ticket.taxIncluded ? "(Incl. Tax)" : ""}
+                    </Typography>
+                    <Typography fontFamily="albert sans" variant="body2" fontWeight="bold">
+                      {formatINR(ticket.taxIncluded ? ticket.base_price : ticket.price)}
+                    </Typography>
+                  </Box>
+                  <Box
+                    mt={0.5}
+                    sx={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      paddingTop: "3%",
+                    }}
+                  >
+                    <Typography fontFamily="albert sans" variant="body2">
+                      Tax per Ticket ({taxPercentage}%)
+                    </Typography>
+                    <Typography fontFamily="albert sans" variant="body2" fontWeight="bold">
+                      {formatINR(ticket.tax_per_ticket)}
+                    </Typography>
+                  </Box>
 
-            {/* Food Summary */}
-            {foodSummary && foodSummary.length > 0 ? (
+                  {index < ticketDetails.length - 1 && (
+                    <Divider sx={{ my: 1 }} />
+                  )}
+                </React.Fragment>
+              ))
+            ) : (
+              <>
+                <Box
+                  mt={0.5}
+                  sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    paddingTop: "3%",
+                  }}
+                >
+                  <Typography fontFamily="albert sans" variant="body2">
+                    Ticket Type
+                  </Typography>
+                  <Typography fontFamily="albert sans" variant="body2" fontWeight="bold">
+                    Free Admission
+                  </Typography>
+                </Box>
+                <Box
+                  mt={0.5}
+                  sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    paddingTop: "3%",
+                  }}
+                >
+                  <Typography fontFamily="albert sans" variant="body2">
+                    Number of Tickets
+                  </Typography>
+                  <Typography fontFamily="albert sans" variant="body2" fontWeight="bold">
+                    1
+                  </Typography>
+                </Box>
+                <Box
+                  mt={0.5}
+                  sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    paddingTop: "3%",
+                  }}
+                >
+                  <Typography fontFamily="albert sans" variant="body2">
+                    Price per Ticket
+                  </Typography>
+                  <Typography fontFamily="albert sans" variant="body2" fontWeight="bold">
+                    {formatINR(0)}
+                  </Typography>
+                </Box>
+              </>
+            )}
+            {foodDetails && foodDetails.length > 0 && (
               <>
                 <Divider sx={{ my: 1 }} />
                 <Typography
                   fontFamily="albert sans"
                   variant="body2"
-                  fontWeight="bold"
-                  sx={{ mt: 1 }}
+                  sx={{ fontWeight: "bold", paddingTop: "3%" }}
                 >
-                  Food & Beverages:
+                  Food & Beverages
                 </Typography>
-                {foodSummary.map((food, index) => (
-                  <Box
-                    key={index}
-                    sx={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      mt: 1,
-                    }}
-                  >
-                    <Typography fontFamily="albert sans" variant="body2">
-                      {food.quantity}x {food.name}
-                    </Typography>
-                    <Typography fontFamily="albert sans" variant="body2">
-                      {formatINR(food.price * food.quantity)}
-                    </Typography>
-                  </Box>
+                {foodDetails.map((food, index) => (
+                  <React.Fragment key={index}>
+                    <Box
+                      sx={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        paddingTop: "3%",
+                      }}
+                    >
+                      <Typography fontFamily="albert sans" variant="body2">
+                        {food.name}
+                      </Typography>
+                      <Typography fontFamily="albert sans" variant="body2">
+                        {food.quantity}x {formatINR(food.price)}
+                      </Typography>
+                    </Box>
+                    <Box
+                      sx={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        paddingTop: "3%",
+                      }}
+                    >
+                      <Typography fontFamily="albert sans" variant="body2">
+                        Tax ({taxPercentage}%)
+                      </Typography>
+                      <Typography fontFamily="albert sans" variant="body2">
+                        {food.quantity}x {formatINR(food.tax_per_food)}
+                      </Typography>
+                    </Box>
+                  </React.Fragment>
                 ))}
               </>
-            ) : null}
-
-            <Divider sx={{ my: 2 }} />
-
-            {/* Price Breakdown */}
-            <Box
-              sx={{ display: "flex", justifyContent: "space-between", mb: 0.5 }}
-            >
-              <Typography fontFamily="albert sans" variant="body2">
-                Subtotal
-              </Typography>
-              <Typography fontFamily="albert sans" variant="body2">
-                {formatINR(financial?.subtotal)}
-              </Typography>
-            </Box>
-
-            <Box
-              sx={{ display: "flex", justifyContent: "space-between", mb: 0.5 }}
-            >
-              <Typography fontFamily="albert sans" variant="body2">
-                Booking Fee
-              </Typography>
-              <Typography fontFamily="albert sans" variant="body2">
-                {formatINR(financial?.convenienceFee)}
-              </Typography>
-            </Box>
-
-            {financial?.discount > 0 && (
-              <Box
-                sx={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  mb: 0.5,
-                }}
-              >
-                <Typography
-                  fontFamily="albert sans"
-                  variant="body2"
-                  sx={{ color: "#19AEDC" }}
-                >
-                  Discount
-                </Typography>
-                <Typography
-                  fontFamily="albert sans"
-                  variant="body2"
-                  sx={{ color: "#19AEDC" }}
-                >
-                  -{formatINR(financial.discount)}
-                </Typography>
-              </Box>
             )}
-
-            <Box
-              sx={{ display: "flex", justifyContent: "space-between", mb: 0.5 }}
-            >
-              <Typography fontFamily="albert sans" variant="body2">
-                GST (18%)
+          </Box>
+          <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.5 }}>
+            <Typography fontFamily="albert sans" variant="body2">
+              Sub-total
+            </Typography>
+            <Typography fontFamily="albert sans" variant="body2" fontWeight="bold">
+              {formatINR(subtotal)}
+            </Typography>
+          </Box>
+          <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.5 }}>
+            <Typography fontFamily="albert sans" variant="body2">
+              Booking Fee
+            </Typography>
+            <Typography fontFamily="albert sans" variant="body2" fontWeight="bold">
+              {formatINR(bookingFee)}
+            </Typography>
+          </Box>
+          {discount > 0 && (
+            <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.5 }}>
+              <Typography fontFamily="albert sans" variant="body2" sx={{ color: "#19AEDC" }}>
+                Discount
               </Typography>
-              <Typography fontFamily="albert sans" variant="body2">
-                {formatINR(financial?.gst)}
-              </Typography>
-            </Box>
-
-            <Box
-              sx={{ display: "flex", justifyContent: "space-between", mt: 1 }}
-            >
               <Typography
                 fontFamily="albert sans"
-                variant="body1"
-                fontWeight="bold"
-              >
-                Amount to Pay
-              </Typography>
-              <Typography
-                fontFamily="albert sans"
-                variant="body1"
+                variant="body2"
                 fontWeight="bold"
                 sx={{ color: "#19AEDC" }}
               >
-                {formatINR(financial?.totalAmount)}
+                -{formatINR(discount)}
               </Typography>
             </Box>
+          )}
+          {totalTax > 0 && (
+            <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.5 }}>
+              <Typography fontFamily="albert sans" variant="body2">
+                Total Tax ({taxPercentage}%)
+              </Typography>
+              <Typography fontFamily="albert sans" variant="body2" fontWeight="bold">
+                {formatINR(totalTax)}
+              </Typography>
+            </Box>
+          )}
+          <Divider sx={{ my: 1 }} />
+          <Box sx={{ display: "flex", justifyContent: "space-between", mt: 1 }}>
+            <Typography fontFamily="albert sans" variant="body1" fontWeight="bold">
+              Amount to Pay
+            </Typography>
+            <Typography
+              fontFamily="albert sans"
+              variant="body1"
+              fontWeight="bold"
+              sx={{ color: "#19AEDC" }}
+            >
+              {totalAmount === 0 ? "FREE" : formatINR(totalAmount)}
+            </Typography>
           </Box>
-
-          {/* Payment Button */}
           <Button
             fullWidth
             variant="contained"
@@ -666,18 +827,13 @@ const RazorPayPage = () => {
               padding: "12px",
               fontSize: "16px",
               "&:hover": { backgroundColor: "#1496C0" },
+              mt: 2,
               fontFamily: "albert sans",
             }}
             onClick={initiatePayment}
           >
-            {loading ? (
-              <CircularProgress size={24} color="inherit" />
-            ) : (
-              "Pay Now"
-            )}
+            {loading ? <CircularProgress size={24} color="inherit" /> : "Pay Now"}
           </Button>
-
-          {/* Cancel Button */}
           <Button
             fullWidth
             variant="outlined"
