@@ -195,44 +195,44 @@ const TicketBookedPage = () => {
 
   // Fetch event image
   const fetchEventImage = async (eventData) => {
-  try {
-    setEventImage(null);
-    if (eventData?.bannerImages?.length > 0) {
-      setEventImage(eventData.bannerImages[0]);
-      return;
-    }
-    const possibleImageFields = ["imageUrl", "bannerImage", "thumbnail", "image"];
-    for (const field of possibleImageFields) {
-      if (eventData[field]) {
-        setEventImage(eventData[field]);
-        return;
-      }
-    }
-    if (
-      event.imageUrl &&
-      typeof event.imageUrl === "string" &&
-      event.imageUrl.trim() !== ""
-    ) {
-      setEventImage(event.imageUrl);
-      return;
-    }
     try {
-      if (event.id) {
-        const storagePath = `events/${event.id}/banner_174532844693`;
-        const storageRef = ref(storage, storagePath); // Line 226: 'ref' is used here
-        const url = await getDownloadURL(storageRef); // Line 227: 'getDownloadURL' is used here
-        setEventImage(url);
+      setEventImage(null);
+      if (eventData?.bannerImages?.length > 0) {
+        setEventImage(eventData.bannerImages[0]);
         return;
       }
-    } catch (storageError) {
-      console.log("Storage path error:", storageError.message);
+      const possibleImageFields = ["imageUrl", "bannerImage", "thumbnail", "image"];
+      for (const field of possibleImageFields) {
+        if (eventData[field]) {
+          setEventImage(eventData[field]);
+          return;
+        }
+      }
+      if (
+        event.imageUrl &&
+        typeof event.imageUrl === "string" &&
+        event.imageUrl.trim() !== ""
+      ) {
+        setEventImage(event.imageUrl);
+        return;
+      }
+      try {
+        if (event.id) {
+          const storagePath = `events/${event.id}/banner_174532844693`;
+          const storageRef = ref(storage, storagePath);
+          const url = await getDownloadURL(storageRef);
+          setEventImage(url);
+          return;
+        }
+      } catch (storageError) {
+        console.log("Storage path error:", storageError.message);
+      }
+      setEventImage("https://via.placeholder.com/270x180?text=Event+Image");
+    } catch (error) {
+      console.error("Error in image fetching process:", error);
+      setEventImage("https://via.placeholder.com/270x180?text=Event+Image");
     }
-    setEventImage("https://via.placeholder.com/270x180?text=Event+Image");
-  } catch (error) {
-    console.error("Error in image fetching process:", error);
-    setEventImage("https://via.placeholder.com/270x180?text=Event+Image");
-  }
-};
+  };
 
   // Check if ticket exists
   const checkExistingTicket = async (ticketID) => {
@@ -516,131 +516,493 @@ const TicketBookedPage = () => {
   }, [bookingStatus.status, eventData, availabilityUpdated]);
 
   // Handle ticket download
-  const handleDownloadTicket = async () => {
-    if (!ticketRef.current) {
-      alert("Cannot find the ticket element to download.");
-      return;
+  // const handleDownloadTicket = async () => {
+  //   try {
+  //     setBookingStatus({
+  //       status: bookingStatus.status,
+  //       message: "Preparing your ticket for download...",
+  //     });
+
+  //     const pdf = new jsPDF({
+  //       orientation: "portrait",
+  //       unit: "mm",
+  //       format: "a4",
+  //     });
+
+  //     const pdfWidth = pdf.internal.pageSize.getWidth();
+  //     const pdfHeight = pdf.internal.pageSize.getHeight();
+  //     const margin = 15;
+  //     const centerX = pdfWidth / 2;
+  //     let yOffset = 20;
+
+  //     // Add border
+  //     pdf.setDrawColor(0, 0, 0);
+  //     pdf.setLineWidth(0.5);
+  //     pdf.rect(margin - 5, 10, pdfWidth - 2 * (margin - 5), pdfHeight - 20);
+
+  //     // Header Section
+  //     pdf.setFont("helvetica", "bold");
+  //     pdf.setFontSize(24);
+  //     pdf.setTextColor(0, 51, 102); // Dark blue
+  //     pdf.text("EVENT TICKET", centerX, yOffset, { align: "center" });
+  //     yOffset += 15;
+
+  //     // Event Name - Top Right Style (but centered for better design)
+  //     pdf.setFont("helvetica", "bold");
+  //     pdf.setFontSize(18);
+  //     pdf.setTextColor(0, 0, 0);
+  //     const eventName = event.name || "Event Name";
+  //     pdf.text(eventName.toUpperCase(), centerX, yOffset, { align: "center" });
+  //     yOffset += 12;
+
+  //     // Divider Line
+  //     pdf.setDrawColor(0, 51, 102);
+  //     pdf.setLineWidth(1);
+  //     pdf.line(margin, yOffset, pdfWidth - margin, yOffset);
+  //     yOffset += 15;
+
+  //     // Two Column Layout
+  //     const leftColumnX = margin;
+  //     const rightColumnX = centerX + 10;
+  //     const columnWidth = (pdfWidth - 3 * margin - 10) / 2;
+
+  //     // Left Column - Event Details
+  //     pdf.setFont("helvetica", "bold");
+  //     pdf.setFontSize(14);
+  //     pdf.setTextColor(0, 51, 102);
+  //     pdf.text("EVENT DETAILS", leftColumnX, yOffset);
+  //     yOffset += 8;
+
+  //     pdf.setFont("helvetica", "normal");
+  //     pdf.setFontSize(10);
+  //     pdf.setTextColor(0, 0, 0);
+
+  //     const eventDetails = [
+  //       { label: "Date:", value: formattedDate },
+  //       { label: "Time:", value: eventTime },
+  //       { label: "Venue:", value: eventData?.venueDetails?.venueName || event.location || "N/A" },
+  //       { label: "Tickets:", value: `${totalTickets} (${ticketSummary.map((t) => `${t.type} x${t.quantity}`).join(", ")})` }
+  //     ];
+
+  //     eventDetails.forEach((detail) => {
+  //       pdf.setFont("helvetica", "bold");
+  //       pdf.text(detail.label, leftColumnX, yOffset);
+  //       pdf.setFont("helvetica", "normal");
+  //       // Split long text if needed
+  //       const textLines = pdf.splitTextToSize(detail.value, columnWidth - 20);
+  //       pdf.text(textLines, leftColumnX + 20, yOffset);
+  //       yOffset += textLines.length * 5 + 2;
+  //     });
+
+  //     // Reset yOffset for right column
+  //     let rightYOffset = yOffset - (eventDetails.length * 7) - 8;
+
+  //     // Right Column - QR Code
+  //     pdf.setFont("helvetica", "bold");
+  //     pdf.setFontSize(14);
+  //     pdf.setTextColor(0, 51, 102);
+  //     pdf.text("ENTRY QR CODE", rightColumnX, rightYOffset);
+  //     rightYOffset += 8;
+
+  //     // QR Code
+  //     const qrCanvas = qrRef.current.querySelector("canvas");
+  //     if (qrCanvas) {
+  //       const qrDataUrl = qrCanvas.toDataURL("image/png");
+  //       const qrSize = 50; // Size in mm
+  //       const qrX = rightColumnX + (columnWidth - qrSize) / 2; // Center QR in right column
+  //       pdf.addImage(qrDataUrl, "PNG", qrX, rightYOffset, qrSize, qrSize);
+  //       rightYOffset += qrSize + 5;
+
+  //       pdf.setFontSize(9);
+  //       pdf.setFont("helvetica", "italic");
+  //       pdf.setTextColor(102, 102, 102);
+  //       pdf.text("Scan at venue for entry", rightColumnX + columnWidth / 2, rightYOffset, { align: "center" });
+  //     }
+
+  //     // Move to next section
+  //     yOffset += 20;
+
+  //     // Order Summary Section
+  //     pdf.setFont("helvetica", "bold");
+  //     pdf.setFontSize(14);
+  //     pdf.setTextColor(0, 51, 102);
+  //     pdf.text("ORDER SUMMARY", leftColumnX, yOffset);
+  //     yOffset += 8;
+
+  //     // Create table-like structure for order items
+  //     pdf.setFont("helvetica", "bold");
+  //     pdf.setFontSize(9);
+  //     pdf.setTextColor(0, 0, 0);
+  //     pdf.text("ITEM", leftColumnX, yOffset);
+  //     pdf.text("QTY", leftColumnX + 100, yOffset);
+  //     pdf.text("AMOUNT", leftColumnX + 130, yOffset);
+  //     yOffset += 5;
+
+  //     // Line under headers
+  //     pdf.setDrawColor(200, 200, 200);
+  //     pdf.setLineWidth(0.3);
+  //     pdf.line(leftColumnX, yOffset, pdfWidth - margin, yOffset);
+  //     yOffset += 5;
+
+  //     pdf.setFont("helvetica", "normal");
+  //     pdf.setFontSize(9);
+
+  //     // Ticket items
+  //     ticketSummary.forEach((ticket) => {
+  //       const itemName = pdf.splitTextToSize(ticket.type, 90);
+  //       pdf.text(itemName, leftColumnX, yOffset);
+  //       pdf.text(ticket.quantity.toString(), leftColumnX + 100, yOffset);
+  //       pdf.text(ticket.price === 0 ? "FREE" : formatCurrency(ticket.price * ticket.quantity), leftColumnX + 130, yOffset);
+  //       yOffset += itemName.length * 4 + 2;
+  //     });
+
+  //     // Food items
+  //     if (foodSummary && foodSummary.length > 0) {
+  //       foodSummary.forEach((food) => {
+  //         const itemName = pdf.splitTextToSize(food.name, 90);
+  //         pdf.text(itemName, leftColumnX, yOffset);
+  //         pdf.text(food.quantity.toString(), leftColumnX + 100, yOffset);
+  //         pdf.text(formatCurrency(food.price * food.quantity), leftColumnX + 130, yOffset);
+  //         yOffset += itemName.length * 4 + 2;
+  //       });
+  //     }
+
+  //     yOffset += 5;
+
+  //     // Financial breakdown
+  //     if (!financial.isFreeEvent) {
+  //       const financialItems = [
+  //         { label: "Convenience Fee:", amount: formatCurrency(financial.convenienceFee || 0) },
+  //         ...(financial.discount > 0 ? [{ label: "Discount:", amount: `-${formatCurrency(financial.discount || 0)}` }] : []),
+  //         { label: "GST (18%):", amount: formatCurrency(financial.gst || 0) }
+  //       ];
+
+  //       financialItems.forEach((item) => {
+  //         pdf.text(item.label, leftColumnX + 80, yOffset);
+  //         pdf.text(item.amount, leftColumnX + 130, yOffset);
+  //         yOffset += 4;
+  //       });
+
+  //       yOffset += 3;
+
+  //       // Total line
+  //       pdf.setDrawColor(0, 0, 0);
+  //       pdf.setLineWidth(0.5);
+  //       pdf.line(leftColumnX + 75, yOffset, pdfWidth - margin, yOffset);
+  //       yOffset += 5;
+  //     }
+
+  //     // Total Amount
+  //     pdf.setFont("helvetica", "bold");
+  //     pdf.setFontSize(12);
+  //     pdf.text("TOTAL AMOUNT:", leftColumnX + 80, yOffset);
+  //     pdf.text(
+  //       financial.isFreeEvent ? "FREE" : formatCurrency(financial.totalAmount || 0),
+  //       leftColumnX + 130,
+  //       yOffset
+  //     );
+  //     yOffset += 15;
+
+  //     // Booking Information Section
+  //     pdf.setFont("helvetica", "bold");
+  //     pdf.setFontSize(14);
+  //     pdf.setTextColor(0, 51, 102);
+  //     pdf.text("BOOKING INFORMATION", leftColumnX, yOffset);
+  //     yOffset += 8;
+
+  //     pdf.setFont("helvetica", "normal");
+  //     pdf.setFontSize(10);
+  //     pdf.setTextColor(0, 0, 0);
+
+  //     const bookingInfo = [
+  //       { label: "Booking ID:", value: bookingId },
+  //       { label: "Booking Date:", value: `${currentDate} ${currentTime}` },
+  //       { label: "Email:", value: user?.email || "N/A" },
+  //       { label: "Phone:", value: userProfileData?.phoneNumber || userProfileData?.phone || user?.phone || "N/A" }
+  //     ];
+
+  //     bookingInfo.forEach((info) => {
+  //       pdf.setFont("helvetica", "bold");
+  //       pdf.text(info.label, leftColumnX, yOffset);
+  //       pdf.setFont("helvetica", "normal");
+  //       pdf.text(info.value, leftColumnX + 35, yOffset);
+  //       yOffset += 6;
+  //     });
+
+  //     // Footer
+  //     yOffset = pdfHeight - 25;
+  //     pdf.setFont("helvetica", "italic");
+  //     pdf.setFontSize(8);
+  //     pdf.setTextColor(102, 102, 102);
+  //     pdf.text("Please present this ticket (digital or printed) at the venue entrance.", centerX, yOffset, { align: "center" });
+  //     yOffset += 4;
+  //     pdf.text("For support, contact us through the app or website.", centerX, yOffset, { align: "center" });
+
+  //     // Save PDF
+  //     const cleanBookingId = bookingId.replace("#", "");
+  //     const cleanEventName = (event.name || "Event").replace(/[^a-zA-Z0-9\s]/g, "").replace(/\s+/g, "_");
+  //     pdf.save(`${cleanEventName}_Ticket_${cleanBookingId}.pdf`);
+
+  //     setBookingStatus({
+  //       status: bookingStatus.status,
+  //       message: "Ticket downloaded successfully!",
+  //     });
+
+  //     setTimeout(() => {
+  //       if (bookingStatus.status === "success") {
+  //         setBookingStatus({
+  //           status: "success",
+  //           message: "Ticket booked successfully!",
+  //         });
+  //       }
+  //     }, 3000);
+  //   } catch (error) {
+  //     console.error("Error with download function:", error);
+  //     alert(
+  //       "There was an error downloading your ticket. Please try again or contact support."
+  //     );
+  //     setBookingStatus({
+  //       status: bookingStatus.status,
+  //       message:
+  //         bookingStatus.status === "success"
+  //           ? "Ticket booked successfully!"
+  //           : bookingStatus.message,
+  //     });
+  //   }
+  // };
+ const handleDownloadTicket = async () => {
+  try {
+    setBookingStatus({
+      status: bookingStatus.status,
+      message: "Preparing your ticket for download...",
+    });
+
+    const pdf = new jsPDF({
+      orientation: "portrait",
+      unit: "mm",
+      format: "a4",
+    });
+
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const margin = 20;
+    const ticketWidth = pdfWidth - 2 * margin;
+    const startY = 10;
+
+    // Temporarily store the yOffset to calculate height later
+    let yOffset = startY + 12;
+
+    // Event name
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(16);
+    pdf.setTextColor(0, 0, 0);
+    const eventName = event.name || "Event";
+    pdf.text(eventName, margin + 10, yOffset);
+    yOffset += 12;
+
+    // Event details
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(11);
+    pdf.setTextColor(102, 102, 102);
+    pdf.text(`Date: ${formattedDate}`, margin + 10, yOffset);
+    pdf.text(`Time: ${eventTime}`, margin + 100, yOffset);
+    yOffset += 8;
+
+    const venueText = eventData?.venueDetails?.venueName || event.location || "N/A";
+    pdf.text(`Venue: ${venueText}`, margin + 10, yOffset);
+    yOffset += 8;
+
+    const ticketSummaryText = `${totalTickets} Tickets (${ticketSummary.map((t) => `${t.type} x${t.quantity}`).join(", ")})`;
+    const ticketLines = pdf.splitTextToSize(ticketSummaryText, ticketWidth - 20);
+    pdf.text(`Tickets: ${ticketLines.join(' ')}`, margin + 10, yOffset);
+    yOffset += 15;
+
+    pdf.setDrawColor(220, 220, 220);
+    pdf.setLineWidth(0.5);
+    pdf.line(margin + 10, yOffset, margin + ticketWidth - 10, yOffset);
+    yOffset += 15;
+
+    // QR section
+    const qrSectionY = yOffset;
+    const qrSectionHeight = 55;
+    pdf.setFillColor(245, 245, 245);
+    pdf.roundedRect(margin + 10, qrSectionY, ticketWidth - 20, qrSectionHeight, 2, 2, 'F');
+
+    const qrCanvas = qrRef.current.querySelector("canvas");
+    if (qrCanvas) {
+      const qrDataUrl = qrCanvas.toDataURL("image/png");
+      const qrSize = 30;
+
+      pdf.setFillColor(255, 255, 255);
+      pdf.rect(margin + 15, qrSectionY + 5, qrSize + 4, qrSize + 4, 'F');
+      pdf.addImage(qrDataUrl, "PNG", margin + 17, qrSectionY + 7, qrSize, qrSize);
     }
 
-    try {
-      setBookingStatus({
-        status: bookingStatus.status,
-        message: "Preparing your ticket for download...",
+    const detailsX = margin + 60;
+    let detailsY = qrSectionY + 12;
+
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(11);
+    pdf.setTextColor(0, 0, 0);
+    pdf.text(`Booking ID: ${bookingId}`, detailsX, detailsY);
+    pdf.text(`Tickets: ${ticketLines.join(' ')}`, detailsX, detailsY + 10);
+    detailsY += 8;
+
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(9);
+    pdf.text("Present this QR code at", margin + 15, qrSectionY + qrSectionHeight - 8);
+    pdf.text("the venue for validation", margin + 15, qrSectionY + qrSectionHeight - 4);
+
+    if (foodNote) {
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(9);
+      pdf.setTextColor(111, 114, 135);
+      const foodNoteLines = pdf.splitTextToSize(foodNote, 100);
+      pdf.text(foodNoteLines, detailsX, detailsY);
+    }
+
+    yOffset = qrSectionY + qrSectionHeight + 15;
+
+    // Order Summary
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(14);
+    pdf.setTextColor(0, 0, 0);
+    pdf.text("ORDER SUMMARY", margin + 10, yOffset);
+    yOffset += 8;
+
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(9);
+    pdf.text("ITEM", margin + 10, yOffset);
+    pdf.text("QTY", margin + 110, yOffset);
+    pdf.text("AMOUNT", margin + 140, yOffset);
+    yOffset += 5;
+
+    pdf.setDrawColor(220, 220, 220);
+    pdf.setLineWidth(0.5);
+    pdf.line(margin + 10, yOffset, margin + ticketWidth - 10, yOffset);
+    yOffset += 15;
+
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(9);
+
+    ticketSummary.forEach((ticket) => {
+      const itemName = pdf.splitTextToSize(ticket.type, 90);
+      pdf.text(itemName, margin + 10, yOffset);
+      pdf.text(ticket.quantity.toString(), margin + 110, yOffset);
+      const ticketAmount = ticket.price === 0 ? "FREE" : formatCurrency(ticket.price * ticket.quantity);
+      pdf.text(ticketAmount, margin + 140, yOffset);
+      yOffset += itemName.length * 4 + 2;
+    });
+
+    if (foodSummary && foodSummary.length > 0) {
+      foodSummary.forEach((food) => {
+        const itemName = pdf.splitTextToSize(food.name, 90);
+        pdf.text(itemName, margin + 10, yOffset);
+        pdf.text(food.quantity.toString(), margin + 110, yOffset);
+        pdf.text(formatCurrency(food.price * food.quantity), margin + 140, yOffset);
+        yOffset += itemName.length * 4 + 2;
+      });
+    }
+
+    yOffset += 5;
+
+    if (!financial.isFreeEvent) {
+      const financialItems = [
+        { label: "Convenience Fee:", amount: formatCurrency(financial.convenienceFee || 0) },
+        ...(financial.discount > 0 ? [{ label: "Discount:", amount: `-${formatCurrency(financial.discount || 0)}` }] : []),
+        { label: "GST (18%):", amount: formatCurrency(financial.gst || 0) }
+      ];
+
+      financialItems.forEach((item) => {
+        pdf.text(item.label, margin + 90, yOffset);
+        pdf.text(item.amount, margin + 140, yOffset);
+        yOffset += 4;
       });
 
-      const preloadImage = (src) => {
-        return new Promise((resolve, reject) => {
-          if (!src || src.includes("placeholder")) {
-            resolve(null);
-            return;
-          }
-          const img = new Image();
-          img.crossOrigin = "anonymous";
-          img.onload = () => resolve(img);
-          img.onerror = () => resolve(null);
-          img.src = src;
+      yOffset += 3;
+    }
+
+    const totalSectionHeight = 15;
+    pdf.setFillColor(255, 255, 255);
+    pdf.rect(margin + 10, yOffset, ticketWidth - 20, totalSectionHeight, 'F');
+
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(12);
+    pdf.setTextColor(0, 0, 0);
+    pdf.text("TOTAL AMOUNT:", margin + 90, yOffset + 10);
+    const totalAmountText = financial.isFreeEvent ? "FREE" : formatCurrency(financial.totalAmount || 0);
+    pdf.text(totalAmountText, margin + 140, yOffset + 10);
+
+    yOffset += totalSectionHeight + 15;
+
+    // Booking Info
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(14);
+    pdf.text("BOOKING INFORMATION", margin + 10, yOffset);
+    yOffset += 8;
+
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(10);
+
+    const bookingInfo = [
+      { label: "Booking Date:", value: `${currentDate} ${currentTime}` },
+      { label: "Email:", value: user?.email || "N/A" },
+      { label: "Phone:", value: userProfileData?.phoneNumber || userProfileData?.phone || user?.phone || "N/A" }
+    ];
+
+    bookingInfo.forEach((info) => {
+      pdf.setFont("helvetica", "bold");
+      pdf.text(info.label, margin + 10, yOffset);
+      pdf.setFont("helvetica", "normal");
+      pdf.text(info.value, margin + 45, yOffset);
+      yOffset += 3;
+    });
+
+    yOffset += 1;
+    pdf.setFont("helvetica", "italic");
+    pdf.setFontSize(8);
+    pdf.setTextColor(102, 102, 102);
+    const centerX = pdfWidth / 2;
+    pdf.text("Please present this ticket (digital or printed) at the venue entrance.", centerX, yOffset, { align: "center" });
+    pdf.text("For support, contact us through the app or website.", centerX, yOffset + 4, { align: "center" });
+
+    // Calculate final ticket height and draw rounded rectangle last
+    const finalTicketHeight = yOffset - startY + 12;
+    pdf.setFillColor(255, 255, 255);
+    pdf.roundedRect(margin, startY, ticketWidth, finalTicketHeight, 6, 6, 'F');
+
+    // Background for entire page
+    pdf.setFillColor(245, 245, 245);
+    pdf.rect(0, 0, pdfWidth, pdf.internal.pageSize.getHeight(), 'F');
+
+    // Save
+    const cleanBookingId = bookingId.replace("#", "");
+    const cleanEventName = (event.name || "Event").replace(/[^a-zA-Z0-9\s]/g, "").replace(/\s+/g, "_");
+    pdf.save(`${cleanEventName}_Ticket_${cleanBookingId}.pdf`);
+
+    setBookingStatus({
+      status: bookingStatus.status,
+      message: "Ticket downloaded successfully!",
+    });
+
+    setTimeout(() => {
+      if (bookingStatus.status === "success") {
+        setBookingStatus({
+          status: "success",
+          message: "Ticket booked successfully!",
         });
-      };
+      }
+    }, 3000);
+  } catch (error) {
+    console.error("Error with download function:", error);
+    alert("There was an error downloading your ticket. Please try again or contact support.");
+    setBookingStatus({
+      status: bookingStatus.status,
+      message: bookingStatus.status === "success" ? "Ticket booked successfully!" : bookingStatus.message,
+    });
+  }
+};
 
-      const preloadedImage = await preloadImage(eventImage);
-
-      const canvas = await html2canvas(ticketRef.current, {
-        scale: 2,
-        logging: false,
-        useCORS: true,
-        allowTaint: false,
-        foreignObjectRendering: false,
-        imageTimeout: 15000,
-        removeContainer: true,
-        backgroundColor: "#ffffff",
-        onclone: (clonedDoc, element) => {
-          const images = clonedDoc.querySelectorAll("img");
-          images.forEach((img) => {
-            if (preloadedImage && img.src === eventImage) {
-              const imgCanvas = clonedDoc.createElement("canvas");
-              const ctx = imgCanvas.getContext("2d");
-              const computedStyle = window.getComputedStyle(img);
-              imgCanvas.width =
-                parseInt(computedStyle.width) || img.offsetWidth;
-              imgCanvas.height =
-                parseInt(computedStyle.height) || img.offsetHeight;
-              ctx.drawImage(
-                preloadedImage,
-                0,
-                0,
-                imgCanvas.width,
-                imgCanvas.height
-              );
-              img.parentNode.replaceChild(imgCanvas, img);
-            }
-          });
-
-          const buttons = clonedDoc.querySelectorAll("button");
-          buttons.forEach((btn) => {
-            btn.blur();
-            btn.style.boxShadow = "none";
-            btn.style.transform = "none";
-          });
-        },
-      });
-
-      const imgData = canvas.toDataURL("image/png", 1.0);
-      const pdf = new jsPDF({
-        orientation: "landscape",
-        unit: "mm",
-        format: "a4",
-      });
-
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-      const imgWidth = canvas.width;
-      const imgHeight = canvas.height;
-
-      const scale = Math.min(
-        (pdfWidth - 20) / (imgWidth * 0.264583),
-        (pdfHeight - 20) / (imgHeight * 0.264583)
-      );
-
-      const scaledWidth = imgWidth * 0.264583 * scale;
-      const scaledHeight = imgHeight * 0.264583 * scale;
-
-      const x = (pdfWidth - scaledWidth) / 2;
-      const y = (pdfHeight - scaledHeight) / 2;
-
-      pdf.addImage(imgData, "PNG", x, y, scaledWidth, scaledHeight);
-
-      const cleanBookingId = bookingId.replace("#", "");
-      const eventName = (event.name || "Event").replace(/[^a-zA-Z0-9]/g, "_");
-      pdf.save(`${eventName}_Ticket_${cleanBookingId}.pdf`);
-
-      setBookingStatus({
-        status: bookingStatus.status,
-        message: "Ticket downloaded successfully!",
-      });
-
-      setTimeout(() => {
-        if (bookingStatus.status === "success") {
-          setBookingStatus({
-            status: "success",
-            message: "Ticket booked successfully!",
-          });
-        }
-      }, 3000);
-    } catch (error) {
-      console.error("Error with download function:", error);
-      alert(
-        "There was an error downloading your ticket. Please try taking a screenshot instead, or contact support if the issue persists."
-      );
-      setBookingStatus({
-        status: bookingStatus.status,
-        message:
-          bookingStatus.status === "success"
-            ? "Ticket booked successfully!"
-            : bookingStatus.message,
-      });
-    }
-  };
-
+  
   const handleRetry = () => {
     if (auth.currentUser) {
       saveTicketToDatabase(auth.currentUser);
@@ -790,7 +1152,13 @@ const TicketBookedPage = () => {
         }}
       >
         {/* Desktop Ticket Notch */}
+        {/* {!isMobile && (
+          
+        )} */}
+
+        {/* Desktop Ticket Body */}
         {!isMobile && (
+          <>
           <Box
             sx={{
               position: "absolute",
@@ -804,10 +1172,6 @@ const TicketBookedPage = () => {
               zIndex: 1,
             }}
           />
-        )}
-
-        {/* Desktop Ticket Body */}
-        {!isMobile && (
           <Paper
             elevation={3}
             sx={{
@@ -1170,6 +1534,7 @@ const TicketBookedPage = () => {
               </Box>
             </Box>
           </Paper>
+          </>
         )}
 
         {/* Mobile Ticket Notches */}
@@ -1177,36 +1542,31 @@ const TicketBookedPage = () => {
           <>
             <Box
               sx={{
-                position: "absolute",
-                width: 40,
-                height: 50,
-                backgroundColor: "#f5f5f5",
-                borderRadius: "0 30px 30px 0px",
-                top: "30%",
-                left: "10%",
-                transform: "translateX(-60%)",
-                zIndex: 1,
-              }}
+                          position: "absolute",
+                          width: 40,
+                          height: 50,
+                          backgroundColor: "#f5f5f5",
+                          borderRadius: "0 30px 30px 0px",
+                          top: "32%",
+                          left: "10%",
+                          transform: "translateX(-60%)",
+                          zIndex: 1,
+                        }}
             />
             <Box
-              sx={{
-                position: "absolute",
-                width: 40,
-                height: 50,
-                backgroundColor: "#f5f5f5",
-                borderRadius: "30px 0px 0px 30px",
-                top: "30%",
-                left: "10%",
-                transform: "translateX(750%)",
-                zIndex: 1,
-              }}
+               sx={{
+                        position: "absolute",
+                        width: 40,
+                        height: 50,
+                        backgroundColor: "#f5f5f5",
+                        borderRadius: "30px 0px 0px 30px",
+                        top: "32%",
+                        right: "10%", 
+                        transform: "translateX(60%)",
+                        zIndex: 1,
+                      }}
             />
-          </>
-        )}
-
-        {/* Mobile Ticket Body */}
-        {isMobile && (
-          <Box sx={{ width: "90%", mx: "auto", mt: 3 }}>
+            <Box sx={{ width: "90%", mx: "auto", mt: 3 }}>
             <Card
               sx={{
                 width: "100%",
@@ -1627,7 +1987,13 @@ const TicketBookedPage = () => {
               </CardContent>
             </Card>
           </Box>
+          </>
         )}
+
+        {/* Mobile Ticket Body */}
+        {/* {isMobile && (
+          
+        )} */}
       </Box>
 
       {/* Action Buttons */}
