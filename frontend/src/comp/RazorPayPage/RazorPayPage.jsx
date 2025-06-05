@@ -360,6 +360,11 @@ const RazorPayPage = () => {
           console.log("Payment successful:", response);
 
           clearAllTimers();
+          const timestamp = new Date().getTime().toString(36).slice(-4);
+          const randomChars = Math.random().toString(36).substring(2, 6).toUpperCase();
+          const generatedBookingId = `#${randomChars}${timestamp}`;
+          console.log("Generated Booking ID:", generatedBookingId);
+
 
           const paymentRecord = {
             paymentId: response.razorpay_payment_id,
@@ -375,6 +380,7 @@ const RazorPayPage = () => {
             },
             paymentDate: new Date().toISOString(),
             lockId,
+            bookingId: generatedBookingId
           };
 
           savePaymentRecord(paymentRecord);
@@ -382,7 +388,7 @@ const RazorPayPage = () => {
           navigate(`/ticketbookedpage/${eventId}/${userUID}`, {
             state: {
               ...paymentRecord,
-              bookingId: `TICKET_${orderId}`,
+              paymentSuccess: true
             },
             replace: true,
           });

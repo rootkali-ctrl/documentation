@@ -36,7 +36,6 @@ import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { auth, db, storage } from "../../firebase_config";
 
-
 const TicketBookedPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -57,7 +56,6 @@ const TicketBookedPage = () => {
   const isMobile = useMediaQuery("(max-width:600px)");
   const { eventId } = useParams();
   const [vendorIdHere, setVendorIdHere] = useState("");
-  const bookingIdRef = useRef(null);
   const [availabilityUpdateInProgress, setAvailabilityUpdateInProgress] =
     useState(false);
 
@@ -73,67 +71,78 @@ const TicketBookedPage = () => {
       totalAmount: 0,
       isFreeEvent: true,
     },
+    bookingId: passedBookingId,
   } = location.state || {};
+  const [bookingId, setBookingId] = useState(passedBookingId);
+  const HOME_REDIRECT_TIMEOUT_MS = 60 * 1000; // 1 minute in milliseconds
+  const redirectTimerRef = useRef(null);
 
-  // Format date and time from ISO string to IST
-const formatEventDateTime = (isoDateInput) => {
-  if (!isoDateInput) return { formattedDate: "N/A", eventTime: "N/A" };
-
-  try {
-    // Convert Firestore Timestamp or string to JS Date
-    let eventDateTime;
-
-    if (typeof isoDateInput?.toDate === "function") {
-      // Firestore Timestamp
-      eventDateTime = isoDateInput.toDate();
-    } else if (
-      typeof isoDateInput === "string" ||
-      isoDateInput instanceof String
-    ) {
-      // ISO string
-      eventDateTime = new Date(isoDateInput);
-    } else if (isoDateInput instanceof Date) {
-      // JS Date
-      eventDateTime = isoDateInput;
-    } else {
-      console.warn("Unsupported date format:", isoDateInput);
-      return { formattedDate: "N/A", eventTime: "N/A" };
+  const startRedirectTimer = useCallback(() => {
+    // Clear any existing timer to prevent multiple redirects
+    if (redirectTimerRef.current) {
+      clearTimeout(redirectTimerRef.current);
     }
 
-    const formattedDate = eventDateTime.toLocaleDateString("en-US", {
-      month: "long",
-      day: "numeric",
-      year: "numeric",
-      timeZone: "Asia/Kolkata",
-    });
+    redirectTimerRef.current = setTimeout(() => {
+      console.log("Redirecting to homepage...");
+      navigate("/", { replace: true }); // Use replace: true for the homepage redirect too
+    }, HOME_REDIRECT_TIMEOUT_MS);
+  }, [navigate]);
 
-    const eventTime = eventDateTime.toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-      timeZone: "Asia/Kolkata",
-    });
+  const clearRedirectTimer = useCallback(() => {
+    if (redirectTimerRef.current) {
+      clearTimeout(redirectTimerRef.current);
+      redirectTimerRef.current = null;
+    }
+  }, []);
 
-    return { formattedDate, eventTime };
-  } catch (error) {
-    //console.error("Error formatting date/time:", error);
-    return { formattedDate: "N/A", eventTime: "N/A" };
-  }
-};
+  // Format date and time from ISO string to IST
+  const formatEventDateTime = (isoDateInput) => {
+    if (!isoDateInput) return { formattedDate: "N/A", eventTime: "N/A" };
 
+    try {
+      // Convert Firestore Timestamp or string to JS Date
+      let eventDateTime;
+
+      if (typeof isoDateInput?.toDate === "function") {
+        // Firestore Timestamp
+        eventDateTime = isoDateInput.toDate();
+      } else if (
+        typeof isoDateInput === "string" ||
+        isoDateInput instanceof String
+      ) {
+        // ISO string
+        eventDateTime = new Date(isoDateInput);
+      } else if (isoDateInput instanceof Date) {
+        // JS Date
+        eventDateTime = isoDateInput;
+      } else {
+        console.warn("Unsupported date format:", isoDateInput);
+        return { formattedDate: "N/A", eventTime: "N/A" };
+      }
+
+      const formattedDate = eventDateTime.toLocaleDateString("en-US", {
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+        timeZone: "Asia/Kolkata",
+      });
+
+      const eventTime = eventDateTime.toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+        timeZone: "Asia/Kolkata",
+      });
+
+      return { formattedDate, eventTime };
+    } catch (error) {
+      //console.error("Error formatting date/time:", error);
+      return { formattedDate: "N/A", eventTime: "N/A" };
+    }
+  };
 
   // Fixed: Use useMemo to prevent regeneration on every render
-
-  if (!bookingIdRef.current) {
-    const timestamp = new Date().getTime().toString(36).slice(-4);
-    const randomChars = Math.random()
-      .toString(36)
-      .substring(2, 6)
-      .toUpperCase();
-    bookingIdRef.current = `#${randomChars}${timestamp}`;
-  }
-
-  const bookingId = bookingIdRef.current;
 
   // Fixed: Memoize expensive calculations
   const { formattedDate, eventTime } = useMemo(() => {
@@ -337,323 +346,334 @@ const formatEventDateTime = (isoDateInput) => {
   }, []);
 
   // Fixed: Save ticket to database with proper authentication and retry logic
- const saveTicketToDatabase = useCallback(
-  async (currentUser, retryCount = 0) => {
-    const MAX_RETRY_ATTEMPTS = 2;
+  const saveTicketToDatabase = useCallback(
+    async (currentUser, retryCount = 0) => {
+      const MAX_RETRY_ATTEMPTS = 2;
 
-    if (!currentUser) {
-      setBookingStatus({
-        status: "error",
-        message: "Authentication error. Please log in again.",
-      });
-      return;
-    }
-
-    try {
-      setBookingStatus({
-        status: "pending",
-        message: retryCount > 0 ? "Retrying..." : "Saving your ticket...",
-      });
-
-      // Wait for authentication to settle on first attempt
-      if (retryCount === 0) {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-
-        try {
-          await currentUser.getIdToken(true);
-        } catch (tokenError) {
-          console.warn("Token refresh warning:", tokenError);
-        }
-      }
-
-      // CRITICAL FIX: Check if ticket already exists first
-      const ticketExists = await checkExistingTicket(bookingId);
-      if (ticketExists) {
-        setTicketIsSaved(true);
+      if (!currentUser) {
         setBookingStatus({
-          status: "success",
-          message: "Ticket already saved!",
+          status: "error",
+          message: "Authentication error. Please log in again.",
         });
         return;
       }
 
-      const profileData = await fetchUserProfileData(currentUser.uid);
-      const userPhone =
-        profileData?.phoneNumber ||
-        profileData?.phone ||
-        currentUser.phoneNumber ||
-        "N/A";
-      const userEmail = currentUser.email || profileData?.email || "N/A";
+      try {
+        setBookingStatus({
+          status: "pending",
+          message: retryCount > 0 ? "Retrying..." : "Saving your ticket...",
+        });
 
-      // Get the current event data and ensure vendorId is resolved
-      let currentEventData = eventData || event;
+        // Wait for authentication to settle on first attempt
+        if (retryCount === 0) {
+          await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      if (!currentEventData || Object.keys(currentEventData).length === 0) {
-        currentEventData = await fetchEventData();
-      }
-
-      const resolvedEventId =
-        eventId || currentEventData.id || currentEventData.eventId || null;
-      const resolvedVendorId =
-        currentEventData.vendorId ||
-        currentEventData.vendor_id ||
-        currentEventData.organizerId ||
-        vendorIdHere ||
-        null;
-
-      console.log(
-        "Saving ticket with eventId:",
-        resolvedEventId,
-        "vendorId:",
-        resolvedVendorId
-      );
-
-      if (!resolvedEventId) {
-        throw new Error("Event ID is required but not found");
-      }
-
-      // **FIX: Format the event date and time properly**
-      const eventDateRaw = currentEventData.date || 
-                          currentEventData.eventDate || 
-                          currentEventData.startDate ||
-                          currentEventData.dateTime ||
-                          null;
-      
-      console.log("Raw event date from data:", eventDateRaw);
-      
-      // Format the date using your existing function
-      const { formattedDate: eventFormattedDate, eventTime: eventFormattedTime } = 
-        formatEventDateTime(eventDateRaw);
-      
-      console.log("Formatted date:", eventFormattedDate, "Formatted time:", eventFormattedTime);
-
-      // Create ticket data object
-      const ticketData = {
-        eventName: currentEventData.name || currentEventData.title || "Event",
-        eventDate: eventFormattedDate, // Use the properly formatted date
-        eventTime: eventFormattedTime, // Use the properly formatted time
-        location:
-          currentEventData.venueDetails.venueName || "N/A",
-        phone: userPhone || "N/A",
-        email: userEmail || "N/A",
-        ticketSummary: ticketSummary || [],
-        foodSummary: foodSummary || [],
-        financial: financial || {
-          subtotal: 0,
-          convenienceFee: 0,
-          discount: 0,
-          gst: 0,
-          totalAmount: 0,
-          isFreeEvent: true,
-        },
-        bookingId: bookingId,
-        bookingDate: `${currentDate} ${currentTime}`,
-        userId: currentUser.uid,
-        createdAt: new Date().toISOString(),
-        eventId: resolvedEventId,
-        isPublic: true,
-        ownerId: currentUser.uid,
-        status: "booked",
-        checkedIn: false,
-        checkedInTime: null,
-        vendorId: resolvedVendorId || "",
-        cancelled: false
-      };
-
-      console.log("Ticket data to save:", ticketData);
-
-      const cleanTicketId = bookingId.replace("#", "");
-
-      // CRITICAL FIX: Use transaction to save ticket AND update availability together
-      await runTransaction(db, async (transaction) => {
-        // PHASE 1: ALL READS FIRST
-        const existingTicketRef = doc(db, "tickets", cleanTicketId);
-        const eventDocRef = doc(db, "events", resolvedEventId);
-
-        // Read existing ticket and event data
-        const existingTicket = await transaction.get(existingTicketRef);
-        const eventDoc = await transaction.get(eventDocRef);
-
-        // Check if ticket already exists
-        if (existingTicket.exists()) {
-          throw new Error("TICKET_ALREADY_EXISTS");
-        }
-
-        // Check if event exists
-        if (!eventDoc.exists()) {
-          throw new Error("Event document not found for availability update");
-        }
-
-        // PHASE 2: ALL WRITES AFTER READS
-        // Save the main ticket document
-        transaction.set(existingTicketRef, ticketData);
-
-        // IMPORTANT: Only save to user's subcollection if user is authenticated
-        if (currentUser.uid && ticketData.userId === currentUser.uid) {
-          const userTicketRef = doc(
-            db,
-            "users",
-            currentUser.uid,
-            "tickets",
-            cleanTicketId
-          );
-
-          const userTicketData = {
-            ticketId: cleanTicketId,
-            eventName:
-              currentEventData.name || currentEventData.title || "Event",
-            bookingDate: new Date().toISOString(),
-            status: "booked",
-            eventId: resolvedEventId,
-            vendorId: resolvedVendorId || "",
-            // CRITICAL: Ensure userId matches authenticated user
-            userId: currentUser.uid,
-          };
-
-          transaction.set(userTicketRef, userTicketData);
-        }
-
-        // Update event availability with only the allowed fields
-        const eventData = eventDoc.data();
-        const pricing = [...(eventData.pricing || [])];
-
-        console.log("Current pricing before update:", pricing);
-
-        // Convert ticketSummary to the format needed for update
-        const bookedTicketsForUpdate = ticketSummary.map((ticket) => ({
-          type: ticket.type,
-          quantity: ticket.quantity,
-        }));
-
-        // Update each ticket type
-        bookedTicketsForUpdate.forEach((bookedTicket) => {
-          const ticketIndex = pricing.findIndex(
-            (p) => p.ticketType === bookedTicket.type
-          );
-
-          if (ticketIndex !== -1) {
-            const currentTicket = pricing[ticketIndex];
-            const totalSeats = currentTicket.seats || 0;
-
-            // Initialize booked count if it doesn't exist
-            const currentBooked = currentTicket.booked || 0;
-            const newBookedCount = currentBooked + bookedTicket.quantity;
-
-            // Update the ticket type
-            pricing[ticketIndex] = {
-              ...currentTicket,
-              booked: newBookedCount,
-              available: Math.max(0, totalSeats - newBookedCount),
-            };
-
-            console.log(
-              `Updated ${bookedTicket.type}: booked ${currentBooked} -> ${newBookedCount}, available: ${pricing[ticketIndex].available}`
-            );
-          } else {
-            console.warn(
-              `Ticket type ${bookedTicket.type} not found in pricing array`
-            );
+          try {
+            await currentUser.getIdToken(true);
+          } catch (tokenError) {
+            console.warn("Token refresh warning:", tokenError);
           }
-        });
+        }
 
-        // Calculate totals from pricing array
-        const totalSeats = pricing.reduce(
-          (sum, p) => sum + (p.seats || 0),
-          0
-        );
-        const totalBookedTickets = pricing.reduce(
-          (sum, p) => sum + (p.booked || 0),
-          0
-        );
-        const totalAvailableTickets = Math.max(
-          0,
-          totalSeats - totalBookedTickets
+        // CRITICAL FIX: Check if ticket already exists first
+        const ticketExists = await checkExistingTicket(bookingId);
+        if (ticketExists) {
+          setTicketIsSaved(true);
+          setBookingStatus({
+            status: "success",
+            message: "Ticket already saved!",
+          });
+          return;
+        }
+
+        const profileData = await fetchUserProfileData(currentUser.uid);
+        const userPhone =
+          profileData?.phoneNumber ||
+          profileData?.phone ||
+          currentUser.phoneNumber ||
+          "N/A";
+        const userEmail = currentUser.email || profileData?.email || "N/A";
+
+        // Get the current event data and ensure vendorId is resolved
+        let currentEventData = eventData || event;
+
+        if (!currentEventData || Object.keys(currentEventData).length === 0) {
+          currentEventData = await fetchEventData();
+        }
+
+        const resolvedEventId =
+          eventId || currentEventData.id || currentEventData.eventId || null;
+        const resolvedVendorId =
+          currentEventData.vendorId ||
+          currentEventData.vendor_id ||
+          currentEventData.organizerId ||
+          vendorIdHere ||
+          null;
+
+        console.log(
+          "Saving ticket with eventId:",
+          resolvedEventId,
+          "vendorId:",
+          resolvedVendorId
         );
 
-        console.log("Calculated totals:", {
-          totalSeats,
-          totalBookedTickets,
-          totalAvailableTickets,
-        });
+        if (!resolvedEventId) {
+          throw new Error("Event ID is required but not found");
+        }
 
-        // Update the event document with calculated values
-        const updateData = {
-          pricing: pricing,
-          ticketBookedCount: totalBookedTickets,
-          totalAvailableTickets: totalAvailableTickets,
+        // **FIX: Format the event date and time properly**
+        const eventDateRaw =
+          currentEventData.date ||
+          currentEventData.eventDate ||
+          currentEventData.startDate ||
+          currentEventData.dateTime ||
+          null;
+
+        console.log("Raw event date from data:", eventDateRaw);
+
+        // Format the date using your existing function
+        const {
+          formattedDate: eventFormattedDate,
+          eventTime: eventFormattedTime,
+        } = formatEventDateTime(eventDateRaw);
+
+        console.log(
+          "Formatted date:",
+          eventFormattedDate,
+          "Formatted time:",
+          eventFormattedTime
+        );
+
+        // Create ticket data object
+        const ticketData = {
+          eventName: currentEventData.name || currentEventData.title || "Event",
+          eventDate: eventFormattedDate, // Use the properly formatted date
+          eventTime: eventFormattedTime, // Use the properly formatted time
+          location: currentEventData.venueDetails.venueName || "N/A",
+          phone: userPhone || "N/A",
+          email: userEmail || "N/A",
+          ticketSummary: ticketSummary || [],
+          foodSummary: foodSummary || [],
+          financial: financial || {
+            subtotal: 0,
+            convenienceFee: 0,
+            discount: 0,
+            gst: 0,
+            totalAmount: 0,
+            isFreeEvent: true,
+          },
+          bookingId: bookingId,
+          bookingDate: `${currentDate} ${currentTime}`,
+          userId: currentUser.uid,
+          createdAt: new Date().toISOString(),
+          eventId: resolvedEventId,
+          isPublic: true,
+          ownerId: currentUser.uid,
+          status: "booked",
+          checkedIn: false,
+          checkedInTime: null,
+          vendorId: resolvedVendorId || "",
+          cancelled: false,
         };
 
-        transaction.update(eventDocRef, updateData);
-      });
+        console.log("Ticket data to save:", ticketData);
 
-      console.log(
-        "Transaction completed successfully - ticket saved and availability updated"
-      );
+        const cleanTicketId = bookingId.replace("#", "");
 
-      setAvailabilityUpdated(true);
-      setTicketIsSaved(true);
-      setBookingStatus({
-        status: "success",
-        message: "Ticket booked successfully!",
-      });
-    } catch (error) {
-      console.error("Error booking ticket:", error);
+        // CRITICAL FIX: Use transaction to save ticket AND update availability together
+        await runTransaction(db, async (transaction) => {
+          // PHASE 1: ALL READS FIRST
+          const existingTicketRef = doc(db, "tickets", cleanTicketId);
+          const eventDocRef = doc(db, "events", resolvedEventId);
 
-      // Handle the case where ticket already exists
-      if (error.message === "TICKET_ALREADY_EXISTS") {
+          // Read existing ticket and event data
+          const existingTicket = await transaction.get(existingTicketRef);
+          const eventDoc = await transaction.get(eventDocRef);
+
+          // Check if ticket already exists
+          if (existingTicket.exists()) {
+            throw new Error("TICKET_ALREADY_EXISTS");
+          }
+
+          // Check if event exists
+          if (!eventDoc.exists()) {
+            throw new Error("Event document not found for availability update");
+          }
+
+          // PHASE 2: ALL WRITES AFTER READS
+          // Save the main ticket document
+          transaction.set(existingTicketRef, ticketData);
+
+          // IMPORTANT: Only save to user's subcollection if user is authenticated
+          if (currentUser.uid && ticketData.userId === currentUser.uid) {
+            const userTicketRef = doc(
+              db,
+              "users",
+              currentUser.uid,
+              "tickets",
+              cleanTicketId
+            );
+
+            const userTicketData = {
+              ticketId: cleanTicketId,
+              eventName:
+                currentEventData.name || currentEventData.title || "Event",
+              bookingDate: new Date().toISOString(),
+              status: "booked",
+              eventId: resolvedEventId,
+              vendorId: resolvedVendorId || "",
+              // CRITICAL: Ensure userId matches authenticated user
+              userId: currentUser.uid,
+            };
+
+            transaction.set(userTicketRef, userTicketData);
+          }
+
+          // Update event availability with only the allowed fields
+          const eventData = eventDoc.data();
+          const pricing = [...(eventData.pricing || [])];
+
+          console.log("Current pricing before update:", pricing);
+
+          // Convert ticketSummary to the format needed for update
+          const bookedTicketsForUpdate = ticketSummary.map((ticket) => ({
+            type: ticket.type,
+            quantity: ticket.quantity,
+          }));
+
+          // Update each ticket type
+          bookedTicketsForUpdate.forEach((bookedTicket) => {
+            const ticketIndex = pricing.findIndex(
+              (p) => p.ticketType === bookedTicket.type
+            );
+
+            if (ticketIndex !== -1) {
+              const currentTicket = pricing[ticketIndex];
+              const totalSeats = currentTicket.seats || 0;
+
+              // Initialize booked count if it doesn't exist
+              const currentBooked = currentTicket.booked || 0;
+              const newBookedCount = currentBooked + bookedTicket.quantity;
+
+              // Update the ticket type
+              pricing[ticketIndex] = {
+                ...currentTicket,
+                booked: newBookedCount,
+                available: Math.max(0, totalSeats - newBookedCount),
+              };
+
+              console.log(
+                `Updated ${bookedTicket.type}: booked ${currentBooked} -> ${newBookedCount}, available: ${pricing[ticketIndex].available}`
+              );
+            } else {
+              console.warn(
+                `Ticket type ${bookedTicket.type} not found in pricing array`
+              );
+            }
+          });
+
+          // Calculate totals from pricing array
+          const totalSeats = pricing.reduce(
+            (sum, p) => sum + (p.seats || 0),
+            0
+          );
+          const totalBookedTickets = pricing.reduce(
+            (sum, p) => sum + (p.booked || 0),
+            0
+          );
+          const totalAvailableTickets = Math.max(
+            0,
+            totalSeats - totalBookedTickets
+          );
+
+          console.log("Calculated totals:", {
+            totalSeats,
+            totalBookedTickets,
+            totalAvailableTickets,
+          });
+
+          // Update the event document with calculated values
+          const updateData = {
+            pricing: pricing,
+            ticketBookedCount: totalBookedTickets,
+            totalAvailableTickets: totalAvailableTickets,
+          };
+
+          transaction.update(eventDocRef, updateData);
+        });
+
+        console.log(
+          "Transaction completed successfully - ticket saved and availability updated"
+        );
+
+        setAvailabilityUpdated(true);
         setTicketIsSaved(true);
         setBookingStatus({
           status: "success",
-          message: "Ticket already saved!",
+          message: "Ticket booked successfully!",
         });
-        return;
-      }
+                startRedirectTimer();
 
-      // Handle permission errors with retry logic
-      if (
-        error.code === "permission-denied" ||
-        error.message.includes("permissions")
-      ) {
-        if (retryCount < MAX_RETRY_ATTEMPTS) {
-          console.log(
-            `Permission denied, retrying... (${
-              retryCount + 1
-            }/${MAX_RETRY_ATTEMPTS})`
-          );
-          await new Promise((resolve) => setTimeout(resolve, 2000));
-          return saveTicketToDatabase(currentUser, retryCount + 1);
+      } catch (error) {
+        console.error("Error booking ticket:", error);
+
+        // Handle the case where ticket already exists
+        if (error.message === "TICKET_ALREADY_EXISTS") {
+          setTicketIsSaved(true);
+          setBookingStatus({
+            status: "success",
+            message: "Ticket already saved!",
+          });
+          startRedirectTimer(); 
+          return;
+        }
+
+        // Handle permission errors with retry logic
+        if (
+          error.code === "permission-denied" ||
+          error.message.includes("permissions")
+        ) {
+          if (retryCount < MAX_RETRY_ATTEMPTS) {
+            console.log(
+              `Permission denied, retrying... (${
+                retryCount + 1
+              }/${MAX_RETRY_ATTEMPTS})`
+            );
+            await new Promise((resolve) => setTimeout(resolve, 2000));
+            return saveTicketToDatabase(currentUser, retryCount + 1);
+          } else {
+            setBookingStatus({
+              status: "error",
+              message:
+                "Permission denied. Please check your account permissions or contact support.",
+            });
+          }
         } else {
           setBookingStatus({
             status: "error",
-            message:
-              "Permission denied. Please check your account permissions or contact support.",
+            message: `Failed to save your ticket: ${error.message}. Please try again or contact support.`,
           });
         }
-      } else {
-        setBookingStatus({
-          status: "error",
-          message: `Failed to save your ticket: ${error.message}. Please try again or contact support.`,
-        });
       }
-    }
-  },
-  [
-    eventData,
-    event,
-    eventId,
-    currentDate,
-    currentTime,
-    ticketSummary,
-    foodSummary,
-    financial,
-    checkExistingTicket,
-    fetchUserProfileData,
-    vendorIdHere,
-    fetchEventData,
-    bookingId,
-    formatEventDateTime, // Added this dependency
-  ]
-);
+    },
+    [
+      eventData,
+      event,
+      eventId,
+      currentDate,
+      currentTime,
+      ticketSummary,
+      foodSummary,
+      financial,
+      checkExistingTicket,
+      fetchUserProfileData,
+      vendorIdHere,
+      fetchEventData,
+      bookingId,
+      formatEventDateTime, // Added this dependency
+      startRedirectTimer,
+    ]
+  );
 
   // Fixed: Fetch ticket availability with proper error handling
   const fetchTicketAvailability = useCallback(async (eventId) => {
@@ -834,6 +854,8 @@ const formatEventDateTime = (isoDateInput) => {
           // CRITICAL FIX: Only save ticket if not already saved
           if (!ticketIsSaved) {
             await saveTicketToDatabase(user);
+          } else{
+            startRedirectTimer();
           }
         } else {
           throw new Error("Failed to load event data");
@@ -853,7 +875,12 @@ const formatEventDateTime = (isoDateInput) => {
     if (!ticketIsSaved && !availabilityUpdateInProgress) {
       handleInitialSetup();
     }
-  }, [ticketIsSaved, availabilityUpdateInProgress]); // Added proper dependencies
+  }, [ticketIsSaved, availabilityUpdateInProgress, startRedirectTimer ]); // Added proper dependencies
+useEffect(() => {
+    return () => {
+      clearRedirectTimer();
+    };
+  }, [clearRedirectTimer]);
 
   // Add retry function for manual retry
   const handleRetry = useCallback(async () => {
@@ -1170,7 +1197,7 @@ const formatEventDateTime = (isoDateInput) => {
       pdf.setFont("helvetica", "bold");
       pdf.setFontSize(16);
       pdf.setTextColor(0, 0, 0);
-      const eventName = event.name || "Event";
+      const eventName = eventData?.name || "Event"
       pdf.text(eventName, margin + 10, yOffset);
       yOffset += 12;
 
@@ -1508,7 +1535,12 @@ const formatEventDateTime = (isoDateInput) => {
           severity="error"
           sx={{ maxWidth: 1000, mx: "auto", mt: 3 }}
           action={
-            <Button color="inherit" size="small" onClick={handleRetry} sx={{fontFamily:'albert sans'}}>
+            <Button
+              color="inherit"
+              size="small"
+              onClick={handleRetry}
+              sx={{ fontFamily: "albert sans" }}
+            >
               Retry
             </Button>
           }
@@ -1596,7 +1628,6 @@ const formatEventDateTime = (isoDateInput) => {
           position: "relative",
         }}
       >
-
         {/* Desktop Ticket Body */}
         {!isMobile && (
           <>
@@ -1630,7 +1661,7 @@ const formatEventDateTime = (isoDateInput) => {
                 <Box
                   sx={{
                     width: "35%",
-                    height:'400px',
+                    height: "400px",
                     pt: 2,
                     pb: 4,
                     pl: 5,
@@ -1642,24 +1673,24 @@ const formatEventDateTime = (isoDateInput) => {
                   }}
                 >
                   <Box
-                  component="img"
-                  src={
-                    eventImage ||
-                    "https://via.placeholder.com/270x180?text=Event+Image"
-                  }
-                  alt={event.name || "Event"}
-                  sx={{
-                    width: "100%",
-                    height: '90%',
-                    // maxWidth: 150,
-                    borderRadius: 1,
-                    objectFit: "cover",
-                  }}
-                  onError={(e) => {
-                    e.target.src =
-                      "https://via.placeholder.com/270x180?text=Event+Image";
-                  }}
-                />
+                    component="img"
+                    src={
+                      eventImage ||
+                      "https://via.placeholder.com/270x180?text=Event+Image"
+                    }
+                    alt={event.name || "Event"}
+                    sx={{
+                      width: "100%",
+                      height: "90%",
+                      // maxWidth: 150,
+                      borderRadius: 1,
+                      objectFit: "cover",
+                    }}
+                    onError={(e) => {
+                      e.target.src =
+                        "https://via.placeholder.com/270x180?text=Event+Image";
+                    }}
+                  />
                 </Box>
 
                 {/* Event Details */}
@@ -1677,7 +1708,9 @@ const formatEventDateTime = (isoDateInput) => {
                     fontWeight="bold"
                     sx={{ borderBottom: "1px solid #000", pb: 1, mb: 2 }}
                   >
-                    {event.name || "Event"}
+                    {eventData?.name ||
+                        
+                        "N/A"}
                   </Typography>
 
                   <Box
@@ -1808,7 +1841,7 @@ const formatEventDateTime = (isoDateInput) => {
                         px: 2,
                         py: 0.5,
                         fontSize: 13,
-                        fontFamily:'albert sans'
+                        fontFamily: "albert sans",
                       }}
                       onClick={handleDownloadTicket}
                       disabled={bookingStatus.status === "pending"}
@@ -2047,510 +2080,521 @@ const formatEventDateTime = (isoDateInput) => {
 
         {/* Mobile Ticket Notches */}
         {isMobile && (
-  <>
-    <Box sx={{ width: "90%", mx: "auto", mt: 3 }}>
-      <Card
-        sx={{
-          width: "100%",
-          borderRadius: 6,
-          height: '770px' , // Fixed height for proper proportion control
-          p: 0,
-          overflow: "hidden",
-          position: "relative",
-        }}
-        ref={ticketRef}
-      >
-        {/* Top Section - 30% of total height */}
-        <Box
-          sx={{
-            height: "30%", // 30% of 720px = 216px
-            position: "relative",
-            p: 2,
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "space-between",
-          }}
-        >
-          <Box sx={{ display: "flex", gap: 3, flex: 1 }}>
-            <Box
-              component="img"
-              src={
-                eventImage ||
-                "https://via.placeholder.com/270x180?text=Event+Image"
-              }
-              alt={event.name || "Event"}
-              sx={{
-                width: "50%",
-                height: "90%",
-                maxHeight:240,
-                borderRadius: 1,
-                objectFit: "cover",
-                border: "1px solid",
-                borderColor: "black",
-              }}
-              onError={(e) => {
-                e.target.src =
-                  "https://via.placeholder.com/270x180?text=Event+Image";
-              }}
-            />
-            <Box sx={{ flex: 1.5 }}>
-              <Typography
-                fontFamily="albert sans"
+          <>
+            <Box sx={{ width: "90%", mx: "auto", mt: 3 }}>
+              <Card
                 sx={{
-                  fontWeight: 600,
-                  fontSize: 16,
-                  mb: 1,
+                  width: "100%",
+                  borderRadius: 6,
+                  height: "770px", // Fixed height for proper proportion control
+                  p: 0,
+                  overflow: "hidden",
+                  position: "relative",
                 }}
+                ref={ticketRef}
               >
-                {event.name || "Event"}
-              </Typography>
-
-              <Box sx={{ display: "flex", alignItems: "center", mb: 1 }}>
-                <CalendarTodayIcon
-                  sx={{ fontSize: 13, color: "text.secondary" }}
-                />
-                <Typography
-                  fontFamily="albert sans"
-                  variant="body2"
-                  sx={{
-                    color: "text.secondary",
-                    fontSize: 13,
-                    pl: 0.2,
-                  }}
-                >
-                  {formattedDate}
-                </Typography>
-                </Box>
-               <Box sx={{ display: "flex", alignItems: "center", mb: 1 }}>
-                <AccessTimeIcon
-                  sx={{ fontSize: 11, color: "text.secondary" }}
-                />
-                <Typography
-                  fontFamily="albert sans"
-                  variant="body2"
-                  sx={{
-                    color: "text.secondary",
-                    fontSize: 13,
-                    pl: 0.2,
-                  }}
-                >
-                  {eventTime}
-                </Typography>
-              </Box>
-              
-              <Box sx={{ display: "flex", alignItems: "center" }}>
-                <LocationOnIcon
-                  sx={{ fontSize: 13, color: "text.secondary" }}
-                />
-                <Typography
-                  fontFamily="albert sans"
-                  sx={{
-                    color: "#adaebc",
-                    fontSize: 13,
-                    pl: 0.2,
-                  }}
-                >
-                  {eventData?.venueDetails?.venueName ||
-                    event.location ||
-                    "N/A"}
-                </Typography>
-              </Box>
-            </Box>
-          </Box>
-        </Box>
-
-        {/* Middle Section - 10% of total height with curves */}
-        <Box
-          sx={{
-            height: "10%", // 10% of 720px = 72px
-            position: "relative",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          {/* Left curve */}
-          <Box
-            sx={{
-              position: "absolute",
-              width: 40,
-              height: 50,
-              backgroundColor: "#f5f5f5",
-              borderRadius: "0 30px 30px 0px",
-              left: 0,
-              transform: "translateX(-50%)",
-              zIndex: 1,
-            }}
-          />
-          
-          {/* Right curve */}
-          <Box
-            sx={{
-              position: "absolute",
-              width: 40,
-              height: 50,
-              backgroundColor: "#f5f5f5",
-              borderRadius: "30px 0px 0px 30px",
-              right: 0,
-              transform: "translateX(50%)",
-              zIndex: 1,
-            }}
-          />
-          
-          {/* Divider line */}
-          <Divider sx={{ width: "100%", borderStyle: "dashed" }} />
-        </Box>
-
-        {/* Bottom Section - 60% of total height */}
-        <Box
-          sx={{
-            height: "50%", // 60% of 720px = 432px
-            p: 2,
-            display: "flex",
-            flexDirection: "column",
-        
-          }}
-        >
-          {/* QR Code Section */}
-          <Box
-            sx={{ 
-              bgcolor: "#d1d5db4c", 
-              p: 1, 
-              borderRadius: 2,
-              height: "40%", // Take 45% of bottom section
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "space-between",
-              mb:3
-            }}
-          >
-            <Box sx={{ display: "flex", flex: 1 }}>
-              <Box
-                sx={{
-                  bgcolor: "white",
-                  p: 1,
-                  width: 96,
-                  height: 100,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <div ref={qrRef}>
-                  <QRCode
-                    value={qrCodeData}
-                    size={80} // Reduced size to fit better
-                    level="H"
-                    includeMargin={true}
-                    id="qrcode"
-                  />
-                </div>
-              </Box>
-
-              <Box
-                sx={{
-                  ml: 2,
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "space-between",
-                  py: 1,
-                  flex: 1,
-                }}
-              >
-                <Typography
-                  fontFamily="albert sans"
-                  sx={{
-                    color: "text.secondary",
-                    fontSize: 12,
-                  }}
-                >
-                  {totalTickets} Tickets
-                </Typography>
-                <Typography
-                  fontFamily="albert sans"
-                  sx={{
-                    color: "text.secondary",
-                    fontSize: 13,
-                  }}
-                >
-                  {ticketTypes}
-                </Typography>
-                <Box sx={{ display: "flex" }}>
-                  <Typography
-                    fontFamily="albert sans"
-                    sx={{
-                      fontWeight: 600,
-                      fontSize: 10,
-                    }}
-                  >
-                    Booking ID :
-                  </Typography>
-                  <Typography
-                    fontFamily="albert sans"
-                    sx={{
-                      fontWeight: 600,
-                      fontSize: 10,
-                      ml: 0.5,
-                    }}
-                  >
-                    {bookingId}
-                  </Typography>
-                </Box>
-                <Typography
-                  fontFamily="albert sans"
-                  sx={{
-                    color: "#6f7287",
-                    fontSize: 10,
-                  }}
-                >
-                  {foodNote}
-                </Typography>
-              </Box>
-            </Box>
-
-            <Box
-              sx={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                mt: 1,
-              }}
-            >
-              <Typography
-                fontFamily="albert sans"
-                sx={{
-                  fontSize: 9,
-                  textAlign: "center",
-                }}
-              >
-                Present this QR code at
-                <br />
-                the venue for validation
-              </Typography>
-              <Button
-                fontFamily="albert sans"
-                variant="contained"
-                size="small"
-                startIcon={<DownloadIcon sx={{ fontSize: 12 }} />}
-                sx={{
-                  height: 21,
-                  bgcolor: "#19aedc",
-                  borderRadius: 4,
-                  fontSize: 8,
-                  fontWeight: 600,
-                  textTransform: "none",
-                  fontFamily:'albert sans'
-                }}
-                onClick={handleDownloadTicket}
-                disabled={bookingStatus.status === "pending"}
-              >
-                Download Ticket
-              </Button>
-            </Box>
-          </Box>
-
-          {/* Pricing Section */}
-          <Box sx={{ height: "55%", display: "flex", flexDirection: "column",justifyContent:'space-between' }}>
-            <Box sx={{  overflow: "auto", height:'90%' }}>
-              <Box
-                sx={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  mb: 1,
-                }}
-              >
-                <Box>
-                  <Typography
-                    fontFamily="albert sans"
-                    sx={{
-                      fontWeight: 300,
-                      fontSize: 12,
-                    }}
-                  >
-                    Price per Ticket
-                  </Typography>
-                  {ticketSummary?.map((ticket, idx) => (
-                    <Typography
-                      fontFamily="albert sans"
-                      key={idx}
-                      sx={{
-                        fontWeight: 200,
-                        fontSize: 10,
-                        ml: 1,
-                      }}
-                    >
-                      {ticket.type} x {ticket.quantity}
-                    </Typography>
-                  ))}
-                </Box>
-                <Typography
-                  fontFamily="albert sans"
-                  sx={{
-                    fontWeight: 300,
-                    fontSize: 12,
-                  }}
-                >
-                  ₹
-                  {ticketSummary?.reduce(
-                    (total, item) => total + (item.subtotal || 0),
-                    0
-                  )}
-                </Typography>
-              </Box>
-
-              <Box
-                sx={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  mb: 1,
-                }}
-              >
-                <Typography
-                  fontFamily="albert sans"
-                  sx={{
-                    fontWeight: 300,
-                    fontSize: 12,
-                  }}
-                >
-                  Discount
-                </Typography>
-                <Typography
-                  fontFamily="albert sans"
-                  sx={{
-                    fontWeight: 300,
-                    fontSize: 12,
-                  }}
-                >
-                  ₹{financial?.discount || 0}
-                </Typography>
-              </Box>
-
-              {foodSummary?.length > 0 && (
+                {/* Top Section - 30% of total height */}
                 <Box
                   sx={{
+                    height: "30%", // 30% of 720px = 216px
+                    position: "relative",
+                    p: 2,
                     display: "flex",
+                    flexDirection: "column",
                     justifyContent: "space-between",
-                    mb: 1,
                   }}
                 >
-                  <Box>
-                    <Typography
-                      fontFamily="albert sans"
+                  <Box sx={{ display: "flex", gap: 3, flex: 1 }}>
+                    <Box
+                      component="img"
+                      src={
+                        eventImage ||
+                        "https://via.placeholder.com/270x180?text=Event+Image"
+                      }
+                      alt={event.name || "Event"}
                       sx={{
-                        fontWeight: 300,
-                        fontSize: 12,
+                        width: "50%",
+                        height: "90%",
+                        maxHeight: 240,
+                        borderRadius: 1,
+                        objectFit: "cover",
+                        border: "1px solid",
+                        borderColor: "black",
                       }}
-                    >
-                      Grab a bite fees
-                    </Typography>
-                    {foodSummary.map((food, idx) => (
+                      onError={(e) => {
+                        e.target.src =
+                          "https://via.placeholder.com/270x180?text=Event+Image";
+                      }}
+                    />
+                    <Box sx={{ flex: 1.5 }}>
                       <Typography
                         fontFamily="albert sans"
-                        key={idx}
                         sx={{
-                          fontWeight: 200,
-                          fontSize: 10,
-                          ml: 1,
+                          fontWeight: 600,
+                          fontSize: 16,
+                          mb: 1,
                         }}
                       >
-                        {food.name} x {food.quantity}
+                        {eventData?.name ||          
+                        "N/A"}
                       </Typography>
-                    ))}
-                  </Box>
-                  <Typography
-                    fontFamily="albert sans"
-                    sx={{
-                      fontWeight: 300,
-                      fontSize: 12,
-                    }}
-                  >
-                    ₹
-                    {foodSummary.reduce(
-                      (total, item) => total + item.price * item.quantity,
-                      0
-                    )}
-                  </Typography>
-                </Box>
-              )}
 
-              <Box
-                sx={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  mb: 1,
-                }}
-              >
-                <Box>
-                  <Typography
-                    fontFamily="albert sans"
-                    sx={{
-                      fontWeight: 300,
-                      fontSize: 12,
-                    }}
-                  >
-                    Convenience fees
-                  </Typography>
-                  <Typography
-                    fontFamily="albert sans"
-                    sx={{
-                      fontWeight: 300,
-                      fontSize: 9,
-                      color: "#4b5563e6",
-                    }}
-                  >
-                    Incl. of taxes
-                  </Typography>
+                      <Box
+                        sx={{ display: "flex", alignItems: "center", mb: 1 }}
+                      >
+                        <CalendarTodayIcon
+                          sx={{ fontSize: 13, color: "text.secondary" }}
+                        />
+                        <Typography
+                          fontFamily="albert sans"
+                          variant="body2"
+                          sx={{
+                            color: "text.secondary",
+                            fontSize: 13,
+                            pl: 0.2,
+                          }}
+                        >
+                          {formattedDate}
+                        </Typography>
+                      </Box>
+                      <Box
+                        sx={{ display: "flex", alignItems: "center", mb: 1 }}
+                      >
+                        <AccessTimeIcon
+                          sx={{ fontSize: 11, color: "text.secondary" }}
+                        />
+                        <Typography
+                          fontFamily="albert sans"
+                          variant="body2"
+                          sx={{
+                            color: "text.secondary",
+                            fontSize: 13,
+                            pl: 0.2,
+                          }}
+                        >
+                          {eventTime}
+                        </Typography>
+                      </Box>
+
+                      <Box sx={{ display: "flex", alignItems: "center" }}>
+                        <LocationOnIcon
+                          sx={{ fontSize: 13, color: "text.secondary" }}
+                        />
+                        <Typography
+                          fontFamily="albert sans"
+                          sx={{
+                            color: "#adaebc",
+                            fontSize: 13,
+                            pl: 0.2,
+                          }}
+                        >
+                          {eventData?.venueDetails?.venueName ||
+                            event.location ||
+                            "N/A"}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Box>
                 </Box>
-                <Typography
-                  fontFamily="albert sans"
+
+                {/* Middle Section - 10% of total height with curves */}
+                <Box
                   sx={{
-                    fontWeight: 300,
-                    fontSize: 12,
+                    height: "10%", // 10% of 720px = 72px
+                    position: "relative",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
                   }}
                 >
-                  ₹{financial?.convenienceFee || 0}
-                </Typography>
-              </Box>
-            </Box>
+                  {/* Left curve */}
+                  <Box
+                    sx={{
+                      position: "absolute",
+                      width: 40,
+                      height: 50,
+                      backgroundColor: "#f5f5f5",
+                      borderRadius: "0 30px 30px 0px",
+                      left: 0,
+                      transform: "translateX(-50%)",
+                      zIndex: 1,
+                    }}
+                  />
 
-            {/* Total Amount - Fixed at bottom */}
-            <Box
-              sx={{
-                
-                bgcolor: "#d1d5db4c",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                p: 1.5,
-                borderRadius: 1,
-                height:'10%'
-              }}
-            >
-              <Typography
-                fontFamily="albert sans"
-                sx={{
-                  fontWeight: 600,
-                  fontSize: 14,
-                }}
-              >
-                Total Amount
-              </Typography>
-              <Typography
-                fontFamily="albert sans"
-                sx={{
-                  fontWeight: 500,
-                  fontSize: 13,
-                }}
-              >
-                ₹{financial.totalAmount}
-              </Typography>
+                  {/* Right curve */}
+                  <Box
+                    sx={{
+                      position: "absolute",
+                      width: 40,
+                      height: 50,
+                      backgroundColor: "#f5f5f5",
+                      borderRadius: "30px 0px 0px 30px",
+                      right: 0,
+                      transform: "translateX(50%)",
+                      zIndex: 1,
+                    }}
+                  />
+
+                  {/* Divider line */}
+                  <Divider sx={{ width: "100%", borderStyle: "dashed" }} />
+                </Box>
+
+                {/* Bottom Section - 60% of total height */}
+                <Box
+                  sx={{
+                    height: "50%", // 60% of 720px = 432px
+                    p: 2,
+                    display: "flex",
+                    flexDirection: "column",
+                  }}
+                >
+                  {/* QR Code Section */}
+                  <Box
+                    sx={{
+                      bgcolor: "#d1d5db4c",
+                      p: 1,
+                      borderRadius: 2,
+                      height: "40%", // Take 45% of bottom section
+                      display: "flex",
+                      flexDirection: "column",
+                      justifyContent: "space-between",
+                      mb: 3,
+                    }}
+                  >
+                    <Box sx={{ display: "flex", flex: 1 }}>
+                      <Box
+                        sx={{
+                          bgcolor: "white",
+                          p: 1,
+                          width: 96,
+                          height: 100,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <div ref={qrRef}>
+                          <QRCode
+                            value={qrCodeData}
+                            size={80} // Reduced size to fit better
+                            level="H"
+                            includeMargin={true}
+                            id="qrcode"
+                          />
+                        </div>
+                      </Box>
+
+                      <Box
+                        sx={{
+                          ml: 2,
+                          display: "flex",
+                          flexDirection: "column",
+                          justifyContent: "space-between",
+                          py: 1,
+                          flex: 1,
+                        }}
+                      >
+                        <Typography
+                          fontFamily="albert sans"
+                          sx={{
+                            color: "text.secondary",
+                            fontSize: 12,
+                          }}
+                        >
+                          {totalTickets} Tickets
+                        </Typography>
+                        <Typography
+                          fontFamily="albert sans"
+                          sx={{
+                            color: "text.secondary",
+                            fontSize: 13,
+                          }}
+                        >
+                          {ticketTypes}
+                        </Typography>
+                        <Box sx={{ display: "flex" }}>
+                          <Typography
+                            fontFamily="albert sans"
+                            sx={{
+                              fontWeight: 600,
+                              fontSize: 10,
+                            }}
+                          >
+                            Booking ID :
+                          </Typography>
+                          <Typography
+                            fontFamily="albert sans"
+                            sx={{
+                              fontWeight: 600,
+                              fontSize: 10,
+                              ml: 0.5,
+                            }}
+                          >
+                            {bookingId}
+                          </Typography>
+                        </Box>
+                        <Typography
+                          fontFamily="albert sans"
+                          sx={{
+                            color: "#6f7287",
+                            fontSize: 10,
+                          }}
+                        >
+                          {foodNote}
+                        </Typography>
+                      </Box>
+                    </Box>
+
+                    <Box
+                      sx={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        mt: 1,
+                      }}
+                    >
+                      <Typography
+                        fontFamily="albert sans"
+                        sx={{
+                          fontSize: 9,
+                          textAlign: "center",
+                        }}
+                      >
+                        Present this QR code at
+                        <br />
+                        the venue for validation
+                      </Typography>
+                      <Button
+                        fontFamily="albert sans"
+                        variant="contained"
+                        size="small"
+                        startIcon={<DownloadIcon sx={{ fontSize: 12 }} />}
+                        sx={{
+                          height: 21,
+                          bgcolor: "#19aedc",
+                          borderRadius: 4,
+                          fontSize: 8,
+                          fontWeight: 600,
+                          textTransform: "none",
+                          fontFamily: "albert sans",
+                        }}
+                        onClick={handleDownloadTicket}
+                        disabled={bookingStatus.status === "pending"}
+                      >
+                        Download Ticket
+                      </Button>
+                    </Box>
+                  </Box>
+
+                  {/* Pricing Section */}
+                  <Box
+                    sx={{
+                      height: "55%",
+                      display: "flex",
+                      flexDirection: "column",
+                      justifyContent: "space-between",
+                    }}
+                  >
+                    <Box sx={{ overflow: "auto", height: "90%" }}>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          mb: 1,
+                        }}
+                      >
+                        <Box>
+                          <Typography
+                            fontFamily="albert sans"
+                            sx={{
+                              fontWeight: 300,
+                              fontSize: 12,
+                            }}
+                          >
+                            Price per Ticket
+                          </Typography>
+                          {ticketSummary?.map((ticket, idx) => (
+                            <Typography
+                              fontFamily="albert sans"
+                              key={idx}
+                              sx={{
+                                fontWeight: 200,
+                                fontSize: 10,
+                                ml: 1,
+                              }}
+                            >
+                              {ticket.type} x {ticket.quantity}
+                            </Typography>
+                          ))}
+                        </Box>
+                        <Typography
+                          fontFamily="albert sans"
+                          sx={{
+                            fontWeight: 300,
+                            fontSize: 12,
+                          }}
+                        >
+                          ₹
+                          {ticketSummary?.reduce(
+                            (total, item) => total + (item.subtotal || 0),
+                            0
+                          )}
+                        </Typography>
+                      </Box>
+
+                      <Box
+                        sx={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          mb: 1,
+                        }}
+                      >
+                        <Typography
+                          fontFamily="albert sans"
+                          sx={{
+                            fontWeight: 300,
+                            fontSize: 12,
+                          }}
+                        >
+                          Discount
+                        </Typography>
+                        <Typography
+                          fontFamily="albert sans"
+                          sx={{
+                            fontWeight: 300,
+                            fontSize: 12,
+                          }}
+                        >
+                          ₹{financial?.discount || 0}
+                        </Typography>
+                      </Box>
+
+                      {foodSummary?.length > 0 && (
+                        <Box
+                          sx={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            mb: 1,
+                          }}
+                        >
+                          <Box>
+                            <Typography
+                              fontFamily="albert sans"
+                              sx={{
+                                fontWeight: 300,
+                                fontSize: 12,
+                              }}
+                            >
+                              Grab a bite fees
+                            </Typography>
+                            {foodSummary.map((food, idx) => (
+                              <Typography
+                                fontFamily="albert sans"
+                                key={idx}
+                                sx={{
+                                  fontWeight: 200,
+                                  fontSize: 10,
+                                  ml: 1,
+                                }}
+                              >
+                                {food.name} x {food.quantity}
+                              </Typography>
+                            ))}
+                          </Box>
+                          <Typography
+                            fontFamily="albert sans"
+                            sx={{
+                              fontWeight: 300,
+                              fontSize: 12,
+                            }}
+                          >
+                            ₹
+                            {foodSummary.reduce(
+                              (total, item) =>
+                                total + item.price * item.quantity,
+                              0
+                            )}
+                          </Typography>
+                        </Box>
+                      )}
+
+                      <Box
+                        sx={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          mb: 1,
+                        }}
+                      >
+                        <Box>
+                          <Typography
+                            fontFamily="albert sans"
+                            sx={{
+                              fontWeight: 300,
+                              fontSize: 12,
+                            }}
+                          >
+                            Convenience fees
+                          </Typography>
+                          <Typography
+                            fontFamily="albert sans"
+                            sx={{
+                              fontWeight: 300,
+                              fontSize: 9,
+                              color: "#4b5563e6",
+                            }}
+                          >
+                            Incl. of taxes
+                          </Typography>
+                        </Box>
+                        <Typography
+                          fontFamily="albert sans"
+                          sx={{
+                            fontWeight: 300,
+                            fontSize: 12,
+                          }}
+                        >
+                          ₹{financial?.convenienceFee || 0}
+                        </Typography>
+                      </Box>
+                    </Box>
+
+                    {/* Total Amount - Fixed at bottom */}
+                    <Box
+                      sx={{
+                        bgcolor: "#d1d5db4c",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        p: 1.5,
+                        borderRadius: 1,
+                        height: "10%",
+                      }}
+                    >
+                      <Typography
+                        fontFamily="albert sans"
+                        sx={{
+                          fontWeight: 600,
+                          fontSize: 14,
+                        }}
+                      >
+                        Total Amount
+                      </Typography>
+                      <Typography
+                        fontFamily="albert sans"
+                        sx={{
+                          fontWeight: 500,
+                          fontSize: 13,
+                        }}
+                      >
+                        ₹{financial.totalAmount}
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Box>
+              </Card>
             </Box>
-          </Box>
-        </Box>
-      </Card>
-    </Box>
-  </>
-)}
+          </>
+        )}
 
         {/* Mobile Ticket Body */}
         {/* {isMobile && (

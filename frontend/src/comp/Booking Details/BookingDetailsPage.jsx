@@ -547,7 +547,7 @@ const BookingDetailsPage = () => {
             color="success"
             size="large"
             fullWidth
-            sx={{ textTransform: "none", backgroundColor: "#19AEDC" }}
+            sx={{ textTransform: "none", backgroundColor: "#19AEDC", fontFamily:'albert sans' }}
           >
             {checkingIn ? "Checking In..." : "Check In Customer"}
           </Button>
