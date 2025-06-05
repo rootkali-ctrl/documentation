@@ -485,7 +485,13 @@ const EventAnalytics = () => {
 
   return (
     <div>
-      <Box sx={{ width: "100%", bgcolor: isMobile ? "white" : "#F9FAFB", overflowX:'hidden'}}>
+      <Box
+        sx={{
+          width: "100%",
+          bgcolor: isMobile ? "white" : "#F9FAFB",
+          overflowX: "hidden",
+        }}
+      >
         <Box
           sx={{
             width: isMobile ? "90%" : "90%",

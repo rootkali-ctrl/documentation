@@ -123,7 +123,7 @@ const Profile = () => {
   if (!user || !userData) {
     return (
       <Box sx={{ padding: 4, textAlign: "center" }}>
-        <Typography variant="h5">You need to log in to view your profile.</Typography>
+        <Typography variant="h5" fontFamily='albert sans'>You need to log in to view your profile.</Typography>
       </Box>
     );
   }
@@ -137,11 +137,11 @@ const Profile = () => {
         <IconButton onClick={() => navigate(-1)} sx={{ mr: 1 }}>
           <ArrowBackIcon />
         </IconButton>
-        <Typography variant="h5" sx={{ fontWeight: "600", color: "#333" }}>
+        <Typography variant="h5" fontFamily='albert sans' sx={{ fontWeight: "600", color: "#333" }}>
           {userData.firstName}'s Profile
         </Typography>
       </Box>
-      <Typography variant="body1" sx={{ mb: 3, color: "#666", fontWeight: "500", ml: isMobile ? 0 : 7 }}>
+      <Typography variant="body1" fontFamily='albert sans' sx={{ mb: 3, color: "#666", fontWeight: "500", ml: isMobile ? 0 : 7 }}>
         Manage your profile Details
       </Typography>
 
@@ -151,17 +151,17 @@ const Profile = () => {
             <Avatar src={user.photoURL} sx={{ width: 120, height: 120, bgcolor: "rgb(25, 174, 220)", fontSize: "3rem", mb: 2 }}>
               {userData.firstName?.charAt(0)?.toUpperCase()}
             </Avatar>
-            <Typography variant="h6" sx={{ fontWeight: "600" }}>{userData.firstName} {userData.lastName}</Typography>
-            <Typography variant="body2" sx={{ color: "#666", mb: 2 }}>{userData.email}</Typography>
+            <Typography variant="h6" fontFamily='albert sans' sx={{ fontWeight: "600" }}>{userData.firstName} {userData.lastName}</Typography>
+            <Typography variant="body2" fontFamily='albert sans' sx={{ color: "#666", mb: 2 }}>{userData.email}</Typography>
           </Box>
 
           <Box sx={{ flex: 2, pl: isMobile ? 0 : 4, mt: isMobile ? 3 : 0 }}>
-            <Typography variant="h6" sx={{ mb: 3, fontWeight: "600" }}>Personal Information</Typography>
+            <Typography variant="h6" fontFamily='albert sans' sx={{ mb: 3, fontWeight: "600" }}>Personal Information</Typography>
 
             <Box sx={{ display: "flex", flexWrap: "wrap", gap: 3 }}>
               {['firstName', 'lastName', 'email', 'phoneNumber', 'dob'].map((field, index) => (
                 <Box key={field} sx={{ width: { xs: '100%', sm: '45%' } }}>
-                  <Typography variant="body2" sx={{ color: "#666", mb: 1 }}>{field.replace(/([A-Z])/, ' $1')}</Typography>
+                  <Typography fontFamily='albert sans' variant="body2" sx={{ color: "#666", mb: 1 }}>{field.replace(/([A-Z])/, ' $1')}</Typography>
                   <Box sx={{ display: "flex", alignItems: "center" }}>
                     {editMode[field] ? (
                       <TextField
@@ -174,7 +174,7 @@ const Profile = () => {
                         sx={{ mr: 1 }}
                       />
                     ) : (
-                      <Typography variant="body1" sx={{ mr: 1 }}>{userData[field] || "Not provided"}</Typography>
+                      <Typography fontFamily='albert sans' variant="body1" sx={{ mr: 1 }}>{userData[field] || "Not provided"}</Typography>
                     )}
                     <IconButton
                       size="small"
@@ -193,7 +193,7 @@ const Profile = () => {
 
             <Divider sx={{ my: 3 }} />
 
-            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            {/* <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <Typography variant="h6" sx={{ fontWeight: 600 }}>Account Settings</Typography>
               <Button
                 variant="contained"
@@ -227,13 +227,13 @@ const Profile = () => {
                   <Typography sx={{ color: "#999" }}>›</Typography>
                 </Box>
               ))}
-            </Box>
+            </Box> */}
 
             <Box sx={{ mt: 4 }}>
-              <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>Account Status</Typography>
+              <Typography fontFamily='albert sans' variant="h6" sx={{ fontWeight: 600, mb: 2 }}>Account Status</Typography>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1, color: "green" }}>
                 <Box sx={{ width: 10, height: 10, borderRadius: "50%", bgcolor: "green" }} />
-                <Typography variant="body2">Active</Typography>
+                <Typography fontFamily='albert sans' variant="body2">Active</Typography>
               </Box>
             </Box>
           </Box>

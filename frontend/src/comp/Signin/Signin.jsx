@@ -78,7 +78,7 @@ const SignIn = ({
           process.env.NODE_ENV === "production"
             ? process.env.REACT_APP_API_BASE_URL_EMAIL
             : undefined,      });
-      //await sendEmailVerification(user);
+      // await sendEmailVerification(user);
 
       // Save user data to Firestore
       await setDoc(doc(db, "users", user.uid), {

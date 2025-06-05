@@ -554,7 +554,11 @@ const EventDashboard = () => {
     const percentage = (sold / seats) * 100;
     return Math.min(100, Math.max(0, percentage));
   };
-
+  useEffect(() => {
+    if (allOrders != []) {
+      console.log(allOrders);
+    }
+  });
   if (loading) {
     return (
       <Box
@@ -646,26 +650,6 @@ const EventDashboard = () => {
                 mt: isMobile ? "16px" : "0",
               }}
             >
-              <Button
-                variant="contained"
-                sx={{
-                  textTransform: "none",
-                  fontFamily: "Albert Sans",
-                  backgroundColor: "#fff",
-                  color: "#333",
-                  border: "1px solid #ddd",
-                  boxShadow: "0px 1px 3px rgba(0,0,0,0.1)",
-                  "&:hover": {
-                    backgroundColor: "#f8f8f8",
-                    boxShadow: "0px 2px 5px rgba(0,0,0,0.15)",
-                    p: isMobile ? "1% 2%" : null,
-                  },
-                }}
-                onClick={downloadSalesReport}
-              >
-                <DownloadIcon sx={{ fontSize: "18px", mr: "8px" }} />
-                Download Report
-              </Button>
               <Button
                 variant="contained"
                 sx={{
@@ -1293,24 +1277,6 @@ const EventDashboard = () => {
                               variant="contained"
                               disabled
                               sx={{
-                                textTransform: "none",
-                                bgcolor: "#D1FAE5",
-                                color: "#047857",
-                                fontFamily: "albert sans",
-                                "&.Mui-disabled": {
-                                  bgcolor: "#D1FAE5",
-                                  color: "#047857",
-                                  cursor: "not-allowed",
-                                },
-                              }}
-                            >
-                              Booked
-                            </Button>
-                          ) : (
-                            <Button
-                              variant="contained"
-                              disabled
-                              sx={{
                                 fontFamily: "albert sans",
                                 textTransform: "none",
                                 bgcolor: "#FEE2E2",
@@ -1323,6 +1289,24 @@ const EventDashboard = () => {
                               }}
                             >
                               Cancelled
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="contained"
+                              disabled
+                              sx={{
+                                textTransform: "none",
+                                bgcolor: "#D1FAE5",
+                                color: "#047857",
+                                fontFamily: "albert sans",
+                                "&.Mui-disabled": {
+                                  bgcolor: "#D1FAE5",
+                                  color: "#047857",
+                                  cursor: "not-allowed",
+                                },
+                              }}
+                            >
+                              Booked
                             </Button>
                           )}
                         </Typography>

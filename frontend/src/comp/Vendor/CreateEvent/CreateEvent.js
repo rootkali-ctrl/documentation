@@ -865,12 +865,12 @@ const CreateEvent = () => {
                       color: "#666",
                     }}
                   >
-                    150x200px - Ticket design
+                    200x250px - Ticket design
                   </Typography>
                   <Box
                     sx={{
-                      width: isMobile ? "90%" : "150px",
-                      height: "200px",
+                      width: isMobile ? "90%" : "200px",
+                      height: "250px",
                       border: imageData.ticket
                         ? "2px solid #19AEDC"
                         : "2px dashed #ccc",

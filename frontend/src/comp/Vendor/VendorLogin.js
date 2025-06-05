@@ -1,16 +1,34 @@
 import { useState, useEffect } from "react";
-import { TextField, Button, Box, Typography, Modal, IconButton, CircularProgress, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions } from "@mui/material";
+import {
+  TextField,
+  Button,
+  Box,
+  Typography,
+  Modal,
+  IconButton,
+  CircularProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+} from "@mui/material";
 import { ArrowBack } from "@mui/icons-material";
+import Slider from "react-slick";
+
 import { useNavigate, useLocation, useParams } from "react-router-dom";
-import { DotLottieReact } from '@lottiefiles/dotlottie-react';
-import Header from "../Header/MainHeader";
 import axios from "axios";
+import "slick-carousel/slick/slick.css";
+import "slick-carousel/slick/slick-theme.css";
+import img1 from "../QR image/Gemini_Generated_Image_ytw5d2ytw5d2ytw5.jpeg";
+import img2 from "../QR image/ChatGPT Image Jun 5, 2025, 03_45_17 PM.png";
+import img3 from "../QR image/Gemini_Generated_Image_70g27o70g27o70g2.jpeg";
 
 // Set the base URL for Axios (adjust if your backend runs on a different port)
 axios.defaults.baseURL = `${process.env.REACT_APP_API_BASE_URL}`;
 
 const VendorLogin = () => {
-  const {vendorId} = useParams();
+  const { vendorId } = useParams();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
@@ -27,10 +45,28 @@ const VendorLogin = () => {
   const location = useLocation();
   const isFormValid = username.trim() !== "" && password.trim() !== "";
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  const isResetEmailValid = resetEmail.trim() !== "" && emailRegex.test(resetEmail);
-  const isNewPasswordValid = newPassword.trim() !== "" && confirmPassword.trim() !== "" && newPassword === confirmPassword;
-const [handleError, setHandleError] = useState("");
-const [openDialog, setOpenDialog] = useState(false);
+  const isResetEmailValid =
+    resetEmail.trim() !== "" && emailRegex.test(resetEmail);
+  const isNewPasswordValid =
+    newPassword.trim() !== "" &&
+    confirmPassword.trim() !== "" &&
+    newPassword === confirmPassword;
+  const [handleError, setHandleError] = useState("");
+  const [openDialog, setOpenDialog] = useState(false);
+
+  const images = [img1, img2, img3];
+
+  const carouselSettings = {
+    dots: true,
+    infinite: true,
+    speed: 500,
+    slidesToShow: 1,
+    slidesToScroll: 1,
+    autoplay: true,
+    autoplaySpeed: 3000,
+    arrows: false,
+  };
+
   useEffect(() => {
     const query = new URLSearchParams(location.search);
     const token = query.get("token");
@@ -40,37 +76,42 @@ const [openDialog, setOpenDialog] = useState(false);
     }
   }, [location]);
 
+  const handleLogin = async () => {
+    if (!username || !password) {
+      setHandleError("Please enter both username and password.");
+      setOpenDialog(true);
+      return;
+    }
 
-const handleLogin = async () => {
-  if (!username || !password) {
-    setHandleError("Please enter both username and password.");
-    setOpenDialog(true);
-    return;
-  }
+    try {
+      const response = await axios.post(
+        `${process.env.REACT_APP_API_BASE_URL}/api/vendor/login`,
+        {
+          username,
+          password,
+        }
+      );
+      await axios.post(
+        `${process.env.REACT_APP_API_BASE_URL}/api/vendor/lastlogin`,
+        {
+          username,
+        }
+      );
 
-  try {
-    const response = await axios.post(`${process.env.REACT_APP_API_BASE_URL}/api/vendor/login`, {
-      username, password
-    });
-await axios.post(`${process.env.REACT_APP_API_BASE_URL}/api/vendor/lastlogin`, {
-  username,
-});
-
-    if (response.data.Message === "Login successful") {
-      navigate(`/vendorhome/${response.data.vendorId}`);
-    } else {
-      setHandleError(response.data.Message);
+      if (response.data.Message === "Login successful") {
+        navigate(`/vendorhome/${response.data.vendorId}`);
+      } else {
+        setHandleError(response.data.Message);
+        setOpenDialog(true);
+      }
+    } catch (error) {
+      console.error(error);
+      setHandleError(
+        error.response?.data?.Message || "Login failed. Please try again later."
+      );
       setOpenDialog(true);
     }
-  } catch (error) {
-    console.error(error);
-    setHandleError(
-      error.response?.data?.Message || "Login failed. Please try again later."
-    );
-    setOpenDialog(true);
-  }
-};
-
+  };
 
   const handleForgotPassword = async () => {
     if (!emailRegex.test(resetEmail)) {
@@ -87,10 +128,13 @@ await axios.post(`${process.env.REACT_APP_API_BASE_URL}/api/vendor/lastlogin`, {
     } catch (error) {
       console.error("Password reset error:", error);
       if (error.response?.status === 404) {
-        setResetMessage("Password reset endpoint not found. Please contact support.");
+        setResetMessage(
+          "Password reset endpoint not found. Please contact support."
+        );
       } else {
         setResetMessage(
-          error.response?.data?.Message || "Failed to send reset email. Please try again."
+          error.response?.data?.Message ||
+            "Failed to send reset email. Please try again."
         );
       }
     } finally {
@@ -135,10 +179,13 @@ await axios.post(`${process.env.REACT_APP_API_BASE_URL}/api/vendor/lastlogin`, {
     } catch (error) {
       console.error("Password reset error:", error);
       if (error.response?.status === 404) {
-        setResetError("Password reset endpoint not found. Please contact support.");
+        setResetError(
+          "Password reset endpoint not found. Please contact support."
+        );
       } else {
         setResetError(
-          error.response?.data?.Message || "Failed to reset password. Please try again."
+          error.response?.data?.Message ||
+            "Failed to reset password. Please try again."
         );
       }
     }
@@ -160,19 +207,24 @@ await axios.post(`${process.env.REACT_APP_API_BASE_URL}/api/vendor/lastlogin`, {
   };
 
   return (
-        
-   <Box sx={{ width: "100%", minHeight: "100vh", bgcolor: "#F9FAFB" }}>
-    <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
-  <DialogTitle sx={{fontFamily:'albert sans'}}>Error</DialogTitle>
-  <DialogContent>
-    <DialogContentText sx={{fontFamily:'albert sans'}}>{handleError}</DialogContentText>
-  </DialogContent>
-  <DialogActions>
-    <Button onClick={() => setOpenDialog(false)} color="primary" sx={{fontFamily:'albert sans'}}>
-      Close
-    </Button>
-  </DialogActions>
-</Dialog>
+    <Box sx={{ width: "100%", minHeight: "100vh", bgcolor: "#F9FAFB" }}>
+      <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
+        <DialogTitle sx={{ fontFamily: "albert sans" }}>Error</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ fontFamily: "albert sans" }}>
+            {handleError}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => setOpenDialog(false)}
+            color="primary"
+            sx={{ fontFamily: "albert sans" }}
+          >
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Box
         sx={{
@@ -189,9 +241,9 @@ await axios.post(`${process.env.REACT_APP_API_BASE_URL}/api/vendor/lastlogin`, {
           sx={{
             width: { xs: "100%", md: "45%" },
             textAlign: "left",
-           boxSizing: "border-box",
+            boxSizing: "border-box",
             boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)",
-            padding: {lg:"3% 2%",md:"3% 2%",sm:"10% 6%",xs:"10% 6%"},
+            padding: { lg: "3% 2%", md: "3% 2%", sm: "10% 6%", xs: "10% 6%" },
             borderRadius: "10px",
             backgroundColor: "#fff",
           }}
@@ -207,7 +259,7 @@ await axios.post(`${process.env.REACT_APP_API_BASE_URL}/api/vendor/lastlogin`, {
           >
             Log in
           </Typography>
-  
+
           <TextField
             fullWidth
             value={username}
@@ -222,10 +274,9 @@ await axios.post(`${process.env.REACT_APP_API_BASE_URL}/api/vendor/lastlogin`, {
               "& .MuiOutlinedInput-root": {
                 "& fieldset": { borderColor: "#ccc" },
               },
-            
             }}
           />
-  
+
           <TextField
             fullWidth
             variant="outlined"
@@ -243,7 +294,7 @@ await axios.post(`${process.env.REACT_APP_API_BASE_URL}/api/vendor/lastlogin`, {
               },
             }}
           />
-  
+
           <Box
             sx={{
               display: "flex",
@@ -264,7 +315,7 @@ await axios.post(`${process.env.REACT_APP_API_BASE_URL}/api/vendor/lastlogin`, {
               Forgot password?
             </Typography>
           </Box>
-  
+
           <Button
             fullWidth
             variant="contained"
@@ -280,7 +331,7 @@ await axios.post(`${process.env.REACT_APP_API_BASE_URL}/api/vendor/lastlogin`, {
           >
             Log in
           </Button>
-  
+
           <Box
             sx={{
               display: "flex",
@@ -313,33 +364,46 @@ await axios.post(`${process.env.REACT_APP_API_BASE_URL}/api/vendor/lastlogin`, {
             </Typography>
           </Box>
         </Box>
-  
+
         <Box
           sx={{
-            width: { xs: "100%", md: "40%" },
+            width: { xs: "100%", md: "50%" },
             textAlign: "center",
-            display:{xs:"none",md:"flex"},
+            display: { xs: "none", md: "flex" },
             justifyContent: "center",
-
           }}
         >
-          <DotLottieReact
-            src="https://lottie.host/406de304-1af8-4a76-8a1a-32e373c0f5c7/H3sA86OQbV.lottie"
-            loop
-            autoplay
-            style={{
+          <Box
+            sx={{
               width: "100%",
-              maxWidth: "400px",
-              
+              maxWidth: 600,
+              borderRadius: 2,
+              overflow: "hidden",
             }}
-          />
+          >
+            <Slider {...carouselSettings}>
+              {images.map((img, index) => (
+                <Box
+                  key={index}
+                  component="img"
+                  src={img}
+                  alt={`carousel-${index}`}
+                  sx={{
+                    width: "100%",
+                    height: "360px",
+                    display: "block",
+                    objectFit: "cover",
+                    borderRadius: 2,
+                  }}
+                />
+              ))}
+            </Slider>
+          </Box>
         </Box>
       </Box>
       {/* <Footer /> */}
-      {/* Modal code continues here (unchanged) */}
     </Box>
   );
-  
 };
 
 export default VendorLogin;

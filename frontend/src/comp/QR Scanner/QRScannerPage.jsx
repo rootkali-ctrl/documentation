@@ -77,7 +77,7 @@ const QRScannerPage = () => {
 
   const onScanFailure = (error) => {
     // Handle scan failure silently - this fires frequently during scanning
-    console.debug("QR scan failed:", error);
+    console.error("QR scan failed:", error);
   };
 
   const resetScanner = () => {
