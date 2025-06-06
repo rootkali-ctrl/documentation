@@ -46,6 +46,7 @@ import VendorProfile from "./comp/Vendor/Vendor Profile/VendorProfile";
 import VendorDoc from "./comp/Vendor/Vendor Profile/VendorDoc";
 import VendorOrg from "./comp/Vendor/Vendor Profile/VendorOrg";
 import EventAnalytics from "./comp/EventDashboard/EventAnalytics";
+import VendorResetPassword from "./comp/Vendor/VendorResetPassword";
 
 function App() {
   return (
@@ -81,6 +82,7 @@ function App() {
             <Route path="/profile" element={<Profile />} />
             <Route path="/settings" element={<Settings />} />
             <Route path='/vendorlogin/:vendorId' element={<VendorLogin />} />
+            <Route path="/vendor-reset-password" element={<VendorResetPassword />} />
 
             {/* Vendor Routes */}
             <Route

@@ -1,3 +1,6 @@
+
+
+
 import { useState, useEffect } from "react";
 import {
   TextField,
@@ -13,19 +16,21 @@ import {
   DialogContentText,
   DialogActions,
 } from "@mui/material";
-import { ArrowBack } from "@mui/icons-material";
+import { ArrowBack, Close } from "@mui/icons-material";
 import Slider from "react-slick";
-
 import { useNavigate, useLocation, useParams } from "react-router-dom";
 import axios from "axios";
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
+
+
 import img1 from "../QR image/Gemini_Generated_Image_ytw5d2ytw5d2ytw5.jpeg";
 import img2 from "../QR image/ChatGPT Image Jun 5, 2025, 03_45_17 PM.png";
 import img3 from "../QR image/Gemini_Generated_Image_70g27o70g27o70g2.jpeg";
 
-// Set the base URL for Axios (adjust if your backend runs on a different port)
-axios.defaults.baseURL = `${process.env.REACT_APP_API_BASE_URL}`;
+
+// Set the base URL for Axios
+axios.defaults.baseURL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080';
 
 const VendorLogin = () => {
   const { vendorId } = useParams();
@@ -41,18 +46,19 @@ const VendorLogin = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [resetError, setResetError] = useState("");
   const [showResetSuccessModal, setShowResetSuccessModal] = useState(false);
-  const navigate = useNavigate();
-  const location = useLocation();
-  const isFormValid = username.trim() !== "" && password.trim() !== "";
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  const isResetEmailValid =
-    resetEmail.trim() !== "" && emailRegex.test(resetEmail);
-  const isNewPasswordValid =
-    newPassword.trim() !== "" &&
-    confirmPassword.trim() !== "" &&
-    newPassword === confirmPassword;
   const [handleError, setHandleError] = useState("");
   const [openDialog, setOpenDialog] = useState(false);
+
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const isFormValid = username.trim() !== "" && password.trim() !== "";
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const isResetEmailValid = resetEmail.trim() !== "" && emailRegex.test(resetEmail);
+  const isNewPasswordValid = newPassword.trim() !== "" &&
+                           confirmPassword.trim() !== "" &&
+                           newPassword === confirmPassword &&
+                           newPassword.length >= 6;
 
   const images = [img1, img2, img3];
 
@@ -84,19 +90,14 @@ const VendorLogin = () => {
     }
 
     try {
-      const response = await axios.post(
-        `${process.env.REACT_APP_API_BASE_URL}/api/vendor/login`,
-        {
-          username,
-          password,
-        }
-      );
-      await axios.post(
-        `${process.env.REACT_APP_API_BASE_URL}/api/vendor/lastlogin`,
-        {
-          username,
-        }
-      );
+      const response = await axios.post("/api/vendor/login", {
+        username,
+        password,
+      });
+
+      await axios.post("/api/vendor/lastlogin", {
+        username,
+      });
 
       if (response.data.Message === "Login successful") {
         navigate(`/vendorhome/${response.data.vendorId}`);
@@ -113,29 +114,83 @@ const VendorLogin = () => {
     }
   };
 
-  const handleForgotPassword = async () => {
+const handleForgotPassword = async () => {
     if (!emailRegex.test(resetEmail)) {
       setResetEmailError("Please enter a valid email address.");
       return;
     }
 
     setResetEmailError("");
+    setResetMessage("");
     setIsLoading(true);
 
     try {
-      await axios.post("/api/auth/forgot-password", { email: resetEmail });
-      setResetMessage("Password reset email sent! Please check your inbox.");
+      const response = await axios.post("/api/auth/forgot-password", {
+        email: resetEmail
+      });
+
+      setResetMessage("Password reset email sent! Please check your inbox and spam folder.");
     } catch (error) {
       console.error("Password reset error:", error);
-      if (error.response?.status === 404) {
-        setResetMessage(
-          "Password reset endpoint not found. Please contact support."
-        );
+      
+      // Handle different error scenarios
+      if (error.response?.status === 400) {
+        // Backend returns 400 for validation errors and "user not found"
+        const errorMessage = error.response?.data?.error || "Invalid request. Please try again.";
+        setResetMessage(errorMessage);
+      } else if (error.response?.status === 500) {
+        // Server error
+        setResetMessage("Server error. Please try again later.");
       } else {
-        setResetMessage(
-          error.response?.data?.Message ||
-            "Failed to send reset email. Please try again."
-        );
+        // Network or other errors
+        setResetMessage("Failed to send reset email. Please check your connection and try again.");
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+const handleResetPassword = async () => {
+    const query = new URLSearchParams(location.search);
+    const token = query.get("token");
+
+    if (!token) {
+      setResetError("Invalid reset link.");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setResetError("Passwords do not match.");
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setResetError("Password must be at least 6 characters long.");
+      return;
+    }
+
+    setResetError("");
+    setIsLoading(true);
+
+    try {
+      await axios.post("/api/auth/reset-password", {
+        token,
+        newPassword
+      });
+
+      setShowResetPasswordModal(false);
+      setShowResetSuccessModal(true);
+    } catch (error) {
+      console.error("Password reset error:", error);
+      
+      // Handle different error scenarios
+      if (error.response?.status === 400) {
+        const errorMessage = error.response?.data?.error || "Invalid request. Please try again.";
+        setResetError(errorMessage);
+      } else if (error.response?.status === 500) {
+        setResetError("Server error. Please try again later.");
+      } else {
+        setResetError("Failed to reset password. Please check your connection and try again.");
       }
     } finally {
       setIsLoading(false);
@@ -157,46 +212,13 @@ const VendorLogin = () => {
     setResetEmailError("");
     setIsLoading(false);
   };
-
-  const handleResetPassword = async () => {
-    const query = new URLSearchParams(location.search);
-    const token = query.get("token");
-
-    if (!token) {
-      setResetError("Invalid reset link.");
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      setResetError("Passwords do not match.");
-      return;
-    }
-
-    try {
-      await axios.post("/api/auth/reset-password", { token, newPassword });
-      setShowResetPasswordModal(false);
-      setShowResetSuccessModal(true);
-    } catch (error) {
-      console.error("Password reset error:", error);
-      if (error.response?.status === 404) {
-        setResetError(
-          "Password reset endpoint not found. Please contact support."
-        );
-      } else {
-        setResetError(
-          error.response?.data?.Message ||
-            "Failed to reset password. Please try again."
-        );
-      }
-    }
-  };
-
   const handleReturnToLogin = () => {
     setShowResetSuccessModal(false);
     setNewPassword("");
     setConfirmPassword("");
     setResetError("");
-    navigate("/vendor/login");
+    // Remove token from URL
+    navigate("/vendor/login", { replace: true });
   };
 
   const handleContinueToLogin = () => {
@@ -208,6 +230,7 @@ const VendorLogin = () => {
 
   return (
     <Box sx={{ width: "100%", minHeight: "100vh", bgcolor: "#F9FAFB" }}>
+      {/* Error Dialog */}
       <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
         <DialogTitle sx={{ fontFamily: "albert sans" }}>Error</DialogTitle>
         <DialogContent>
@@ -226,6 +249,278 @@ const VendorLogin = () => {
         </DialogActions>
       </Dialog>
 
+      {/* Forgot Password Modal */}
+      <Modal
+        open={showForgotPasswordModal}
+        onClose={handleCloseForgotPassword}
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <Box
+          sx={{
+            width: { xs: "90%", sm: "400px" },
+            bgcolor: "white",
+            borderRadius: 2,
+            p: 4,
+            boxShadow: 24,
+            position: "relative",
+          }}
+        >
+          <IconButton
+            onClick={handleCloseForgotPassword}
+            sx={{
+              position: "absolute",
+              right: 8,
+              top: 8,
+            }}
+          >
+            <Close />
+          </IconButton>
+
+          <Typography
+            variant="h5"
+            sx={{
+              fontFamily: "Albert Sans",
+              fontWeight: "bold",
+              mb: 3,
+              textAlign: "center",
+            }}
+          >
+            Reset Password
+          </Typography>
+
+          <TextField
+            fullWidth
+            label="Email Address"
+            value={resetEmail}
+            onChange={(e) => setResetEmail(e.target.value)}
+            error={!!resetEmailError}
+            helperText={resetEmailError}
+            sx={{
+              mb: 2,
+              "& .MuiInputBase-input": { fontFamily: "Albert Sans" },
+              "& .MuiInputLabel-root": { fontFamily: "Albert Sans" },
+            }}
+          />
+
+          {resetMessage && (
+            <Typography
+              sx={{
+                fontFamily: "Albert Sans",
+                mb: 2,
+                p: 2,
+                bgcolor: resetMessage.includes("sent") ? "#e8f5e8" : "#ffebee",
+                color: resetMessage.includes("sent") ? "#2e7d32" : "#c62828",
+                borderRadius: 1,
+                fontSize: "14px",
+              }}
+            >
+              {resetMessage}
+            </Typography>
+          )}
+
+          <Box sx={{ display: "flex", gap: 2, mt: 3 }}>
+            <Button
+              fullWidth
+              variant="outlined"
+              onClick={handleCloseForgotPassword}
+              sx={{
+                fontFamily: "Albert Sans",
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              fullWidth
+              variant="contained"
+              onClick={handleForgotPassword}
+              disabled={!isResetEmailValid || isLoading}
+              sx={{
+                fontFamily: "Albert Sans",
+                backgroundColor: "#53a8d8",
+                "&:hover": { backgroundColor: "#4795c2" },
+              }}
+            >
+              {isLoading ? <CircularProgress size={24} /> : "Send Reset Link"}
+            </Button>
+          </Box>
+
+          {resetMessage.includes("sent") && (
+            <Button
+              fullWidth
+              variant="text"
+              onClick={handleContinueToLogin}
+              sx={{
+                fontFamily: "Albert Sans",
+                mt: 2,
+                color: "#53a8d8",
+              }}
+            >
+              Continue to Login
+            </Button>
+          )}
+        </Box>
+      </Modal>
+
+      {/* Reset Password Modal */}
+      <Modal
+        open={showResetPasswordModal}
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <Box
+          sx={{
+            width: { xs: "90%", sm: "400px" },
+            bgcolor: "white",
+            borderRadius: 2,
+            p: 4,
+            boxShadow: 24,
+          }}
+        >
+          <Typography
+            variant="h5"
+            sx={{
+              fontFamily: "Albert Sans",
+              fontWeight: "bold",
+              mb: 3,
+              textAlign: "center",
+            }}
+          >
+            Set New Password
+          </Typography>
+
+          <TextField
+            fullWidth
+            label="New Password"
+            type="password"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            sx={{
+              mb: 2,
+              "& .MuiInputBase-input": { fontFamily: "Albert Sans" },
+              "& .MuiInputLabel-root": { fontFamily: "Albert Sans" },
+            }}
+          />
+
+          <TextField
+            fullWidth
+            label="Confirm New Password"
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            sx={{
+              mb: 2,
+              "& .MuiInputBase-input": { fontFamily: "Albert Sans" },
+              "& .MuiInputLabel-root": { fontFamily: "Albert Sans" },
+            }}
+          />
+
+          {resetError && (
+            <Typography
+              sx={{
+                fontFamily: "Albert Sans",
+                mb: 2,
+                p: 2,
+                bgcolor: "#ffebee",
+                color: "#c62828",
+                borderRadius: 1,
+                fontSize: "14px",
+              }}
+            >
+              {resetError}
+            </Typography>
+          )}
+
+          <Typography
+            sx={{
+              fontFamily: "Albert Sans",
+              fontSize: "12px",
+              color: "#666",
+              mb: 3,
+            }}
+          >
+            Password must be at least 6 characters long
+          </Typography>
+
+          <Button
+            fullWidth
+            variant="contained"
+            onClick={handleResetPassword}
+            disabled={!isNewPasswordValid || isLoading}
+            sx={{
+              fontFamily: "Albert Sans",
+              backgroundColor: "#53a8d8",
+              "&:hover": { backgroundColor: "#4795c2" },
+            }}
+          >
+            {isLoading ? <CircularProgress size={24} /> : "Reset Password"}
+          </Button>
+        </Box>
+      </Modal>
+
+      {/* Success Modal */}
+      <Modal
+        open={showResetSuccessModal}
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <Box
+          sx={{
+            width: { xs: "90%", sm: "400px" },
+            bgcolor: "white",
+            borderRadius: 2,
+            p: 4,
+            boxShadow: 24,
+            textAlign: "center",
+          }}
+        >
+          <Typography
+            variant="h5"
+            sx={{
+              fontFamily: "Albert Sans",
+              fontWeight: "bold",
+              mb: 2,
+              color: "#2e7d32",
+            }}
+          >
+            Password Reset Successful!
+          </Typography>
+
+          <Typography
+            sx={{
+              fontFamily: "Albert Sans",
+              mb: 3,
+              color: "#666",
+            }}
+          >
+            Your password has been successfully reset. You can now login with your new password.
+          </Typography>
+
+          <Button
+            fullWidth
+            variant="contained"
+            onClick={handleReturnToLogin}
+            sx={{
+              fontFamily: "Albert Sans",
+              backgroundColor: "#53a8d8",
+              "&:hover": { backgroundColor: "#4795c2" },
+            }}
+          >
+            Continue to Login
+          </Button>
+        </Box>
+      </Modal>
+
+      {/* Main Content */}
       <Box
         sx={{
           display: "flex",
@@ -237,6 +532,7 @@ const VendorLogin = () => {
           minHeight: "90vh",
         }}
       >
+        {/* Login Form */}
         <Box
           sx={{
             width: { xs: "100%", md: "45%" },
@@ -328,6 +624,7 @@ const VendorLogin = () => {
               fontFamily: "Albert Sans",
             }}
             onClick={handleLogin}
+            disabled={!isFormValid}
           >
             Log in
           </Button>
@@ -365,6 +662,7 @@ const VendorLogin = () => {
           </Box>
         </Box>
 
+        {/* Carousel */}
         <Box
           sx={{
             width: { xs: "100%", md: "50%" },
@@ -401,7 +699,6 @@ const VendorLogin = () => {
           </Box>
         </Box>
       </Box>
-      {/* <Footer /> */}
     </Box>
   );
 };
