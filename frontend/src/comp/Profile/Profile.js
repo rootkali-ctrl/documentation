@@ -13,7 +13,6 @@ import {
   Alert,
   useMediaQuery,
 } from "@mui/material";
-import EditIcon from "@mui/icons-material/Edit";
 import CheckIcon from "@mui/icons-material/Check";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { auth, db } from "../../firebase_config";
@@ -176,16 +175,7 @@ const Profile = () => {
                     ) : (
                       <Typography fontFamily='albert sans' variant="body1" sx={{ mr: 1 }}>{userData[field] || "Not provided"}</Typography>
                     )}
-                    <IconButton
-                      size="small"
-                      onClick={() => handleEdit(field)}
-                      sx={{
-                        bgcolor: editMode[field] ? "rgb(25, 174, 220, 0.1)" : "transparent",
-                        '&:hover': { bgcolor: "rgb(25, 174, 220, 0.2)" }
-                      }}
-                    >
-                      {editMode[field] ? <CheckIcon fontSize="small" /> : <EditIcon fontSize="small" />}
-                    </IconButton>
+
                   </Box>
                 </Box>
               ))}
