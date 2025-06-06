@@ -54,7 +54,7 @@ const TicketBookedPage = () => {
   const qrRef = useRef(null);
   const ticketRef = useRef(null);
   const isMobile = useMediaQuery("(max-width:600px)");
-  const { eventId } = useParams();
+  const { eventId, generatedBookingId } = useParams();
   const [vendorIdHere, setVendorIdHere] = useState("");
   const [availabilityUpdateInProgress, setAvailabilityUpdateInProgress] =
     useState(false);
@@ -612,8 +612,7 @@ const TicketBookedPage = () => {
           status: "success",
           message: "Ticket booked successfully!",
         });
-                startRedirectTimer();
-
+        startRedirectTimer();
       } catch (error) {
         console.error("Error booking ticket:", error);
 
@@ -624,7 +623,7 @@ const TicketBookedPage = () => {
             status: "success",
             message: "Ticket already saved!",
           });
-          startRedirectTimer(); 
+          startRedirectTimer();
           return;
         }
 
@@ -854,7 +853,7 @@ const TicketBookedPage = () => {
           // CRITICAL FIX: Only save ticket if not already saved
           if (!ticketIsSaved) {
             await saveTicketToDatabase(user);
-          } else{
+          } else {
             startRedirectTimer();
           }
         } else {
@@ -875,8 +874,8 @@ const TicketBookedPage = () => {
     if (!ticketIsSaved && !availabilityUpdateInProgress) {
       handleInitialSetup();
     }
-  }, [ticketIsSaved, availabilityUpdateInProgress, startRedirectTimer ]); // Added proper dependencies
-useEffect(() => {
+  }, [ticketIsSaved, availabilityUpdateInProgress, startRedirectTimer]); // Added proper dependencies
+  useEffect(() => {
     return () => {
       clearRedirectTimer();
     };
@@ -1197,7 +1196,7 @@ useEffect(() => {
       pdf.setFont("helvetica", "bold");
       pdf.setFontSize(16);
       pdf.setTextColor(0, 0, 0);
-      const eventName = eventData?.name || "Event"
+      const eventName = eventData?.name || "Event";
       pdf.text(eventName, margin + 10, yOffset);
       yOffset += 12;
 
@@ -1368,7 +1367,7 @@ useEffect(() => {
                 },
               ]
             : []),
-          { label: "GST (18%):", amount: formatCurrency(financial.gst || 0) },
+          { label: "Tax", amount: formatCurrency(financial.tax || 0) },
         ];
 
         financialItems.forEach((item) => {
@@ -1708,9 +1707,7 @@ useEffect(() => {
                     fontWeight="bold"
                     sx={{ borderBottom: "1px solid #000", pb: 1, mb: 2 }}
                   >
-                    {eventData?.name ||
-                        
-                        "N/A"}
+                    {eventData?.name || "N/A"}
                   </Typography>
 
                   <Box
@@ -1907,7 +1904,7 @@ useEffect(() => {
                           sx={{
                             display: "flex",
                             justifyContent: "space-between",
-                            mb: 0.5,
+                            mb: 1,
                           }}
                         >
                           <Typography fontFamily="albert sans" variant="body2">
@@ -1925,7 +1922,7 @@ useEffect(() => {
                             sx={{
                               display: "flex",
                               justifyContent: "space-between",
-                              mb: 0.5,
+                              mb: 1,
                             }}
                           >
                             <Typography
@@ -1948,26 +1945,26 @@ useEffect(() => {
                           sx={{
                             display: "flex",
                             justifyContent: "space-between",
-                            mb: 0.5,
+                            mb: 1,
                           }}
                         >
                           <Typography fontFamily="albert sans" variant="body2">
-                            GST (18%)
+                            Tax
                           </Typography>
                           <Typography
                             fontFamily="albert sans"
                             fontWeight="bold"
                           >
-                            {formatCurrency(financial.gst || 0)}
+                            {formatCurrency(financial.tax || 0)}
                           </Typography>
                         </Box>
-                        <Typography
+                        {/* <Typography
                           fontFamily="albert sans"
                           variant="caption"
                           sx={{ color: "#666", display: "block", mb: 1 }}
                         >
                           Incl. of taxes
-                        </Typography>
+                        </Typography> */}
                       </>
                     )}
                     <Divider sx={{ my: 1 }} />
@@ -2052,7 +2049,11 @@ useEffect(() => {
                   >
                     Booking ID
                   </Typography>
-                  <Typography variant="body2" fontWeight="medium">
+                  <Typography
+                    variant="body2"
+                    fontWeight="medium"
+                    fontFamily="albert sans"
+                  >
                     {bookingId}
                   </Typography>
                 </Box>
@@ -2118,8 +2119,8 @@ useEffect(() => {
                         maxHeight: 240,
                         borderRadius: 1,
                         objectFit: "cover",
-                        border: "1px solid",
-                        borderColor: "black",
+                        // border: "1px solid",
+                        // borderColor: "black",
                       }}
                       onError={(e) => {
                         e.target.src =
@@ -2135,8 +2136,7 @@ useEffect(() => {
                           mb: 1,
                         }}
                       >
-                        {eventData?.name ||          
-                        "N/A"}
+                        {eventData?.name || "N/A"}
                       </Typography>
 
                       <Box
@@ -2535,7 +2535,7 @@ useEffect(() => {
                           >
                             Convenience fees
                           </Typography>
-                          <Typography
+                          {/* <Typography
                             fontFamily="albert sans"
                             sx={{
                               fontWeight: 300,
@@ -2544,7 +2544,7 @@ useEffect(() => {
                             }}
                           >
                             Incl. of taxes
-                          </Typography>
+                          </Typography> */}
                         </Box>
                         <Typography
                           fontFamily="albert sans"
@@ -2554,6 +2554,27 @@ useEffect(() => {
                           }}
                         >
                           ₹{financial?.convenienceFee || 0}
+                        </Typography>
+                      </Box>
+
+                      <Box
+                        sx={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          mb: 1,
+                        }}
+                      >
+                        <Typography
+                          fontFamily="albert sans"
+                          sx={{ fontWeight: 300, fontSize: 12 }}
+                        >
+                          Tax
+                        </Typography>
+                        <Typography
+                          fontFamily="albert sans"
+                          sx={{ fontWeight: 300, fontSize: 12 }}
+                        >
+                          {formatCurrency(financial.tax || 0)}
                         </Typography>
                       </Box>
                     </Box>

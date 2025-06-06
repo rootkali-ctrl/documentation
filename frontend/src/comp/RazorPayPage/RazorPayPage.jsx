@@ -385,7 +385,7 @@ const RazorPayPage = () => {
 
           savePaymentRecord(paymentRecord);
 
-          navigate(`/ticketbookedpage/${eventId}/${userUID}`, {
+          navigate(`/ticketbookedpage/${eventId}/${userUID}/${generatedBookingId}`, {
             state: {
               ...paymentRecord,
               paymentSuccess: true

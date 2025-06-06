@@ -551,36 +551,34 @@ const DesktopMainPage = () => {
     debugDB();
   }, []);
 
-  const isEventActive = (eventDate, endDate) => {
-    if (!eventDate) return false;
+ const isEventActive = (eventDate, endDate) => {
+  if (!eventDate) return false;
 
-    try {
-      const currentDate = new Date();
-      const eventStartDate = new Date(eventDate);
-
-      // Debug: Log the dates being compared
-      console.log("Current Date:", currentDate);
-      console.log("Event Start Date:", eventStartDate);
-      console.log("Event Date String:", eventDate);
-
-      if (endDate) {
-        const eventEndDate = new Date(endDate);
-        console.log("Event End Date:", eventEndDate);
-        return currentDate <= eventEndDate;
-      }
-
-      const eventEndOfDay = new Date(eventStartDate);
-      eventEndOfDay.setHours(23, 59, 59, 999);
-
-      console.log("Event End of Day:", eventEndOfDay);
-      console.log("Is Active:", currentDate <= eventEndOfDay);
-
-      return currentDate <= eventEndOfDay;
-    } catch (error) {
-      console.error("Error checking if event is active:", error);
-      return false;
+  try {
+    const currentDate = new Date();
+    
+    // If endDate is provided, use it (for multi-day events)
+    if (endDate) {
+      const eventEndDate = new Date(endDate);
+      console.log("Event End Date:", eventEndDate);
+      return currentDate <= eventEndDate;
     }
-  };
+
+    // For single events, check against the exact start time
+    const eventStartDate = new Date(eventDate);
+    
+    console.log("Current Date:", currentDate);
+    console.log("Event Start Date:", eventStartDate);
+    console.log("Event Date String:", eventDate);
+    console.log("Is Active:", currentDate <= eventStartDate);
+
+    return currentDate <= eventStartDate;
+  } catch (error) {
+    console.error("Error checking if event is active:", error);
+    return false;
+  }
+};
+
 
   const processEvents = useCallback((querySnapshot) => {
     const eventsData = [];
@@ -1166,7 +1164,7 @@ const DesktopMainPage = () => {
          <Box sx={{
       width: "100%",
       maxWidth: "100vw",
-      margin: '4em auto',
+      margin: {md:'4em auto',sm:'3em auto',xs:'2em auto'},
       padding: '0 8px',
       boxSizing: 'border-box'
     }}>
@@ -1175,7 +1173,7 @@ const DesktopMainPage = () => {
           sx={{
             width: '100%',
             aspectRatio: '8/1',
-            height: {lg:'120px',md:'95px',sm:'80px',xs:'35px'}, 
+            height: {lg:'120px',md:'95px',sm:'80px',xs:'65px'}, 
             maxHeight: '200px',
             borderRadius: '12px',
             overflow: 'hidden',
@@ -1183,7 +1181,7 @@ const DesktopMainPage = () => {
             backgroundImage: `url(${inlineBanner.imageUrl})`,
             backgroundPosition: 'center center',
             backgroundRepeat: 'no-repeat',
-            backgroundSize: {md:'cover',sm:'contain',xs:'contain'},
+            backgroundSize: {lg:'100vw 120px',md:'100vw 95px',sm:'100vw 80px',xs:'100vw 65px'},
             boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
             transition: 'all 0.3s ease'
           }}
