@@ -62,7 +62,7 @@ const WhyWorkWithMe = () => {
           title="Marketing Excellence"
           description="Drive event visibility and attendance through strategic cross-promotions, targeted social media campaigns, and influential partnerships."
         />
-        <WhyWorkWithMeCard
+        {/* <WhyWorkWithMeCard
           number="4."
           title="Innovative Solutions"
           description="Implement forward-thinking features such as personalized event recommendations, interactive event participation, and secure digital ticketing."
@@ -71,7 +71,7 @@ const WhyWorkWithMe = () => {
           number="5."
           title="Reliable Support"
           description="Offer comprehensive customer assistance and reliable event support, ensuring a smooth and satisfying experience for both organizers and attendees. At Ticket B, we are passionate about creating exceptional event experiences."
-        />
+        /> */}
       </div>
     </div>
   );

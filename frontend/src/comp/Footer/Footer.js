@@ -23,9 +23,9 @@ const eventCategories = [
 
 const contactAddress =["Near RHR Hotel, Meenakshi Amman Nagar, No.1 C6, SBA Building, L&T Bypass Road, Kamachipuram, Coimbatore, Tamil Nadu, 641016.",]
 const contactDetails = [
-  "support@thecrowdcatch.com",
-  "9123456780",
-  "9123456780",
+  "admin@ticketb.com",
+  "+91 86678 59174",
+  "+91 91234 56780",
 ];
 
 const icons=[
@@ -137,7 +137,7 @@ const Footer = () => {
               <div key={index} className="footer-icons">{item}</div>
             ))}
           </Box>
-            <Typography sx={{fontFamily:'Albert Sans',mt:'1%', fontWeight:'300'}}>All rights reserved with love by The Crowd Catch</Typography>
+            <Typography sx={{fontFamily:'Albert Sans',mt:'1%', fontWeight:'300'}}>All rights reserved with love by Ticketb</Typography>
       </Box>
       <Box sx={{display:'flex',
         width:'100%',

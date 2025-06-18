@@ -26,7 +26,7 @@ import Header from "../Header/MainHeader.js";
 import Footer from "../Footer/Footer.js";
 import Img from "../photo/baner.png";
 import TextReveal from "./TextReveal/TextReveal.jsx";
-
+import FAQ from './FAQ/FAQ.js'
 import {
   collection,
   getDocs,
@@ -42,6 +42,8 @@ import Slider from "react-slick";
 import { useVendor } from "../Vendor/VendorContext";
 import { is } from "date-fns/locale";
 import WhyWorkWithMe from "./WhyWorkWithMe/WhyWorkWithMe.js";
+import TeamSection from "./Core Members/TeamSection.js";
+import profile from './images/profile.jpg'
 
 const EventCard = ({ event, userUID }) => {
   const isMobile = useMediaQuery("(max-width:600px)");
@@ -1160,7 +1162,7 @@ const DesktopMainPage = () => {
         </Box>
 
         {/* Inline Banner */}
-         <Box sx={{
+         {/* <Box sx={{
       width: "100%",
       maxWidth: "100vw",
       margin: {md:'4em auto',sm:'3em auto',xs:'2em auto'},
@@ -1199,7 +1201,7 @@ const DesktopMainPage = () => {
           borderTop: '1px solid #e0e0e0' 
         }} />
       )}
-    </Box>
+    </Box> */}
           
 
         {/* Filter Section */}
@@ -1410,25 +1412,32 @@ const DesktopMainPage = () => {
           )}
         </Box>
 
-        <Divider sx={{ my: 0 }} />
+    <Divider sx={{ my: 0 }} />
       </Box>
-
-       <Box sx={{width:"100%",height:"auto",display:"flex",justifyContent:"center",alignItems:"center",mt:"3%"}}>
+         { !isMobile &&
+         <>
+          <Box sx={{width:"100%",height:"auto",display:"flex",justifyContent:"center",alignItems:"center",mt:"3%"}}>
         <Box sx={{width:"90%",height:"auto",display:"block",backgroundColor:"#FFFFFF",justifyContent:"center",alignItems:"center",margin:"auto 0",textAlign:"center",padding:"10px 0",borderRadius:"20px",marginTop:"10px",border: "3px solid #E2E8F0"}}>
           <Typography variant="h4" sx={{color:"#4AA0D5",fontWeight:"bold",padding:"10px 0", fontFamily:'albert sans'}}>Ticketb</Typography>
-          <Typography variant="body1" sx={{padding:"10px 0",width:"60vw", fontFamily:'albert sans',justifyContent:"center",margin:"0 auto",textAlign:"center"}}> At Ticket B, our diverse and collaborative team works passionately to redefine event experiences through seamless digital interactions. We provide a user-friendly platform enabling streamlined ticket bookings, interactive event participation, and personalized recommendations based on user interests. Our interdisciplinary team includes skilled software developers, innovative UI/UX designers, experienced marketers, and dedicated customer support specialists. Together, we focus on enhancing user satisfaction, driving community engagement, and delivering exceptional value to event organizers and attendees alike. By leveraging Firebase's cutting-edge solutions, we efficiently manage real-time user interactions, secure user authentication, and personalized analytics. Our team's collaborative spirit ensures consistent innovation, striving continuously to exceed our user’s expectations through intuitive design, robust functionality, and seamless integration. At Ticket B, we don't just sell tickets—we craft memorable event journeys.</Typography>
-          <Button variant="contained" sx={{backgroundColor:"#FFFFFF", fontFamily:'albert sans',color:"#4AA0D5",fontWeight:"bold",padding:"10px 20px",mt:"2%",mb:"1%",borderRadius:"10px",marginLeft:"0px"}}  onClick={() => navigate("/vendor/register")}>Try Bundle</Button>
+          <Typography variant="body1" sx={{padding:"10px 0",width:"60vw", fontFamily:'albert sans',justifyContent:"center",margin:"0 auto",textAlign:"center"}}> TicketB is a Tamil-first digital ticketing platform targeting tier-2 and tier-3 cities in Tamil Nadu. We help local event organizers and theatres move from manual ticketing to online sales with affordable commissions, WhatsApp-based ticket delivery, and regional language support. With digital adoption rising post-COVID, we’re filling a critical gap in the market. Our hyperlocal approach, early traction, and strong media partnerships position us to dominate this ₹3,000+ crore offline market.</Typography>
+          {/* <Button variant="contained" sx={{backgroundColor:"#FFFFFF", fontFamily:'albert sans',color:"#4AA0D5",fontWeight:"bold",padding:"10px 20px",mt:"2%",mb:"1%",borderRadius:"10px",marginLeft:"0px"}}  onClick={() => navigate("/vendor/register")}>Try Bundle</Button> */}
         </Box>
       </Box>
       <Box sx={{width:"100%",height:"auto",display:"flex",justifyContent:"center",alignItems:"center", mb:'2em'}}>
         <Box sx={{width:"90%",height:"auto",display:"block",backgroundColor:"#4AA0D5",justifyContent:"center",alignItems:"center",margin:"auto 0",textAlign:"center",padding:"20px 0",borderRadius:"20px",marginTop:"50px"}}>
           <Typography variant="h4" sx={{color:"#FFFFFF", fontFamily:'albert sans',fontWeight:"bold",padding:"20px 0"}}>Ready to Host Your Own Event?</Typography>
           <Typography variant="h6" sx={{color:"#FFFFFF", fontFamily:'albert sans',padding:"20px 0"}}>Join thousands of event organizers who trust ticketb</Typography>
-          <Button variant="contained" sx={{backgroundColor:"#FFFFFF", fontFamily:'albert sans',color:"#4AA0D5",fontWeight:"bold",padding:"10px 20px",borderRadius:"10px",marginLeft:"20px"}}  onClick={() => navigate("/vendor/register")}>Get Started</Button>
+          {/* <Button variant="contained" sx={{backgroundColor:"#FFFFFF", fontFamily:'albert sans',color:"#4AA0D5",fontWeight:"bold",padding:"10px 20px",borderRadius:"10px",marginLeft:"20px"}}  onClick={() => navigate("/vendor/register")}>Get Started</Button> */}
         </Box>
       </Box>
-      <WhyWorkWithMe/>
-      <TextReveal/>
+         </>
+      
+      }
+
+      {!isMobile && <WhyWorkWithMe/>}
+      {!isMobile && <TeamSection/>}
+      {/* {!isMobile && <TextReveal/>} */}
+      {!isMobile && <FAQ />}
       {!isMobile && <Footer />}
 
       {/* Suspension Modal */}
