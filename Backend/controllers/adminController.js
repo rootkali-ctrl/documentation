@@ -653,6 +653,46 @@ const saveBannerUrlsInline = async (req, res) => {
   }
 };
 
+// Add this function to your adminController.js
+
+const sendVendorEmail = async (req, res) => {
+  try {
+    const { to, vendorName, status } = req.body;
+
+    console.log('Email request received:', { to, vendorName, status });
+
+    if (!to || !vendorName || !status) {
+      console.log('Missing required fields');
+      return res.status(400).json({
+        success: false,
+        message: "Missing required fields: to, vendorName, status"
+      });
+    }
+
+    // For now, just simulate email sending success
+    // Later you can integrate with nodemailer, SendGrid, etc.
+    console.log(`Simulating email send: ${status} notification to ${to} for vendor ${vendorName}`);
+
+    // Simulate some processing time
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    res.status(200).json({
+      success: true,
+      message: `Email notification sent successfully to ${to}`,
+      status: status,
+      vendorName: vendorName
+    });
+
+  } catch (err) {
+    console.error('Email sending error:', err);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to send email notification',
+      details: err.message
+    });
+  }
+};
+
 module.exports = {
   acceptRegistrationRequest,
   rejectRegistrationRequest,
@@ -669,4 +709,5 @@ module.exports = {
   getRecentBannersInline,
   deleteBannerInline,
   saveBannerUrlsInline,
+  sendVendorEmail,
 };

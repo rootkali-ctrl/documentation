@@ -9,7 +9,7 @@ const {
 
   Router.get('/allevents', getAllEvents);
   Router.get('/vendor/:vendorId', getEventsByVendor);
-  Router.post('/', upload.array("bannerImages", 6), addEvent);
+  Router.post('/', upload.array("bannerImages", 9), addEvent);
   Router.delete("/:eventId", deleteEvent)
   
 module.exports = Router;

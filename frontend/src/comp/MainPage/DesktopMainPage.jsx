@@ -339,6 +339,7 @@ const DesktopMainPage = () => {
   const [banners, setBanners] = useState([]);
   const [inlineBanner, setInlineBanner] = useState({ imageUrl: "", link: "" });
   const [userUID, setUserUID] = useState(null);
+
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
       if (user) {
@@ -381,40 +382,6 @@ const DesktopMainPage = () => {
       alert("Failed to log out. Please try again.");
     }
   };
-
-  // useEffect(() => {
-  //   const fetchBanners = async () => {
-  //     try {
-  //       const res = await axios.get("http://localhost:8080/api/admin/banners/recent");
-  //       setBanners(res.data.banners);
-
-  //       const inlineResponse = await axios.get("http://localhost:8080/api/admin/banners/recent-inline");
-  //       const firstInlineBanner = inlineResponse.data.banners[0];
-  //       console.log("Inline banner data:", firstInlineBanner);
-
-  //       if (typeof firstInlineBanner === 'object' && firstInlineBanner !== null) {
-  //         setInlineBanner(firstInlineBanner);
-  //       } else if (typeof firstInlineBanner === 'string') {
-  //         setInlineBanner({ imageUrl: firstInlineBanner, link:  });
-  //       }
-
-  //     } catch (err) {
-  //       console.error("Failed to fetch banners", err);
-  //     }
-  //   };
-
-  //   fetchBanners();
-  // }, []);
-
-  // const handleInlineBannerClick = () => {
-  //   if (inlineBanner.link) {
-  //     if (inlineBanner.link.startsWith('http://') || inlineBanner.link.startsWith('https://')) {
-  //       window.open(inlineBanner.link, '_blank', 'noopener,noreferrer');
-  //     } else {
-  //       navigate(inlineBanner.link);
-  //     }
-  //   }
-  // };
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((user) => {
@@ -521,7 +488,10 @@ const DesktopMainPage = () => {
         console.log("Direct event data fetch:", data);
         console.log("Event date:", data.eventDate);
         console.log("Event date type:", typeof data.eventDate);
+        console.log("Event host date:", data.eventHost);
+        console.log("Event host type:", typeof data.eventHost);
         console.log("Is active:", isEventActive(data.eventDate, data.endDate));
+        console.log("Should show (eventHost passed):", shouldShowEvent(data.eventHost));
 
         // Check if it's a Firestore timestamp
         if (
@@ -538,6 +508,7 @@ const DesktopMainPage = () => {
       console.error("Error debugging event:", error);
     }
   };
+
   const debugDB = async () => {
     try {
       const eventsRef = collection(db, "events");
@@ -552,34 +523,55 @@ const DesktopMainPage = () => {
     debugDB();
   }, []);
 
- const isEventActive = (eventDate, endDate) => {
-  if (!eventDate) return false;
-
-  try {
-    const currentDate = new Date();
-    
-    // If endDate is provided, use it (for multi-day events)
-    if (endDate) {
-      const eventEndDate = new Date(endDate);
-      console.log("Event End Date:", eventEndDate);
-      return currentDate <= eventEndDate;
+  // New function to check if event should be shown based on eventHost date
+  const shouldShowEvent = (eventHostDate) => {
+    if (!eventHostDate) {
+      console.log("No eventHost date found, showing event");
+      return true; // If no eventHost date, show the event (backward compatibility)
     }
 
-    // For single events, check against the exact start time
-    const eventStartDate = new Date(eventDate);
-    
-    console.log("Current Date:", currentDate);
-    console.log("Event Start Date:", eventStartDate);
-    console.log("Event Date String:", eventDate);
-    console.log("Is Active:", currentDate <= eventStartDate);
+    try {
+      const currentDate = new Date();
+      const hostDate = new Date(eventHostDate);
 
-    return currentDate <= eventStartDate;
-  } catch (error) {
-    console.error("Error checking if event is active:", error);
-    return false;
-  }
-};
+      console.log("Current Date:", currentDate);
+      console.log("Event Host Date:", hostDate);
+      console.log("Should show (host date passed):", currentDate >= hostDate);
 
+      return currentDate >= hostDate; // Show event only after host date has passed
+    } catch (error) {
+      console.error("Error checking eventHost date:", error);
+      return true; // If error in parsing, show the event
+    }
+  };
+
+  const isEventActive = (eventDate, endDate) => {
+    if (!eventDate) return false;
+
+    try {
+      const currentDate = new Date();
+
+      // If endDate is provided, use it (for multi-day events)
+      if (endDate) {
+        const eventEndDate = new Date(endDate);
+        console.log("Event End Date:", eventEndDate);
+        return currentDate <= eventEndDate;
+      }
+
+      // For single events, check against the exact start time
+      const eventStartDate = new Date(eventDate);
+
+      console.log("Current Date:", currentDate);
+      console.log("Event Start Date:", eventStartDate);
+      console.log("Event Date String:", eventDate);
+      console.log("Is Active:", currentDate <= eventStartDate);
+
+      return currentDate <= eventStartDate;
+    } catch (error) {
+      console.error("Error checking if event is active:", error);
+      return false;
+    }
+  };
 
   const processEvents = useCallback((querySnapshot) => {
     const eventsData = [];
@@ -590,7 +582,16 @@ const DesktopMainPage = () => {
       const data = doc.data();
       console.log("Processing event:", doc.id, data.name);
 
-      // Check if event is active BEFORE processing
+      // First check if event should be shown based on eventHost date
+      const shouldShow = shouldShowEvent(data.eventHost);
+      console.log(`Event ${doc.id} should show (host date passed):`, shouldShow);
+
+      if (!shouldShow) {
+        console.log(`Skipping event not yet hosted: ${doc.id}`);
+        return; // Skip events that haven't reached their host date
+      }
+
+      // Then check if event is still active (not expired)
       const isActive = isEventActive(data.eventDate, data.endDate);
       console.log(`Event ${doc.id} active status:`, isActive);
 
@@ -736,6 +737,7 @@ const DesktopMainPage = () => {
         formattedDate: formattedDate,
         eventDate: data.eventDate || "",
         endDate: data.endDate || "",
+        eventHost: data.eventHost || "",
         location: locationStr,
         imageUrl: imageUrl,
         pricing: Array.isArray(data.pricing)
@@ -1174,7 +1176,7 @@ const DesktopMainPage = () => {
           sx={{
             width: '100%',
             aspectRatio: '8/1',
-            height: {lg:'120px',md:'95px',sm:'80px',xs:'65px'}, 
+            height: {lg:'120px',md:'95px',sm:'80px',xs:'65px'},
             maxHeight: '200px',
             borderRadius: '12px',
             overflow: 'hidden',
@@ -1195,14 +1197,14 @@ const DesktopMainPage = () => {
           }}
         />
       ) : (
-        <hr style={{ 
-          marginTop: '2rem', 
-          border: 'none', 
-          borderTop: '1px solid #e0e0e0' 
+        <hr style={{
+          marginTop: '2rem',
+          border: 'none',
+          borderTop: '1px solid #e0e0e0'
         }} />
       )}
     </Box> */}
-          
+
 
         {/* Filter Section */}
         <Box sx={{ px: isMobile ? 2 : 4 }}>
@@ -1419,7 +1421,7 @@ const DesktopMainPage = () => {
           <Box sx={{width:"100%",height:"auto",display:"flex",justifyContent:"center",alignItems:"center",mt:"3%"}}>
         <Box sx={{width:"90%",height:"auto",display:"block",backgroundColor:"#FFFFFF",justifyContent:"center",alignItems:"center",margin:"auto 0",textAlign:"center",padding:"10px 0",borderRadius:"20px",marginTop:"10px",border: "3px solid #E2E8F0"}}>
           <Typography variant="h4" sx={{color:"#4AA0D5",fontWeight:"bold",padding:"10px 0", fontFamily:'albert sans'}}>Ticketb</Typography>
-          <Typography variant="body1" sx={{padding:"10px 0",width:"60vw", fontFamily:'albert sans',justifyContent:"center",margin:"0 auto",textAlign:"center"}}> TicketB is a Tamil-first digital ticketing platform targeting tier-2 and tier-3 cities in Tamil Nadu. We help local event organizers and theatres move from manual ticketing to online sales with affordable commissions, WhatsApp-based ticket delivery, and regional language support. With digital adoption rising post-COVID, we’re filling a critical gap in the market. Our hyperlocal approach, early traction, and strong media partnerships position us to dominate this ₹3,000+ crore offline market.</Typography>
+          <Typography variant="body1" sx={{padding:"10px 0",width:"60vw", fontFamily:'albert sans',justifyContent:"center",margin:"0 auto",textAlign:"center"}}> TicketB is a Tamil-first digital ticketing platform targeting tier-2 and tier-3 cities in Tamil Nadu. We help local event organizers and theatres move from manual ticketing to online sales with affordable commissions, WhatsApp-based ticket delivery, and regional language support. With digital adoption rising post-COVID, we're filling a critical gap in the market. Our hyperlocal approach, early traction, and strong media partnerships position us to dominate this ₹3,000+ crore offline market.</Typography>
           {/* <Button variant="contained" sx={{backgroundColor:"#FFFFFF", fontFamily:'albert sans',color:"#4AA0D5",fontWeight:"bold",padding:"10px 20px",mt:"2%",mb:"1%",borderRadius:"10px",marginLeft:"0px"}}  onClick={() => navigate("/vendor/register")}>Try Bundle</Button> */}
         </Box>
       </Box>
@@ -1431,7 +1433,7 @@ const DesktopMainPage = () => {
         </Box>
       </Box>
          </>
-      
+
       }
 
       {!isMobile && <WhyWorkWithMe/>}

@@ -27,6 +27,7 @@ const VendorDocument = () => {
   const isMobile = useMediaQuery("(max-width:600px)");
   const auth = getAuth();
   const user = auth.currentUser;
+
   useEffect(() => {
     if (!vendorData) {
       navigate("/vendor/register");
@@ -56,20 +57,104 @@ const VendorDocument = () => {
   });
   const [submitting, setSubmitting] = useState(false);
 
+  // Validation functions
+  const validatePAN = (panNumber) => {
+    const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
+    if (!panNumber) {
+      return "PAN number is required";
+    }
+    if (!panRegex.test(panNumber.toUpperCase())) {
+      return "Invalid PAN format. Use format: ABCDE1234F";
+    }
+    return "";
+  };
+
+  const validateAadhar = (aadharNumber) => {
+  if (!aadharNumber) {
+    return "Aadhar number is required";
+  }
+
+  const cleanAadhar = aadharNumber.replace(/\s/g, "");
+
+  // Check if it's exactly 12 digits
+  const aadharRegex = /^[0-9]{12}$/;
+  if (!aadharRegex.test(cleanAadhar)) {
+    return "Aadhar number must be exactly 12 digits";
+  }
+
+  return "";
+};
+
+  const validateAccountNumber = (accountNumber) => {
+    const accountRegex = /^[0-9]{9,18}$/;
+    if (!accountNumber) {
+      return "Account number is required";
+    }
+    if (!accountRegex.test(accountNumber)) {
+      return "Account number must be 9-18 digits";
+    }
+    return "";
+  };
+
+  const validateIFSC = (ifscCode) => {
+    const ifscRegex = /^[A-Z]{4}0[A-Z0-9]{6}$/;
+    if (!ifscCode) {
+      return "IFSC code is required";
+    }
+    if (!ifscRegex.test(ifscCode.toUpperCase())) {
+      return "Invalid IFSC format. Use format: ABCD0123456";
+    }
+    return "";
+  };
+
   const handleChange = (e) => {
-    setdocData({ ...docData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    let formattedValue = value;
+
+    // Format inputs
+    if (name === "panNumber") {
+      formattedValue = value.toUpperCase();
+    } else if (name === "aadharNumber") {
+      // Remove all non-digits and limit to 12 digits
+      formattedValue = value.replace(/\D/g, "").slice(0, 12);
+      // Add spaces for better readability: XXXX XXXX XXXX
+      if (formattedValue.length > 4 && formattedValue.length <= 8) {
+        formattedValue = formattedValue.replace(/(\d{4})(\d+)/, "$1 $2");
+      } else if (formattedValue.length > 8) {
+        formattedValue = formattedValue.replace(/(\d{4})(\d{4})(\d+)/, "$1 $2 $3");
+      }
+    } else if (name === "AccountNumber") {
+      formattedValue = value.replace(/\D/g, "");
+    } else if (name === "IFSCNumber") {
+      formattedValue = value.toUpperCase();
+    }
+
+    setdocData({ ...docData, [name]: formattedValue });
+
+    // Clear error when user starts typing
+    if (errors[name]) {
+      setErrors({ ...errors, [name]: "" });
+    }
   };
 
   const handleSubmit = async () => {
     let newErrors = {};
     let uploadErrors = {};
 
-    Object.keys(docData).forEach((key) => {
-      if (!docData[key]) {
-        newErrors[key] = "This field is required";
+    // Validate all fields
+    newErrors.panNumber = validatePAN(docData.panNumber);
+    newErrors.aadharNumber = validateAadhar(docData.aadharNumber);
+    newErrors.AccountNumber = validateAccountNumber(docData.AccountNumber);
+    newErrors.IFSCNumber = validateIFSC(docData.IFSCNumber);
+
+    // Remove empty error messages
+    Object.keys(newErrors).forEach(key => {
+      if (!newErrors[key]) {
+        delete newErrors[key];
       }
     });
 
+    // Check file uploads
     if (!docData.panUpload) {
       uploadErrors.pan = !isMobile
         ? "PAN Card is required"
@@ -102,7 +187,7 @@ const VendorDocument = () => {
         firebaseUid: user.uid,
         lastLogin: null,
         panNumber: docData.panNumber,
-        aadharNumber: docData.aadharNumber,
+        aadharNumber: docData.aadharNumber.replace(/\s/g, ""), // Remove spaces before sending
         AccountNumber: docData.AccountNumber,
         IFSCNumber: docData.IFSCNumber,
         createdAt: new Date().toISOString(),
@@ -252,8 +337,11 @@ const VendorDocument = () => {
                 name="panNumber"
                 variant="outlined"
                 label="Pan Card Number"
+                placeholder="ABCDE1234F"
                 value={docData.panNumber}
                 onChange={handleChange}
+                error={!!errors.panNumber}
+                helperText={errors.panNumber}
                 sx={{
                   width: "80%",
                   borderRadius: "10px",
@@ -356,14 +444,6 @@ const VendorDocument = () => {
               )}
             </Box>
 
-            {errors.panNumber && (
-              <Typography
-                sx={{ color: "red", fontSize: "14px", marginTop: "5px" }}
-              >
-                {errors.panNumber}
-              </Typography>
-            )}
-
             {/* Aadhar Card Upload */}
             <Box
               sx={{
@@ -377,8 +457,11 @@ const VendorDocument = () => {
                 name="aadharNumber"
                 variant="outlined"
                 label="Aadhar Card Number"
+                placeholder="1234 5678 9012"
                 value={docData.aadharNumber}
                 onChange={handleChange}
+                error={!!errors.aadharNumber}
+                helperText={errors.aadharNumber}
                 sx={{
                   width: "80%",
                   borderRadius: "10px",
@@ -480,13 +563,6 @@ const VendorDocument = () => {
                 </Typography>
               )}
             </Box>
-            {errors.aadharNumber && (
-              <Typography
-                sx={{ color: "red", fontSize: "14px", marginTop: "5px" }}
-              >
-                {errors.aadharNumber}
-              </Typography>
-            )}
 
             <Box
               sx={{
@@ -500,8 +576,11 @@ const VendorDocument = () => {
                 name="AccountNumber"
                 variant="outlined"
                 label="Bank Account Number"
+                placeholder="123456789012"
                 value={docData.AccountNumber}
                 onChange={handleChange}
+                error={!!errors.AccountNumber}
+                helperText={errors.AccountNumber}
                 sx={{
                   width: "80%",
                   borderRadius: "10px",
@@ -603,20 +682,15 @@ const VendorDocument = () => {
               )}
             </Box>
 
-            {errors.AccountNumber && (
-              <Typography
-                sx={{ color: "red", fontSize: "14px", marginTop: "5px" }}
-              >
-                {errors.AccountNumber}
-              </Typography>
-            )}
-
             <TextField
               name="IFSCNumber"
               variant="outlined"
               label="IFSC Code"
+              placeholder="ABCD0123456"
               value={docData.IFSCNumber}
               onChange={handleChange}
+              error={!!errors.IFSCNumber}
+              helperText={errors.IFSCNumber}
               sx={{
                 width: "80%",
                 borderRadius: "10px",
@@ -636,13 +710,6 @@ const VendorDocument = () => {
                 },
               }}
             />
-            {errors.IFSCNumber && (
-              <Typography
-                sx={{ color: "red", fontSize: "14px", marginTop: "5px" }}
-              >
-                {errors.IFSCNumber}
-              </Typography>
-            )}
 
             <Box
               sx={{
@@ -806,9 +873,10 @@ const VendorDocument = () => {
               <TextField
                 name="panNumber"
                 variant="outlined"
-                placeholder="Pan Card Number"
+                placeholder="Pan Card Number (ABCDE1234F)"
                 value={docData.panNumber}
                 onChange={handleChange}
+                error={!!errors.panNumber}
                 sx={{
                   width: "100%",
                   borderRadius: "10px",
@@ -991,9 +1059,10 @@ const VendorDocument = () => {
               <TextField
                 name="aadharNumber"
                 variant="outlined"
-                placeholder="Aadhar Card Number"
+                placeholder="Aadhar Card Number (1234 5678 9012)"
                 value={docData.aadharNumber}
                 onChange={handleChange}
+                error={!!errors.aadharNumber}
                 sx={{
                   width: "100%",
                   borderRadius: "10px",
@@ -1176,9 +1245,10 @@ const VendorDocument = () => {
               <TextField
                 name="AccountNumber"
                 variant="outlined"
-                placeholder="Bank Account Number"
+                placeholder="Bank Account Number (123456789012)"
                 value={docData.AccountNumber}
                 onChange={handleChange}
+                error={!!errors.AccountNumber}
                 sx={{
                   width: "100%",
                   borderRadius: "10px",
@@ -1215,9 +1285,10 @@ const VendorDocument = () => {
               <TextField
                 name="IFSCNumber"
                 variant="outlined"
-                placeholder="IFSC Code"
+                placeholder="IFSC Code (ABCD0123456)"
                 value={docData.IFSCNumber}
                 onChange={handleChange}
+                error={!!errors.IFSCNumber}
                 sx={{
                   width: "100%",
                   borderRadius: "10px",

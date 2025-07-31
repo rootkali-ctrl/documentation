@@ -57,6 +57,75 @@ const VendorRegister = () => {
     confirmPassword: "",
   });
 
+  // Enhanced password validation function
+  const validatePassword = (password) => {
+    const minLength = 8;
+    const hasUpperCase = /[A-Z]/.test(password);
+    const hasLowerCase = /[a-z]/.test(password);
+    const hasNumbers = /\d/.test(password);
+    const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+
+    if (!password) {
+      return "Password is required";
+    }
+
+    if (password.length < minLength) {
+      return "Password must be at least 8 characters long";
+    }
+
+    if (!hasUpperCase) {
+      return "Password must contain at least one uppercase letter";
+    }
+
+    if (!hasLowerCase) {
+      return "Password must contain at least one lowercase letter";
+    }
+
+    if (!hasNumbers) {
+      return "Password must contain at least one number";
+    }
+
+    if (!hasSpecialChar) {
+      return "Password must contain at least one special character (!@#$%^&*(),.?\":{}|<>)";
+    }
+
+    return ""; // No errors
+  };
+
+  // Password requirements helper component
+  const PasswordRequirements = ({ password }) => {
+    const requirements = [
+      { test: password.length >= 8, text: "At least 8 characters" },
+      { test: /[A-Z]/.test(password), text: "One uppercase letter" },
+      { test: /[a-z]/.test(password), text: "One lowercase letter" },
+      { test: /\d/.test(password), text: "One number" },
+      { test: /[!@#$%^&*(),.?":{}|<>]/.test(password), text: "One special character" }
+    ];
+
+    return (
+      <Box sx={{ mt: 1, mb: 1 }}>
+        <Typography variant="caption" sx={{ fontFamily: "Albert Sans", color: "#666", fontSize: "12px" }}>
+          Password requirements:
+        </Typography>
+        {requirements.map((req, index) => (
+          <Typography
+            key={index}
+            variant="caption"
+            sx={{
+              display: "block",
+              fontFamily: "Albert Sans",
+              color: req.test ? "#4caf50" : "#f44336",
+              fontSize: "11px",
+              ml: 1
+            }}
+          >
+            {req.test ? "✓" : "✗"} {req.text}
+          </Typography>
+        ))}
+      </Box>
+    );
+  };
+
   useEffect(() => {
     let isMounted = true;
 
@@ -160,6 +229,7 @@ const VendorRegister = () => {
       [name]: value,
     });
 
+    // Clear errors for the field being changed
     setErrors({
       ...errors,
       [name]: "",
@@ -183,10 +253,10 @@ const VendorRegister = () => {
       newErrors.email = "Email already registered as vendor";
     }
 
-    if (!formData.password) {
-      newErrors.password = "Password is required";
-    } else if (formData.password.length < 8) {
-      newErrors.password = "Password must be at least 8 characters";
+    // Use the enhanced password validation
+    const passwordError = validatePassword(formData.password);
+    if (passwordError) {
+      newErrors.password = passwordError;
     }
 
     if (!formData.confirmPassword) {
@@ -460,7 +530,7 @@ const VendorRegister = () => {
             value={formData.password}
             onChange={handleChange}
             sx={{
-              mb: 2,
+              mb: 1,
               "& .MuiInputBase-input": {
                 fontFamily: "Albert Sans",
               },
@@ -504,6 +574,11 @@ const VendorRegister = () => {
               ),
             }}
           />
+
+          {/* Password Requirements Display */}
+          {formData.password && (
+            <PasswordRequirements password={formData.password} />
+          )}
 
           {/* Confirm Password */}
           <TextField

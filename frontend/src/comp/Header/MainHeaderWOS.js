@@ -106,7 +106,7 @@ const MainHeader = () => {
   const navLinks = (
     <>
       <Typography
-        onClick={() => navigate("/recent-orders")}
+        onClick={() => navigate("/recentorders")}
         sx={{ 
           cursor: "pointer", 
           "&:hover": { 
@@ -274,7 +274,7 @@ const MainHeader = () => {
                 <Divider />
               </>
             )}
-            <ListItem button onClick={() => navigate("/recent-orders")}>
+            <ListItem button onClick={() => navigate("/recentorders")}>
               <ListItemText 
                 primary="Recent Orders" 
                 sx={{

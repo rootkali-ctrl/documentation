@@ -141,18 +141,26 @@ const UserPage = () => {
   }, []);
 
   const formatDate = (timestamp) => {
-    if (!timestamp) return "Never";
+    if (!timestamp) return "NA";
     try {
+      // Ensure timestamp is a Date object before formatting
+      let date;
       if (timestamp && typeof timestamp.toDate === "function") {
-        return timestamp.toDate().toLocaleDateString();
+        date = timestamp.toDate(); // Firebase Timestamp to Date object
+      } else if (timestamp instanceof Date) {
+        date = timestamp; // Already a Date object
+      } else if (typeof timestamp === 'string') {
+        date = new Date(timestamp); // Try to parse string to Date
+      } else {
+        return "Invalid date"; // Unrecognized timestamp format
       }
-      if (typeof timestamp === "string") {
-        return timestamp;
+
+      // Check if date is valid after potential parsing
+      if (isNaN(date.getTime())) {
+        return "Invalid date";
       }
-      if (timestamp instanceof Date) {
-        return timestamp.toLocaleDateString();
-      }
-      return "Invalid date";
+
+      return date.toLocaleDateString();
     } catch (error) {
       console.error("Error formatting date:", error);
       return "Date error";
@@ -270,14 +278,30 @@ const UserPage = () => {
       setFirstVisibleDoc(firstDoc);
       setHasMoreData(hasMore);
 
-      const fetchedUsers = docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-        image: doc.data().image || "/api/placeholder/40/40",
-        status: doc.data().suspended ? "Suspended" : "Active",
-        lastLogin: doc.data().lastLogin || "Never",
-        accountcreated: doc.data().accountcreated || new Date(),
-      }));
+      const fetchedUsers = docs.map((doc) => {
+        const data = doc.data();
+        let accountCreatedDate;
+
+        // Dynamically set accountCreatedDate
+        if (data.accountcreated && typeof data.accountcreated.toDate === 'function') {
+          accountCreatedDate = data.accountcreated.toDate();
+        } else if (data.accountcreated instanceof Date) {
+          accountCreatedDate = data.accountcreated;
+        } else if (typeof data.accountcreated === 'string') {
+          accountCreatedDate = new Date(data.accountcreated);
+        } else {
+          accountCreatedDate = null; // Or new Date() if you want a fallback to current date
+        }
+
+        return {
+          id: doc.id,
+          ...data,
+          image: data.image || "/api/placeholder/40/40",
+          status: data.suspended ? "Suspended" : "Active",
+          lastLogin: data.lastLogin || "Never",
+          accountcreated: accountCreatedDate,
+        };
+      });
 
       setPageCache((prev) => ({
         ...prev,
@@ -368,14 +392,30 @@ const UserPage = () => {
       setFirstVisibleDoc(firstDoc);
       setHasMoreData(hasMore);
 
-      const fetchedVendors = docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-        image: doc.data().image || "/api/placeholder/40/40",
-        status: doc.data().suspended ? "Suspended" : "Active",
-        lastLogin: doc.data().lastLogin || "Never",
-        accountcreated: doc.data().accountcreated || new Date(),
-      }));
+      const fetchedVendors = docs.map((doc) => {
+        const data = doc.data();
+        let accountCreatedDate;
+
+        // Dynamically set accountCreatedDate
+        if (data.accountcreated && typeof data.accountcreated.toDate === 'function') {
+          accountCreatedDate = data.accountcreated.toDate();
+        } else if (data.accountcreated instanceof Date) {
+          accountCreatedDate = data.accountcreated;
+        } else if (typeof data.accountcreated === 'string') {
+          accountCreatedDate = new Date(data.accountcreated);
+        } else {
+          accountCreatedDate = null; // Or new Date() if you want a fallback to current date
+        }
+
+        return {
+          id: doc.id,
+          ...data,
+          image: data.image || "/api/placeholder/40/40",
+          status: data.suspended ? "Suspended" : "Active",
+          lastLogin: data.lastLogin || "Never",
+          accountcreated: accountCreatedDate,
+        };
+      });
 
       setPageCache((prev) => ({
         ...prev,
@@ -980,7 +1020,7 @@ const UserPage = () => {
           </Button>
         </DialogActions>
       </Dialog>
-      
+
     </Box>
   );
 };

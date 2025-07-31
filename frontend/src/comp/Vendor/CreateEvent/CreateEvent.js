@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback, useState } from "react";
+import { useEffect, useRef, useCallback, useState, createRef } from "react";
 import {
   Box,
   Typography,
@@ -6,7 +6,6 @@ import {
   FormControl,
   MenuItem,
   OutlinedInput,
-  Grid,
   TextField,
   Select,
   useMediaQuery,
@@ -17,17 +16,13 @@ import {
   DialogContent,
   DialogActions,
 } from "@mui/material";
-import DeleteIcon from "@mui/icons-material/Delete";
 import { useTheme } from "@mui/material/styles";
-import Carousel from "react-material-ui-carousel";
 import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
-import dayjs from "dayjs"; // for value handling
-import { GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
-import { useNavigate } from "react-router-dom";
+import dayjs from "dayjs";
+import { useNavigate, useParams } from "react-router-dom";
 import { useEventContext } from "./EventContext";
-import { useParams } from "react-router-dom";
 
 const CreateEvent = () => {
   const navigate = useNavigate();
@@ -36,6 +31,7 @@ const CreateEvent = () => {
   const isMobile = useMediaQuery("(max-width:900px)");
   const [mediaLink, setMediaLink] = useState("");
   const [selectedCategories, setSelectedCategories] = useState([]);
+  const theme = useTheme();
 
   const [localData, setLocalData] = useState({
     name: "",
@@ -48,9 +44,10 @@ const CreateEvent = () => {
   const [imageData, setImageData] = useState({
     eventCard: null,
     banner: null,
-    previousEvents: [null, null, null],
+    previousEvents: Array(6).fill(null),
     ticket: null,
   });
+
   const [speaker, setSpeaker] = useState([{ name: "", role: "" }]);
   const [venueDetails, setVenueDetails] = useState({
     venueName: "",
@@ -66,7 +63,42 @@ const CreateEvent = () => {
     message: "",
   });
 
-  // Optimized dialog handler
+  const [validationTriggered, setValidationTriggered] = useState(false);
+  const [invalidFields, setInvalidFields] = useState({});
+
+  // Refs for all input fields
+  const nameRef = useRef(null);
+  const descriptionRef = useRef(null);
+  const eventDateRef = useRef(null);
+  const eventHostRef = useRef(null);
+  const categoryRef = useRef(null);
+  const venueNameRef = useRef(null);
+  const streetNameRef = useRef(null);
+  const cityRef = useRef(null);
+  const stateRef = useRef(null);
+  const pincodeRef = useRef(null);
+  const areaRef = useRef(null);
+  const eventCardRef = useRef(null);
+  const bannerRef = useRef(null);
+  const ticketRef = useRef(null);
+  const speakerRefs = useRef([]);
+
+  const fileInputRefs = {
+    eventCard: useRef(null),
+    banner: useRef(null),
+    previousEvents: [
+      useRef(null),
+      useRef(null),
+      useRef(null),
+      useRef(null),
+      useRef(null),
+      useRef(null),
+    ],
+    ticket: useRef(null),
+  };
+
+  const [images, setImages] = useState([]);
+
   const showDialog = useCallback((message) => {
     setDialogState({ open: true, message });
   }, []);
@@ -80,6 +112,7 @@ const CreateEvent = () => {
       const {
         speaker = [],
         venueDetails: savedVenue = {},
+        bannerImages: savedBannerImages = [],
         ...rest
       } = formData.eventDetails;
 
@@ -91,7 +124,6 @@ const CreateEvent = () => {
       }));
 
       setSpeaker(speaker);
-
       setVenueDetails({
         venueName: savedVenue.venueName || "",
         streetName: savedVenue.streetName || "",
@@ -103,21 +135,49 @@ const CreateEvent = () => {
 
       setSelectedCategories(formData.eventDetails.category || []);
       setMediaLink(formData.eventDetails.mediaLink || "");
+
+      const newImageData = {
+        eventCard: null,
+        banner: null,
+        previousEvents: Array(6).fill(null),
+        ticket: null,
+      };
+
+      if (savedBannerImages[0]) newImageData.eventCard = { url: savedBannerImages[0], file: null };
+      if (savedBannerImages[1]) newImageData.banner = { url: savedBannerImages[1], file: null };
+      for (let i = 0; i < 6; i++) {
+        if (savedBannerImages[2 + i]) {
+          newImageData.previousEvents[i] = { url: savedBannerImages[2 + i], file: null };
+        }
+      }
+      if (savedBannerImages[8]) newImageData.ticket = { url: savedBannerImages[8], file: null };
+
+      setImageData(newImageData);
+
+      const allFiles = [];
+      const allUrls = [];
+      if (newImageData.eventCard && newImageData.eventCard.file) allFiles.push(newImageData.eventCard.file);
+      if (newImageData.eventCard && newImageData.eventCard.url) allUrls.push(newImageData.eventCard.url);
+
+      if (newImageData.banner && newImageData.banner.file) allFiles.push(newImageData.banner.file);
+      if (newImageData.banner && newImageData.banner.url) allUrls.push(newImageData.banner.url);
+
+      newImageData.previousEvents.forEach((img) => {
+        if (img && img.file) allFiles.push(img.file);
+        if (img && img.url) allUrls.push(img.url);
+      });
+
+      if (newImageData.ticket && newImageData.ticket.file) allFiles.push(newImageData.ticket.file);
+      if (newImageData.ticket && newImageData.ticket.url) allUrls.push(newImageData.ticket.url);
+
+      setLocalData((prevLocal) => ({
+        ...prevLocal,
+        banner: allFiles,
+      }));
+      setImages(allUrls);
     }
   }, [formData]);
 
-  const [images, setImages] = useState([]);
-  const fileInputRef = useRef(null);
-
-  // New refs for individual upload buttons
-  const fileInputRefs = {
-    eventCard: useRef(null),
-    banner: useRef(null),
-    previousEvents: [useRef(null), useRef(null), useRef(null)],
-    ticket: useRef(null),
-  };
-
-  // Image specifications for different types
   const imageSpecs = {
     eventCard: {
       width: "300px",
@@ -135,117 +195,120 @@ const CreateEvent = () => {
       width: "300px",
       height: "200px",
       label: "Previous Event Images",
-      description: "300x200px each - Event gallery",
+      description: "300x200px each - Event gallery (6 images required)",
     },
     ticket: {
       width: "200px",
-      height: "400px",
+      height: "250px",
       label: "Ticket Image",
-      description: "200x400px - Ticket design",
+      description: "200x250px - Ticket design",
     },
   };
 
-  // Check if all images are uploaded
   const isImageUploadComplete = () => {
-    return !!(
-      imageData.eventCard &&
-      imageData.banner &&
-      imageData.previousEvents.every((img) => img) &&
-      imageData.ticket
+    return (
+      !!imageData.eventCard &&
+      !!imageData.banner &&
+      imageData.previousEvents.every((img) => img !== null) &&
+      !!imageData.ticket
     );
   };
 
-  const isFormValid = () => {
-    const requiredFieldsValid =
-      localData.name.trim() !== "" &&
-      localData.description.trim() !== "" &&
-      localData.eventHost &&
-      localData.eventDate &&
-      selectedCategories.length > 0 &&
-      venueDetails.venueName.trim() !== "" &&
-      venueDetails.streetName.trim() !== "" &&
-      venueDetails.city.trim() !== "" &&
-      venueDetails.state.trim() !== "" &&
-      venueDetails.pincode.trim() !== "" &&
-      venueDetails.area.trim() !== "";
+  const validateForm = () => {
+    const newInvalidFields = {};
+    let isValid = true;
+    let firstInvalidField = null;
 
-    const bannerValid = isImageUploadComplete();
-
-    return requiredFieldsValid && bannerValid;
-  };
-
-  const handleCategorizedFileSelect =
-    (type, index = null) =>
-    (event) => {
-      const file = event.target.files[0];
-      if (!file || !file.type.startsWith("image/")) return;
-
-      const imageUrl = URL.createObjectURL(file);
-
-      setImageData((prev) => {
-        let newData = { ...prev };
-
-        if (type === "previousEvents" && index !== null) {
-          newData.previousEvents = [...prev.previousEvents];
-          newData.previousEvents[index] = { file, url: imageUrl };
-        } else {
-          newData[type] = { file, url: imageUrl };
-        }
-
-        // Update banner array and images for display
-        const allFiles = [];
-        const allUrls = [];
-
-        // Add files in specific order
-        if (newData.eventCard) {
-          allFiles.push(newData.eventCard.file);
-          allUrls.push(newData.eventCard.url);
-        }
-        if (newData.banner) {
-          allFiles.push(newData.banner.file);
-          allUrls.push(newData.banner.url);
-        }
-        newData.previousEvents.forEach((img) => {
-          if (img) {
-            allFiles.push(img.file);
-            allUrls.push(img.url);
-          }
-        });
-        if (newData.ticket) {
-          allFiles.push(newData.ticket.file);
-          allUrls.push(newData.ticket.url);
-        }
-
-        setLocalData((prevLocal) => ({
-          ...prevLocal,
-          banner: allFiles,
-        }));
-
-        setImages(allUrls);
-
-        return newData;
-      });
-    };
-
-  // Remove individual images
-  const removeImage = (type, index = null) => {
-    setImageData((prev) => {
-      let newData = { ...prev };
-
-      if (type === "previousEvents" && index !== null) {
-        newData.previousEvents = [...prev.previousEvents];
-        if (newData.previousEvents[index]) {
-          URL.revokeObjectURL(newData.previousEvents[index].url);
-          newData.previousEvents[index] = null;
-        }
-      } else {
-        if (newData[type]) {
-          URL.revokeObjectURL(newData[type].url);
-          newData[type] = null;
+    // Check Event Overview fields
+    if (localData.name.trim() === "") {
+      newInvalidFields.name = true;
+      isValid = false;
+      if (!firstInvalidField) firstInvalidField = 'name';
+    }
+    if (localData.description.trim() === "") {
+      newInvalidFields.description = true;
+      isValid = false;
+      if (!firstInvalidField) firstInvalidField = 'description';
+    }
+    if (!localData.eventHost || !dayjs(localData.eventHost).isValid()) {
+      newInvalidFields.eventHost = true;
+      isValid = false;
+      if (!firstInvalidField) firstInvalidField = 'eventHost';
+    }
+    if (!localData.eventDate || !dayjs(localData.eventDate).isValid()) {
+      newInvalidFields.eventDate = true;
+      isValid = false;
+      if (!firstInvalidField) firstInvalidField = 'eventDate';
+    }
+    if (selectedCategories.length === 0) {
+      newInvalidFields.category = true;
+      isValid = false;
+      if (!firstInvalidField) firstInvalidField = 'category';
+    }
+    if (!isImageUploadComplete()) {
+      newInvalidFields.images = true;
+      isValid = false;
+      if (!firstInvalidField) {
+        if (!imageData.eventCard) firstInvalidField = 'eventCard';
+        else if (!imageData.banner) firstInvalidField = 'banner';
+        else if (!imageData.ticket) firstInvalidField = 'ticket';
+        else {
+          const emptyPrevEventIndex = imageData.previousEvents.findIndex(img => !img);
+          if (emptyPrevEventIndex !== -1) firstInvalidField = `previousEvents${emptyPrevEventIndex}`;
         }
       }
+    }
 
-      // Update banner array and images
+    // Check Venue Details fields
+    const fields = [
+      { key: "venueName" },
+      { key: "streetName" },
+      { key: "area" },
+      { key: "city" },
+      { key: "state" },
+      { key: "pincode" },
+    ];
+    fields.forEach(field => {
+      if (venueDetails[field.key].trim() === "") {
+        newInvalidFields[field.key] = true;
+        isValid = false;
+        if (!firstInvalidField) firstInvalidField = field.key;
+      }
+    });
+
+    // Check Speaker fields
+    speaker.forEach((s, index) => {
+      if (s.name.trim() === '') {
+        newInvalidFields[`speakerName${index}`] = true;
+        isValid = false;
+        if (!firstInvalidField) firstInvalidField = `speakerName${index}`;
+      }
+      if (s.role.trim() === '') {
+        newInvalidFields[`speakerRole${index}`] = true;
+        isValid = false;
+        if (!firstInvalidField) firstInvalidField = `speakerRole${index}`;
+      }
+    });
+
+    setInvalidFields(newInvalidFields);
+    return { isValid, firstInvalidField };
+  };
+
+  const handleCategorizedFileSelect = (type, index = null) => (event) => {
+    const file = event.target.files[0];
+    if (!file || !file.type.startsWith("image/")) return;
+
+    const imageUrl = URL.createObjectURL(file);
+
+    setImageData((prev) => {
+      let newData = { ...prev };
+      if (type === "previousEvents" && index !== null) {
+        newData.previousEvents = [...prev.previousEvents];
+        newData.previousEvents[index] = { file, url: imageUrl };
+      } else {
+        newData[type] = { file, url: imageUrl };
+      }
+
       const allFiles = [];
       const allUrls = [];
 
@@ -272,58 +335,128 @@ const CreateEvent = () => {
         ...prevLocal,
         banner: allFiles,
       }));
-
       setImages(allUrls);
+
+      if (validationTriggered) {
+        validateForm();
+      }
+
+      return newData;
+    });
+    event.target.value = null;
+  };
+
+  const removeImage = (type, index = null) => {
+    setImageData((prev) => {
+      let newData = { ...prev };
+      if (type === "previousEvents" && index !== null) {
+        newData.previousEvents = [...prev.previousEvents];
+        if (newData.previousEvents[index]) {
+          URL.revokeObjectURL(newData.previousEvents[index].url);
+          newData.previousEvents[index] = null;
+        }
+      } else {
+        if (newData[type]) {
+          URL.revokeObjectURL(newData[type].url);
+          newData[type] = null;
+        }
+      }
+
+      const allFiles = [];
+      const allUrls = [];
+
+      if (newData.eventCard) {
+        allFiles.push(newData.eventCard.file);
+        allUrls.push(newData.eventCard.url);
+      }
+      if (newData.banner) {
+        allFiles.push(newData.banner.file);
+        allUrls.push(newData.banner.url);
+      }
+      newData.previousEvents.forEach((img) => {
+        if (img) {
+          allFiles.push(img.file);
+          allUrls.push(img.url);
+        }
+      });
+      if (newData.ticket) {
+        allFiles.push(newData.ticket.file);
+        allUrls.push(newData.ticket.url);
+      }
+
+      setLocalData((prevLocal) => ({
+        ...prevLocal,
+        banner: allFiles,
+      }));
+      setImages(allUrls);
+
+      if (validationTriggered) {
+        validateForm();
+      }
 
       return newData;
     });
   };
 
-  const handleFileSelect = (event) => {
-    const files = Array.from(event.target.files);
-
-    const validImages = files
-      .filter((file) => file.type.startsWith("image/"))
-      .slice(0, 6);
-    const newImageUrls = validImages.map((file) => URL.createObjectURL(file));
-
-    setImages((prev) => [...prev, ...newImageUrls].slice(0, 6));
-
-    setLocalData((prev) => ({
-      ...prev,
-      banner: [...validImages].slice(0, 6),
-    }));
-  };
-
-  // Your existing handleNext function remains the same
   const handleNext = () => {
-    if (!isFormValid()) {
-      showDialog(
-        "Please fill all required fields and upload exactly 6 banner images."
-      );
+    setValidationTriggered(true);
+    const { isValid, firstInvalidField } = validateForm();
 
-      return;
+    if (isValid) {
+      const eventData = {
+        ...localData,
+        speaker,
+        eventDate: dayjs(localData.eventDate).toISOString(),
+        eventHost: dayjs(localData.eventHost).toISOString(),
+        vendorId,
+        mediaLink,
+        category: selectedCategories,
+        venueDetails,
+        banner: localData.banner,
+      };
+
+      console.log("Event Details on Next Click:", eventData);
+
+      updateFormSection("eventDetails", eventData);
+      markStepCompleted("step1");
+      navigate(`/createevent/${vendorId}/step2`);
+    } else {
+      showDialog("Please fill all required fields before proceeding.");
+
+      // Scroll to the first invalid field
+      const refs = {
+        name: nameRef,
+        description: descriptionRef,
+        eventHost: eventHostRef,
+        eventDate: eventDateRef,
+        category: categoryRef,
+        venueName: venueNameRef,
+        streetName: streetNameRef,
+        area: areaRef,
+        city: cityRef,
+        state: stateRef,
+        pincode: pincodeRef,
+        eventCard: eventCardRef,
+        banner: bannerRef,
+        ticket: ticketRef,
+        ...fileInputRefs.previousEvents.reduce((acc, ref, index) => ({
+          ...acc,
+          [`previousEvents${index}`]: ref
+        }), {}),
+        ...speakerRefs.current.reduce((acc, { nameRef, roleRef }, index) => ({
+          ...acc,
+          [`speakerName${index}`]: nameRef,
+          [`speakerRole${index}`]: roleRef
+        }), {}),
+      };
+
+      if (firstInvalidField && refs[firstInvalidField] && refs[firstInvalidField].current) {
+        refs[firstInvalidField].current.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center',
+        });
+      }
     }
-
-    const eventData = {
-      ...localData,
-      speaker,
-      eventDate: dayjs(localData.eventDate).toISOString(),
-      eventHost: dayjs(localData.eventHost).toISOString(),
-      vendorId,
-      mediaLink,
-      category: selectedCategories,
-      venueDetails,
-      banner: localData.banner,
-    };
-
-    console.log("Event Details on Next Click:", eventData);
-
-    updateFormSection("eventDetails", eventData);
-
-    markStepCompleted("step1");
-
-    navigate(`/createevent/${vendorId}/step2`);
   };
 
   const handleChange = (e) => {
@@ -332,6 +465,9 @@ const CreateEvent = () => {
       ...prev,
       [name]: value,
     }));
+    if (validationTriggered) {
+      setInvalidFields(prev => ({ ...prev, [name]: value.trim() === "" }));
+    }
   };
 
   const handleDateChange = (name, newValue) => {
@@ -339,22 +475,36 @@ const CreateEvent = () => {
       ...prev,
       [name]: newValue,
     }));
+    if (validationTriggered) {
+      setInvalidFields(prev => ({ ...prev, [name]: !newValue || !dayjs(newValue).isValid() }));
+    }
   };
 
   const handleAddSpeaker = () => {
     setSpeaker((prev) => [...prev, { name: "", role: "" }]);
+    speakerRefs.current.push({ nameRef: createRef(), roleRef: createRef() });
+    if (validationTriggered) {
+      validateForm();
+    }
   };
 
   const handleRemoveSpeaker = (index) => {
     const updated = [...speaker];
     updated.splice(index, 1);
     setSpeaker(updated);
+    speakerRefs.current.splice(index, 1);
+    if (validationTriggered) {
+      validateForm();
+    }
   };
 
   const handleSpeakerChange = (index, field, value) => {
     const updated = [...speaker];
     updated[index][field] = value;
     setSpeaker(updated);
+    if (validationTriggered) {
+      setInvalidFields(prev => ({ ...prev, [`speaker${field}${index}`]: value.trim() === '' }));
+    }
   };
 
   const handleVenueChange = (field, value) => {
@@ -362,24 +512,21 @@ const CreateEvent = () => {
       ...prev,
       [field]: value,
     }));
+    if (validationTriggered) {
+      setInvalidFields(prev => ({ ...prev, [field]: value.trim() === "" }));
+    }
   };
 
   const handleCategoryChange = (event) => {
-    const {
-      target: { value },
-    } = event;
-    setSelectedCategories(value);
+    const { target: { value } } = event;
+    setSelectedCategories(typeof value === 'string' ? value.split(',') : value);
+    if (validationTriggered) {
+      setInvalidFields(prev => ({ ...prev, category: (typeof value === 'string' ? value.split(',') : value).length === 0 }));
+    }
   };
 
   const categoryFields = [
-    "Music",
-    "Workshop",
-    "Technology",
-    "Business",
-    "Education",
-    "Health",
-    "Sports",
-    "Art",
+    "Music", "Workshop", "Technology", "Business", "Education", "Health", "Sports", "Art",
   ];
 
   const ITEM_HEIGHT = 48;
@@ -393,7 +540,6 @@ const CreateEvent = () => {
     },
   };
 
-  const theme = useTheme();
   const getStyles = (name, selectedCategories, theme) => ({
     fontWeight:
       selectedCategories.indexOf(name) === -1
@@ -402,98 +548,13 @@ const CreateEvent = () => {
   });
 
   const fields = [
-    {
-      label: "Venue/Hotel Name",
-      key: "venueName",
-      placeholder: "Enter venue name",
-    },
-    {
-      label: "Street Name",
-      key: "streetName",
-      placeholder: "Enter street address",
-    },
-    { label: "Area/Locality", key: "area", placeholder: "Enter area" },
-    { label: "City", key: "city", placeholder: "Enter city" },
-    { label: "State", key: "state", placeholder: "Enter state" },
-    { label: "Pincode", key: "pincode", placeholder: "Enter pincode" },
+    { label: "Venue/Hotel Name", key: "venueName", placeholder: "Enter venue name", ref: venueNameRef },
+    { label: "Street Name", key: "streetName", placeholder: "Enter street address", ref: streetNameRef },
+    { label: "Area/Locality", key: "area", placeholder: "Enter area", ref: areaRef },
+    { label: "City", key: "city", placeholder: "Enter city", ref: cityRef },
+    { label: "State", key: "state", placeholder: "Enter state", ref: stateRef },
+    { label: "Pincode", key: "pincode", placeholder: "Enter pincode", ref: pincodeRef },
   ];
-
-  // your return JSX here...
-
-  {
-    /*} const VenueMap = ({ venueDetails }) => {
-    const [center, setCenter] = useState({ lat: 11.0168, lng: 76.9558 }); // Default to Coimbatore
-    const [markerPosition, setMarkerPosition] = useState(center);
-
-    const fullAddress = useMemo(() => {
-      return `${venueDetails.building || ''}, ${venueDetails.street || ''}, ${venueDetails.city || ''}, ${venueDetails.state || ''}, ${venueDetails.pincode || ''}, ${venueDetails.country || ''}`;
-    }, [venueDetails]);
-
-    const { isLoaded, loadError } = useJsApiLoader({
-      googleMapsApiKey: 'YOUR_GOOGLE_MAPS_API_KEY', // Replace this
-    });
-
-    useEffect(() => {
-      const delayDebounceFn = setTimeout(() => {
-        if (fullAddress.trim()) {
-          axios
-            .get(`https://maps.googleapis.com/maps/api/geocode/json`, {
-              params: {
-                address: fullAddress,
-                key: 'YOUR_GOOGLE_MAPS_API_KEY',
-              },
-            })
-            .then((res) => {
-              const location = res.data.results[0]?.geometry?.location;
-              if (location) {
-                setCenter(location);
-                setMarkerPosition(location);
-              }
-            })
-            .catch((err) => {
-              console.error('Geocoding failed:', err);
-            });
-        }
-      }, 800); // Debounce
-
-      return () => clearTimeout(delayDebounceFn);
-    }, [fullAddress]);
-
-    const onMapClick = (e) => {
-      const lat = e.latLng.lat();
-      const lng = e.latLng.lng();
-      setMarkerPosition({ lat, lng });
-    };
-
-    if (!isLoaded && !loadError) {
-      return (
-        <Typography variant="body2">
-          Loading map...
-        </Typography>
-      );
-    }
-
-    if (loadError) {
-      return (
-        <Typography color="error" variant="body2">
-          Failed to load map. Please check your API key.
-        </Typography>
-      );
-    }
-
-
-    return (
-      <GoogleMap
-        mapContainerStyle={containerStyle}
-        center={center}
-        zoom={15}
-        onClick={onMapClick}
-      >
-        <Marker position={markerPosition} />
-      </GoogleMap>
-    );
-  };*/
-  }
 
   useEffect(() => {
     setLocalData((prev) => ({
@@ -501,6 +562,14 @@ const CreateEvent = () => {
       category: selectedCategories,
     }));
   }, [selectedCategories]);
+
+  // Initialize speaker refs
+  useEffect(() => {
+    speakerRefs.current = speaker.map((_, index) => ({
+      nameRef: createRef(),
+      roleRef: createRef(),
+    }));
+  }, [speaker.length]);
 
   return (
     <div>
@@ -513,7 +582,6 @@ const CreateEvent = () => {
           width: "100%",
         }}
       >
-        {/* Header */}
         <Box
           sx={{
             display: "flex",
@@ -523,7 +591,7 @@ const CreateEvent = () => {
             overflowX: "hidden",
           }}
         >
-          {/*Event overview*/}
+          {/* Event Overview */}
           <Box
             sx={{
               padding: isMobile ? "2% 4%" : "2% 3%",
@@ -559,17 +627,15 @@ const CreateEvent = () => {
                 >
                   Event Images Upload
                 </Typography>
-
                 <Typography
                   mb={3}
                   sx={{ fontFamily: "albert sans", color: "#666" }}
                 >
-                  Please upload all 6 images (1 Event Card + 1 Banner + 3
-                  Previous Events + 1 Ticket)
+                  Please upload all 9 images (1 Event Card + 1 Banner + 6 Previous Events + 1 Ticket)
                 </Typography>
 
                 {/* Event Card Image */}
-                <Box mb={3}>
+                <Box mb={3} ref={eventCardRef}>
                   <Typography
                     mb={1}
                     sx={{ fontFamily: "albert sans", fontWeight: "bold" }}
@@ -584,13 +650,15 @@ const CreateEvent = () => {
                       color: "#666",
                     }}
                   >
-                    300x200px - Main event display
+                    {imageSpecs.eventCard.description}
                   </Typography>
                   <Box
                     sx={{
-                      width: isMobile ? "90%" : "300px",
-                      height: "200px",
-                      border: imageData.eventCard
+                      width: isMobile ? "90%" : imageSpecs.eventCard.width,
+                      height: imageSpecs.eventCard.height,
+                      border: validationTriggered && !imageData.eventCard
+                        ? "2px solid red"
+                        : imageData.eventCard
                         ? "2px solid #19AEDC"
                         : "2px dashed #ccc",
                       borderRadius: 4,
@@ -657,7 +725,7 @@ const CreateEvent = () => {
                 </Box>
 
                 {/* Banner Image */}
-                <Box mb={3}>
+                <Box mb={3} ref={bannerRef}>
                   <Typography
                     mb={1}
                     sx={{ fontFamily: "albert sans", fontWeight: "bold" }}
@@ -672,20 +740,22 @@ const CreateEvent = () => {
                       color: "#666",
                     }}
                   >
-                    800x300px - Hero banner
+                    {imageSpecs.banner.description}
                   </Typography>
                   <Box
                     sx={{
-                      width: isMobile ? "90%" : "80%",
-                      maxWidth: 800,
-                      height: isMobile ? 200 : 300,
-                      border: imageData.banner
+                      width: isMobile ? "90%" : imageSpecs.banner.width,
+                      maxWidth: imageSpecs.banner.width,
+                      height: isMobile ? 200 : imageSpecs.banner.height,
+                      border: validationTriggered && !imageData.banner
+                        ? "2px solid red"
+                        : imageData.banner
                         ? "2px solid #19AEDC"
                         : "2px dashed #ccc",
                       borderRadius: 4,
                       overflow: "hidden",
                       backgroundColor: imageData.banner ? "#f0f9ff" : "#f9f9f9",
-                      mx: "auto",
+                      mx: isMobile ? "auto" : "0",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -759,98 +829,100 @@ const CreateEvent = () => {
                       color: "#666",
                     }}
                   >
-                    300x200px each - Event gallery (3 images required)
+                    {imageSpecs.previousEvents.description}
                   </Typography>
                   <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
-                    {[0, 1, 2].map((index) => (
-                      <Box
-                        key={index}
-                        sx={{
-                          width: isMobile ? "90px" : "300px",
-                          height: isMobile ? "60px" : "200px",
-                          border: imageData.previousEvents[index]
-                            ? "2px solid #19AEDC"
-                            : "2px dashed #ccc",
-                          borderRadius: 4,
-                          overflow: "hidden",
-                          backgroundColor: imageData.previousEvents[index]
-                            ? "#f0f9ff"
-                            : "#f9f9f9",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          position: "relative",
-                          cursor: !imageData.previousEvents[index]
-                            ? "pointer"
-                            : "default",
-                        }}
-                        onClick={() =>
-                          !imageData.previousEvents[index] &&
-                          fileInputRefs.previousEvents[index].current.click()
-                        }
-                      >
-                        {imageData.previousEvents[index] ? (
-                          <>
-                            <Box
-                              component="img"
-                              src={imageData.previousEvents[index].url}
-                              alt={`Previous Event ${index + 1}`}
+                    {[...Array(6)].map((_, index) => (
+                      <>
+                        <Box
+                          key={index}
+                          sx={{
+                            width: isMobile ? "90px" : imageSpecs.previousEvents.width,
+                            height: isMobile ? "60px" : imageSpecs.previousEvents.height,
+                            border: validationTriggered && !imageData.previousEvents[index]
+                              ? "2px solid red"
+                              : imageData.previousEvents[index]
+                              ? "2px solid #19AEDC"
+                              : "2px dashed #ccc",
+                            borderRadius: 4,
+                            overflow: "hidden",
+                            backgroundColor: imageData.previousEvents[index]
+                              ? "#f0f9ff"
+                              : "#f9f9f9",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            position: "relative",
+                            cursor: !imageData.previousEvents[index]
+                              ? "pointer"
+                              : "default",
+                          }}
+                          onClick={() => {
+                            if (!imageData.previousEvents[index] && fileInputRefs.previousEvents[index].current) {
+                              fileInputRefs.previousEvents[index].current.click();
+                            }
+                          }}
+                        >
+                          {imageData.previousEvents[index] ? (
+                            <>
+                              <Box
+                                component="img"
+                                src={imageData.previousEvents[index].url}
+                                alt={`Previous Event ${index + 1}`}
+                                sx={{
+                                  maxWidth: "100%",
+                                  maxHeight: "100%",
+                                  objectFit: "contain",
+                                }}
+                              />
+                              <IconButton
+                                sx={{
+                                  position: "absolute",
+                                  top: 2,
+                                  right: 2,
+                                  bgcolor: "rgba(255,255,255,0.9)",
+                                  "&:hover": { bgcolor: "rgba(255,255,255,1)" },
+                                  minWidth: "auto",
+                                  width: "24px",
+                                  height: "24px",
+                                }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  removeImage("previousEvents", index);
+                                }}
+                              >
+                                <Typography sx={{ fontSize: "14px" }}>
+                                  ×
+                                </Typography>
+                              </IconButton>
+                            </>
+                          ) : (
+                            <Typography
+                              variant={isMobile ? "caption" : "subtitle2"}
+                              color="textSecondary"
                               sx={{
-                                maxWidth: "100%",
-                                maxHeight: "100%",
-                                objectFit: "contain",
-                              }}
-                            />
-                            <IconButton
-                              sx={{
-                                position: "absolute",
-                                top: 2,
-                                right: 2,
-                                bgcolor: "rgba(255,255,255,0.9)",
-                                "&:hover": { bgcolor: "rgba(255,255,255,1)" },
-                                minWidth: "auto",
-                                width: "24px",
-                                height: "24px",
-                              }}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                removeImage("previousEvents", index);
+                                fontFamily: "albert sans",
+                                textAlign: "center",
                               }}
                             >
-                              <Typography sx={{ fontSize: "14px" }}>
-                                ×
-                              </Typography>
-                            </IconButton>
-                          </>
-                        ) : (
-                          <Typography
-                            variant={isMobile ? "caption" : "subtitle2"}
-                            color="textSecondary"
-                            sx={{
-                              fontFamily: "albert sans",
-                              textAlign: "center",
-                            }}
-                          >
-                            Event {index + 1}
-                          </Typography>
-                        )}
+                              Event {index + 1}
+                            </Typography>
+                          )}
+                        </Box>
                         <input
                           type="file"
                           accept="image/*"
                           ref={fileInputRefs.previousEvents[index]}
                           style={{ display: "none" }}
-                          onChange={handleCategorizedFileSelect(
-                            "previousEvents",
-                            index
-                          )}
+                          onChange={handleCategorizedFileSelect("previousEvents", index)}
                         />
-                      </Box>
+                      </>
                     ))}
                   </Box>
                 </Box>
 
                 {/* Ticket Image */}
-                <Box mb={3}>
+                <Box mb={3} ref={ticketRef}>
                   <Typography
                     mb={1}
                     sx={{ fontFamily: "albert sans", fontWeight: "bold" }}
@@ -865,13 +937,15 @@ const CreateEvent = () => {
                       color: "#666",
                     }}
                   >
-                    200x250px - Ticket design
+                    {imageSpecs.ticket.description}
                   </Typography>
                   <Box
                     sx={{
-                      width: isMobile ? "90%" : "200px",
-                      height: "250px",
-                      border: imageData.ticket
+                      width: isMobile ? "90%" : imageSpecs.ticket.width,
+                      height: imageSpecs.ticket.height,
+                      border: validationTriggered && !imageData.ticket
+                        ? "2px solid red"
+                        : imageData.ticket
                         ? "2px solid #19AEDC"
                         : "2px dashed #ccc",
                       borderRadius: 4,
@@ -953,7 +1027,12 @@ const CreateEvent = () => {
                     sx={{ fontFamily: "albert sans", fontWeight: "bold" }}
                   >
                     Progress:{" "}
-                    {Object.values(imageData).flat().filter(Boolean).length}/6
+                    {
+                      (imageData.eventCard ? 1 : 0) +
+                      (imageData.banner ? 1 : 0) +
+                      imageData.previousEvents.filter(Boolean).length +
+                      (imageData.ticket ? 1 : 0)
+                    }/9{" "}
                     images uploaded
                   </Typography>
                   <Typography
@@ -968,17 +1047,6 @@ const CreateEvent = () => {
                       : "Please upload all required images to continue."}
                   </Typography>
                 </Box>
-
-                {/* Keep your existing upload button for fallback */}
-                <Box
-                  sx={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    mt: 2,
-                    width: "90%",
-                    mb: "2%",
-                  }}
-                ></Box>
               </Box>
             </Box>
           </Box>
@@ -1014,6 +1082,7 @@ const CreateEvent = () => {
                 value={localData.name}
                 onChange={handleChange}
                 placeholder="Enter a catchy title"
+                inputRef={nameRef}
                 sx={{
                   width: "90%",
                   height: "40px",
@@ -1025,7 +1094,7 @@ const CreateEvent = () => {
                     borderColor: "#19AEDC",
                   },
                   "& .MuiOutlinedInput-notchedOutline": {
-                    borderColor: "#ccc",
+                    borderColor: validationTriggered && invalidFields.name ? "red" : "#ccc",
                   },
                 }}
               />
@@ -1043,7 +1112,6 @@ const CreateEvent = () => {
               >
                 Event Description
               </Typography>
-
               <TextField
                 name="description"
                 value={localData.description}
@@ -1053,6 +1121,7 @@ const CreateEvent = () => {
                 multiline
                 minRows={3}
                 fullWidth
+                inputRef={descriptionRef}
                 InputProps={{
                   sx: {
                     width: "90%",
@@ -1064,24 +1133,11 @@ const CreateEvent = () => {
                       borderColor: "#19AEDC",
                     },
                     "& .MuiOutlinedInput-notchedOutline": {
-                      borderColor: "#ccc",
+                      borderColor: validationTriggered && invalidFields.description ? "red" : "#ccc",
                     },
                   },
                 }}
               />
-
-              {/* Word count display */}
-              {/* <Typography
-                variant="caption"
-                sx={{
-                  mt: '4px',
-                  ml: '2px',
-                  color: countWords(desp) > 1000 ? 'error.main' : 'text.secondary',
-                  fontFamily: 'Albert Sans',
-                }}
-              >
-                {countWords(desp)} / 1000 words
-              </Typography> */}
             </FormControl>
 
             <FormControl fullWidth variant="outlined">
@@ -1094,14 +1150,14 @@ const CreateEvent = () => {
                   fontFamily: "Albert Sans",
                 }}
               >
-                Upload media link
+                Upload media link (Optional)
               </Typography>
               <OutlinedInput
                 name="mediaLink"
                 value={mediaLink}
                 onChange={(e) => setMediaLink(e.target.value)}
                 fullWidth
-                placeholder="https://youtube.com/..."
+                placeholder="e.g., http://googleusercontent.com/youtube.com/7"
                 sx={{
                   width: "90%",
                   height: "40px",
@@ -1119,7 +1175,7 @@ const CreateEvent = () => {
               />
             </FormControl>
 
-            <FormControl sx={{ width: "90%" }}>
+            <FormControl sx={{ width: "90%" }} ref={categoryRef}>
               <Typography
                 variant="subtitle2"
                 sx={{
@@ -1140,7 +1196,7 @@ const CreateEvent = () => {
                     borderColor: "#19AEDC",
                   },
                   "& .MuiOutlinedInput-notchedOutline": {
-                    borderColor: "#ccc",
+                    borderColor: validationTriggered && invalidFields.category ? "red" : "#ccc",
                   },
                 }}
                 labelId="category-chip-label"
@@ -1169,7 +1225,7 @@ const CreateEvent = () => {
             </FormControl>
           </Box>
 
-          {/*Speaker and hosts*/}
+          {/* Speaker and Hosts */}
           <Box
             sx={{
               padding: "2% 3%",
@@ -1225,7 +1281,7 @@ const CreateEvent = () => {
                 gap: "2%",
               }}
             >
-              {speaker.map((_, index) => (
+              {speaker.map((s, index) => (
                 <Box
                   key={index}
                   sx={{
@@ -1248,10 +1304,11 @@ const CreateEvent = () => {
                     </Typography>
                     <OutlinedInput
                       placeholder="Enter speaker name"
-                      value={speaker[index].name}
+                      value={s.name}
                       onChange={(e) =>
                         handleSpeakerChange(index, "name", e.target.value)
                       }
+                      inputRef={speakerRefs.current[index]?.nameRef}
                       sx={{
                         width: "100%",
                         height: "40px",
@@ -1263,7 +1320,7 @@ const CreateEvent = () => {
                           borderColor: "#19AEDC",
                         },
                         "& .MuiOutlinedInput-notchedOutline": {
-                          borderColor: "#ccc",
+                          borderColor: validationTriggered && invalidFields[`speakerName${index}`] ? "red" : "#ccc",
                         },
                       }}
                     />
@@ -1284,10 +1341,11 @@ const CreateEvent = () => {
                     </Typography>
                     <OutlinedInput
                       placeholder="e.g., Host, DJ, Speaker"
-                      value={speaker[index].role}
+                      value={s.role}
                       onChange={(e) =>
                         handleSpeakerChange(index, "role", e.target.value)
                       }
+                      inputRef={speakerRefs.current[index]?.roleRef}
                       sx={{
                         width: "100%",
                         height: "40px",
@@ -1299,13 +1357,13 @@ const CreateEvent = () => {
                           borderColor: "#19AEDC",
                         },
                         "& .MuiOutlinedInput-notchedOutline": {
-                          borderColor: "#ccc",
+                          borderColor: validationTriggered && invalidFields[`speakerRole${index}`] ? "red" : "#ccc",
                         },
                       }}
                     />
                   </FormControl>
 
-                  <DeleteIcon
+                  <IconButton
                     sx={{
                       color: "gray",
                       cursor: "pointer",
@@ -1314,13 +1372,15 @@ const CreateEvent = () => {
                       mt: isMobile ? "10px" : "0px",
                     }}
                     onClick={() => handleRemoveSpeaker(index)}
-                  />
+                  >
+                    <Typography sx={{ fontSize: "16px" }}>×</Typography>
+                  </IconButton>
                 </Box>
               ))}
             </Box>
           </Box>
 
-          {/*Date and time*/}
+          {/* Date and Time */}
           <Box
             sx={{
               padding: "2% 3%",
@@ -1369,7 +1429,6 @@ const CreateEvent = () => {
                   >
                     Start Date & Time
                   </Typography>
-
                   <DateTimePicker
                     value={dayjs(localData.eventDate)}
                     onChange={(newValue) =>
@@ -1379,19 +1438,21 @@ const CreateEvent = () => {
                       textField: {
                         variant: "outlined",
                         placeholder: "Select date and time",
+                        inputRef: eventDateRef,
                         sx: {
                           fontFamily: "Albert Sans",
                           "& .MuiOutlinedInput-root": {
-                            height: "36px", // Set desired height
+                            height: "36px",
                             fontFamily: "Albert Sans",
+                            borderColor: validationTriggered && invalidFields.eventDate ? "red" : "#ccc",
                           },
                           "& input": {
-                            padding: "8px 12px", // Reduce inner spacing
+                            padding: "8px 12px",
                             fontSize: "14px",
                             fontFamily: "Albert Sans",
                           },
                           "& .MuiOutlinedInput-notchedOutline": {
-                            borderColor: "#ccc",
+                            borderColor: validationTriggered && invalidFields.eventDate ? "red" : "#ccc",
                           },
                           "& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline":
                             {
@@ -1409,7 +1470,6 @@ const CreateEvent = () => {
                   variant="outlined"
                   sx={{
                     marginBottom: 2,
-                    width: "45%",
                     width: isMobile ? "90%" : "45%",
                   }}
                 >
@@ -1424,7 +1484,6 @@ const CreateEvent = () => {
                   >
                     Event Host date (Bookings open date)
                   </Typography>
-
                   <DateTimePicker
                     value={dayjs(localData.eventHost)}
                     onChange={(newValue) =>
@@ -1434,19 +1493,21 @@ const CreateEvent = () => {
                       textField: {
                         variant: "outlined",
                         placeholder: "Select date and time",
+                        inputRef: eventHostRef,
                         sx: {
                           fontFamily: "Albert Sans",
                           "& .MuiOutlinedInput-root": {
-                            height: "36px", // Set desired height
+                            height: "36px",
                             fontFamily: "Albert Sans",
+                            borderColor: validationTriggered && invalidFields.eventHost ? "red" : "#ccc",
                           },
                           "& input": {
-                            padding: "8px 12px", // Reduce inner spacing
+                            padding: "8px 12px",
                             fontSize: "14px",
                             fontFamily: "Albert Sans",
                           },
                           "& .MuiOutlinedInput-notchedOutline": {
-                            borderColor: "#ccc",
+                            borderColor: validationTriggered && invalidFields.eventHost ? "red" : "#ccc",
                           },
                           "& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline":
                             {
@@ -1461,7 +1522,7 @@ const CreateEvent = () => {
             </Box>
           </Box>
 
-          {/*Venue details*/}
+          {/* Venue Details */}
           <Box
             sx={{
               padding: "2% 3%",
@@ -1490,8 +1551,8 @@ const CreateEvent = () => {
                 <Box
                   key={field.key}
                   sx={{
-                    flex: "1 1 calc(50% - 12px)", // 2 fields per row with some spacing
-                    minWidth: "300px", // fallback on smaller screens
+                    flex: "1 1 calc(50% - 12px)",
+                    minWidth: "300px",
                   }}
                 >
                   <FormControl fullWidth variant="outlined">
@@ -1512,6 +1573,7 @@ const CreateEvent = () => {
                       onChange={(e) =>
                         handleVenueChange(field.key, e.target.value)
                       }
+                      inputRef={field.ref}
                       sx={{
                         height: "40px",
                         fontFamily: "Albert Sans",
@@ -1519,7 +1581,7 @@ const CreateEvent = () => {
                           fontFamily: "Albert Sans",
                         },
                         "& .MuiOutlinedInput-notchedOutline": {
-                          borderColor: "#ccc",
+                          borderColor: validationTriggered && invalidFields[field.key] ? "red" : "#ccc",
                         },
                         "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
                           borderColor: "#19AEDC",
@@ -1530,8 +1592,6 @@ const CreateEvent = () => {
                 </Box>
               ))}
             </Box>
-
-            {/* <VenueMap venueDetails={venueDetails} /> */}
           </Box>
         </Box>
         <Box
@@ -1544,7 +1604,6 @@ const CreateEvent = () => {
         >
           <Button
             onClick={handleNext}
-            disabled={!isFormValid()}
             variant="contained"
             sx={{
               textTransform: "none",
@@ -1559,7 +1618,7 @@ const CreateEvent = () => {
         <Dialog
           open={dialogState.open}
           onClose={closeDialog}
-          sx={{ zIndex: 9999 }} // Ensure it appears above everything
+          sx={{ zIndex: 9999 }}
         >
           <DialogTitle sx={{ fontFamily: "albert sans" }}>Notice</DialogTitle>
           <DialogContent>

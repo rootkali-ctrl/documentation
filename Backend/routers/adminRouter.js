@@ -15,7 +15,8 @@ const {
     addBannerInline,
     getRecentBannersInline,
     deleteBannerInline,
-    saveBannerUrlsInline
+    saveBannerUrlsInline,
+    sendVendorEmail
 }=require("../controllers/adminController");
 
 Router.put('/requests',acceptRegistrationRequest);
@@ -24,6 +25,7 @@ Router.delete("/removevendor", removeVendor);
 Router.get('/allrequests',getAllRegistrationRequests);
 Router.get('/request/:requestid',getRequestDetails);
 Router.get('/getVendorStatus', getVendorStatus);
+Router.post('/send-email', sendVendorEmail);
 Router.post("/add-banner", upload.array("bannerImages", 4), addBanner);
 Router.post("/save-banner-urls", saveBannerUrls);
 Router.get("/banners/recent", getRecentBanners);

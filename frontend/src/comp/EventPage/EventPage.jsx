@@ -13,7 +13,6 @@ import {
   Menu,
   MenuItem,
   IconButton,
-  Tooltip,
   Snackbar,
   TextField,
   Dialog,
@@ -48,15 +47,93 @@ import {
 } from "firebase/firestore";
 import { db } from "../../firebase_config";
 import Slider from "react-slick";
+import "slick-carousel/slick/slick.css";
+import "slick-carousel/slick/slick-theme.css";
+
+// Custom Arrow Components for Slider
+const PrevArrow = ({ className, style, onClick }) => (
+  <Box
+    className={className}
+    sx={{
+      ...style,
+      display: "block",
+      background: "#19AEDC",
+      borderRadius: "50%",
+      width: "30px",
+      height: "30px",
+      zIndex: 1,
+      left: "10px",
+      "&:before": { display: "none" },
+      "&:hover": { background: "#1789AE" },
+    }}
+    onClick={onClick}
+  >
+    <Box
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        height: "100%",
+      }}
+    >
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+        <path
+          d="M15 18L9 12L15 6"
+          stroke="#FFFFFF"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </Box>
+  </Box>
+);
+
+const NextArrow = ({ className, style, onClick }) => (
+  <Box
+    className={className}
+    sx={{
+      ...style,
+      display: "block",
+      background: "#19AEDC",
+      borderRadius: "50%",
+      width: "30px",
+      height: "30px",
+      zIndex: 1,
+      right: "10px",
+      "&:before": { display: "none" },
+      "&:hover": { background: "#1789AE" },
+    }}
+    onClick={onClick}
+  >
+    <Box
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        height: "100%",
+      }}
+    >
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+        <path
+          d="M9 18L15 12L9 6"
+          stroke="#FFFFFF"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </Box>
+  </Box>
+);
 
 const EventPage = () => {
   const navigate = useNavigate();
-  const { eventId, userUID } = useParams(); // Get the event ID from URL params
+  const { eventId, userUID } = useParams();
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [similarEvents, setSimilarEvents] = useState([]);
+  const [liveEvents, setLiveEvents] = useState([]);
   const isMobile = useMediaQuery("(max-width:600px)");
-  // Share menu state
   const [shareAnchorEl, setShareAnchorEl] = useState(null);
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
@@ -64,19 +141,175 @@ const EventPage = () => {
   const shareTextRef = useRef(null);
   const [paddingBottom, setPaddingBottom] = useState(10);
   const [youtubeVideoId, setYoutubeVideoId] = useState("");
-  // Extract YouTube video ID from URL
+
   const extractYoutubeId = (url) => {
     if (!url) return null;
-
-    // Match YouTube URL patterns
     const regExp =
-      /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+      /^.*(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11}).*/;
     const match = url.match(regExp);
-
-    return match && match[2].length === 11 ? match[2] : null;
+    return match && match[1].length === 11 ? match[1] : null;
   };
 
-  // Fetch event details when component mounts
+  // Function to check if event should be shown based on eventHost date
+  const shouldShowEvent = (eventHostDate) => {
+    if (!eventHostDate) {
+      return true; // If no eventHost date, show the event (backward compatibility)
+    }
+
+    try {
+      const currentDate = new Date();
+      const hostDate = new Date(eventHostDate);
+      return currentDate >= hostDate; // Show event only after host date has passed
+    } catch (error) {
+      console.error("Error checking eventHost date:", error);
+      return true; // If error in parsing, show the event
+    }
+  };
+
+  // Function to check if event is still active (not expired)
+  const isEventActive = (eventDate, endDate) => {
+    if (!eventDate) return false;
+
+    try {
+      const currentDate = new Date();
+
+      // If endDate is provided, use it (for multi-day events)
+      if (endDate) {
+        const eventEndDate = new Date(endDate);
+        return currentDate <= eventEndDate;
+      }
+
+      // For single events, check against the exact start time
+      const eventStartDate = new Date(eventDate);
+      return currentDate <= eventStartDate;
+    } catch (error) {
+      console.error("Error checking if event is active:", error);
+      return false;
+    }
+  };
+
+  // Process events function (same logic as DesktopMainPage)
+  const processEvents = (querySnapshot, excludeEventId = null) => {
+    const eventsData = [];
+
+    querySnapshot.forEach((doc) => {
+      const data = doc.data();
+
+      // Skip the current event
+      if (excludeEventId && doc.id === excludeEventId) {
+        return;
+      }
+
+      // First check if event should be shown based on eventHost date
+      const shouldShow = shouldShowEvent(data.eventHost);
+      if (!shouldShow) {
+        return; // Skip events that haven't reached their host date
+      }
+
+      // Then check if event is still active (not expired)
+      const isActive = isEventActive(data.eventDate, data.endDate);
+      if (!isActive) {
+        return; // Skip inactive events
+      }
+
+      // Format date
+      let formattedDate = "Date not specified";
+      if (data.eventDate) {
+        try {
+          const dateObj = new Date(data.eventDate);
+          if (!isNaN(dateObj.getTime())) {
+            formattedDate = dateObj.toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            });
+          }
+        } catch (error) {
+          console.error("Error formatting date:", error);
+        }
+      }
+
+      // Image URL processing
+      let imageUrl = null;
+      if (
+        data.bannerImage &&
+        typeof data.bannerImage === "string" &&
+        data.bannerImage.trim() !== ""
+      ) {
+        imageUrl = data.bannerImage;
+      } else if (
+        data.bannerImages &&
+        Array.isArray(data.bannerImages) &&
+        data.bannerImages.length > 0
+      ) {
+        const validImages = data.bannerImages.filter(
+          (img) => img && typeof img === "string" && img.trim() !== ""
+        );
+        if (validImages.length > 0) {
+          imageUrl = validImages[0];
+        }
+      } else if (
+        data.mediaLink &&
+        typeof data.mediaLink === "string" &&
+        data.mediaLink.trim() !== ""
+      ) {
+        imageUrl = data.mediaLink;
+      }
+
+      // Process location
+      let locationStr = "Location not specified";
+      if (data.venueDetails) {
+        const locationParts = [];
+        const isOnline =
+          data.venueDetails.isOnline === true ||
+          data.venueDetails.isOnline === "true";
+
+        if (isOnline) {
+          locationStr = "Online Event";
+        } else {
+          if (data.venueDetails.venueName)
+            locationParts.push(data.venueDetails.venueName);
+          if (data.venueDetails.city)
+            locationParts.push(data.venueDetails.city);
+          if (
+            data.venueDetails.state &&
+            data.venueDetails.city !== data.venueDetails.state
+          ) {
+            locationParts.push(data.venueDetails.state);
+          }
+
+          locationStr =
+            locationParts.length > 0
+              ? locationParts.join(", ")
+              : "Location not specified";
+        }
+      }
+
+      const eventObj = {
+        id: doc.id,
+        title: data.name || "Event Title",
+        date: formattedDate,
+        location: locationStr,
+        img: imageUrl || eventImg,
+        eventDate: data.eventDate,
+        endDate: data.endDate,
+        eventHost: data.eventHost,
+        venueDetails: data.venueDetails || {},
+        category: data.category || [],
+      };
+
+      eventsData.push(eventObj);
+    });
+
+    // Sort events by date
+    eventsData.sort((a, b) => {
+      if (!a.eventDate) return 1;
+      if (!b.eventDate) return -1;
+      return new Date(a.eventDate) - new Date(b.eventDate);
+    });
+
+    return eventsData;
+  };
 
   useEffect(() => {
     const fetchEventDetails = async () => {
@@ -86,23 +319,20 @@ const EventPage = () => {
 
         if (eventDoc.exists()) {
           const eventData = eventDoc.data();
+          console.log("Fetching event details for:", eventDoc.id);
           setEvent({
             id: eventDoc.id,
             ...eventData,
           });
 
-          // Extract YouTube video ID if mediaLink exists
           if (eventData.mediaLink) {
             const videoId = extractYoutubeId(eventData.mediaLink);
             setYoutubeVideoId(videoId);
           }
 
-          // Fetch similar events based on category
-          if (eventData.category && eventData.category.length > 0) {
-            fetchSimilarEvents(eventData.category[0], eventDoc.id);
-          }
+          // Fetch live events using the same logic as DesktopMainPage
+          await fetchLiveEvents();
         } else {
-          // Redirect to main page if event doesn't exist
           navigate("/");
         }
       } catch (error) {
@@ -112,15 +342,47 @@ const EventPage = () => {
       }
     };
 
+    const fetchLiveEvents = async () => {
+      try {
+        console.log("Fetching live events for 'Events You May Like'");
+
+        const eventsRef = collection(db, "events");
+        // Get more events initially to have options after filtering
+        const q = query(eventsRef, limit(10));
+
+        const querySnapshot = await getDocs(q);
+        console.log("Live events query returned events:", querySnapshot.size);
+
+        if (querySnapshot.empty) {
+          console.log("No events found in live events query");
+          setLiveEvents([]);
+          return;
+        }
+
+        // Process events with the same logic as DesktopMainPage
+        const eventsData = processEvents(querySnapshot, eventId);
+        console.log("Active live events processed:", eventsData.length);
+
+        // Take only first 3 events for display
+        const limitedEvents = eventsData.slice(0, 3);
+        setLiveEvents(limitedEvents);
+
+        console.log("Final live events to display:", limitedEvents.length);
+        console.log("Live events:", limitedEvents.map(e => ({ id: e.id, title: e.title })));
+      } catch (error) {
+        console.error("Error fetching live events:", error);
+        setLiveEvents([]);
+      }
+    };
+
     if (eventId) {
       fetchEventDetails();
     }
-    let lastScrollY = window.scrollY;
 
+    let lastScrollY = window.scrollY;
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
       const isScrollingDown = currentScrollY > lastScrollY;
-
       setPaddingBottom(isScrollingDown ? 20 : 2);
       lastScrollY = currentScrollY;
     };
@@ -129,59 +391,10 @@ const EventPage = () => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, [eventId, navigate]);
 
-  // Fetch similar events based on category
-  const fetchSimilarEvents = async (category, currentEventId) => {
-    try {
-      const eventsRef = collection(db, "events");
-      const q = query(
-        eventsRef,
-        where("category", "array-contains", category),
-        limit(3)
-      );
-
-      const querySnapshot = await getDocs(q);
-      const eventsData = [];
-
-      querySnapshot.forEach((doc) => {
-        // Don't include the current event in similar events
-        if (doc.id !== currentEventId) {
-          const data = doc.data();
-
-          // Format date for display
-          let formattedDate = "Date not specified";
-          if (data.eventDate) {
-            const dateObj = new Date(data.eventDate);
-            if (!isNaN(dateObj.getTime())) {
-              formattedDate = dateObj.toLocaleDateString("en-US", {
-                month: "short",
-                day: "numeric",
-              });
-            }
-          }
-
-          eventsData.push({
-            id: doc.id,
-            title: data.name || "Event Title",
-            date: formattedDate,
-            location: data.venueDetails?.city || "Location not specified",
-            img: data.bannerImages?.[0] || eventImg,
-          });
-        }
-      });
-
-      setSimilarEvents(eventsData);
-    } catch (error) {
-      console.error("Error fetching similar events:", error);
-    }
-  };
-
-  // Format date and time
   const formatDateTime = (dateString) => {
     if (!dateString) return "Date and time not specified";
-
     const date = new Date(dateString);
     if (isNaN(date.getTime())) return "Invalid date";
-
     return date.toLocaleString("en-US", {
       year: "numeric",
       month: "long",
@@ -192,36 +405,22 @@ const EventPage = () => {
     });
   };
 
-  // Find the lowest ticket price or return "FREE" if all tickets are free
   const getTicketPrice = (pricing) => {
     if (!pricing || pricing.length === 0) return "FREE";
-
-    const paidTickets = pricing.filter(
-      (ticket) => ticket.free === false && ticket.price
-    );
+    const paidTickets = pricing.filter((ticket) => ticket.free === false && ticket.price);
     if (paidTickets.length === 0) return "FREE";
-
     const lowestPrice = Math.min(...paidTickets.map((ticket) => ticket.price));
     return `₹${lowestPrice}`;
   };
 
-  // Get event capacity (total number of tickets available)
   const getEventCapacity = (pricing) => {
     if (!pricing || pricing.length === 0) return "Not specified";
-
-    const totalCapacity = pricing.reduce(
-      (sum, ticket) => sum + (ticket.seats || 0),
-      0
-    );
+    const totalCapacity = pricing.reduce((sum, ticket) => sum + (ticket.seats || 0), 0);
     return `${totalCapacity} Attendees`;
   };
 
-  // Get speakers list
   const getSpeakers = (speakersData) => {
-    if (!speakersData || speakersData.length === 0) {
-      return [];
-    }
-
+    if (!speakersData || speakersData.length === 0) return [];
     return speakersData.map((speaker) => ({
       name: speaker.name || "Speaker",
       title: speaker.role || "Speaker",
@@ -229,24 +428,20 @@ const EventPage = () => {
     }));
   };
 
-  // Parse FAQ data
   const getFAQs = (faqData) => {
     if (!faqData || faqData.length === 0) return [];
-
     return faqData.map((faq) => ({
       question: faq.question || "",
       answer: faq.answer || "",
     }));
   };
 
-  // Play YouTube video in a new tab/window
   const handlePlayVideo = () => {
     if (event?.mediaLink) {
       window.open(event.mediaLink, "_blank");
     }
   };
 
-  // Share functionality
   const handleShareClick = (event) => {
     setShareAnchorEl(event.currentTarget);
   };
@@ -259,12 +454,10 @@ const EventPage = () => {
     setShowShareDialog(false);
   };
 
-  // Generate the current URL for sharing
   const getShareUrl = () => {
     return window.location.href;
   };
 
-  // Copy link to clipboard
   const copyToClipboard = () => {
     const shareUrl = getShareUrl();
     navigator.clipboard
@@ -276,7 +469,6 @@ const EventPage = () => {
       })
       .catch((err) => {
         console.error("Failed to copy text: ", err);
-        // Fallback method for copying using a text field
         setShowShareDialog(true);
         handleShareClose();
         setTimeout(() => {
@@ -290,14 +482,10 @@ const EventPage = () => {
       });
   };
 
-  // Share via social media platforms
   const shareVia = (platform) => {
     const shareUrl = encodeURIComponent(getShareUrl());
-    const eventTitle = encodeURIComponent(
-      event?.name || "Check out this event"
-    );
+    const eventTitle = encodeURIComponent(event?.name || "Check out this event");
     let shareLink = "";
-
     switch (platform) {
       case "facebook":
         shareLink = `https://www.facebook.com/sharer/sharer.php?u=${shareUrl}`;
@@ -317,7 +505,6 @@ const EventPage = () => {
       default:
         break;
     }
-
     if (shareLink) {
       window.open(shareLink, "_blank");
     }
@@ -326,6 +513,20 @@ const EventPage = () => {
 
   const handleSnackbarClose = () => {
     setSnackbarOpen(false);
+  };
+
+  const sliderSettings = {
+    dots: true,
+    infinite: true,
+    speed: 500,
+    slidesToShow: 1,
+    slidesToScroll: 1,
+    arrows: true,
+    adaptiveHeight: false,
+    autoplay: true,
+    autoplaySpeed: 5000,
+    prevArrow: <PrevArrow />,
+    nextArrow: <NextArrow />,
   };
 
   if (loading) {
@@ -364,15 +565,11 @@ const EventPage = () => {
 
   const speakers = getSpeakers(event.speaker || []);
   const faqs = getFAQs(event.FAQ || []);
-  const tagsList = event.tags
-    ? event.tags.split(",").map((tag) => tag.trim())
-    : [];
+  const tagsList = event.tags ? event.tags.split(",").map((tag) => tag.trim()) : [];
 
   return (
-    // minHeight: "100vh"
     <Box sx={{ margin: 0 }}>
       <Header />
-
       <Box
         sx={{
           display: "flex",
@@ -385,29 +582,32 @@ const EventPage = () => {
           width: "96%",
         }}
       >
-        {/* Left Section */}
-        <Box sx={{ flex: 2, width: { lg:'80%',md: "70%", sm: "100%" } }}>
+        <Box sx={{ flex: 2, width: { lg: "80%", md: "70%", sm: "100%" } }}>
           <Card
             sx={{
               borderRadius: "20px",
               boxShadow: "none",
               position: "relative",
-              width:{lg:'800px',md:'100%',xs:'100%',sm:'100%'},
-              margin:'0 auto'
+              width: { lg: "800px", md: "100%", xs: "100%", sm: "100%" },
+              margin: "0 auto",
             }}
           >
-            <Box sx={{ position: "relative",  width:{lg:'800px',md:'100%',xs:'100%',sm:'100%'}}}>
+            <Box
+              sx={{
+                position: "relative",
+                width: { lg: "800px", md: "100%", xs: "100%", sm: "100%" },
+              }}
+            >
               <CardMedia
                 component="img"
                 image={event.bannerImages?.[1] || eventImg}
                 alt={event.name}
                 sx={{
-                 width:{lg:'800px',md:'100%',xs:'100%',sm:'100%'} ,
+                  width: { lg: "800px", md: "100%", xs: "100%", sm: "100%" },
                   height: isMobile ? "150px" : "300px",
-                  objectFit: {lg:"cover",md:"cover",sm:'cover',xs:'cover'},
+                  objectFit: { lg: "cover", md: "cover", sm: "cover", xs: "cover" },
                 }}
               />
-
               {isMobile && (
                 <Box
                   sx={{
@@ -426,17 +626,13 @@ const EventPage = () => {
                     border: "1px solid",
                     borderColor: "rgb(25, 174, 220)",
                   }}
-                  onClick={handleShareClick} // optional: add your handler
+                  onClick={handleShareClick}
                 >
-                  <ShareIcon
-                    fontSize="small"
-                    sx={{ color: "rgb(25, 174, 220)" }}
-                  />
+                  <ShareIcon fontSize="small" sx={{ color: "rgb(25, 174, 220)" }} />
                 </Box>
               )}
             </Box>
           </Card>
-
           <Card
             sx={{
               mt: isMobile ? 1 : 3,
@@ -456,7 +652,6 @@ const EventPage = () => {
               >
                 {event.name || "Event Title"}
               </Typography>
-
               <Box
                 sx={{
                   display: "flex",
@@ -479,7 +674,6 @@ const EventPage = () => {
                     />
                   ))}
               </Box>
-
               <Typography
                 variant="subtitle1"
                 sx={{ fontWeight: "bold", fontFamily: "albert sans" }}
@@ -490,16 +684,14 @@ const EventPage = () => {
                 color="text.secondary"
                 sx={{
                   mb: isMobile ? 0.5 : 1,
-                  whiteSpace: "pre-line", // Keeps line breaks from \n
-                  wordBreak: "break-word", // Ensures long words or URLs wrap
-                  overflowWrap: "break-word", // Extra wrapping help
+                  whiteSpace: "pre-line",
+                  wordBreak: "break-word",
+                  overflowWrap: "break-word",
                   fontFamily: "albert sans",
                 }}
               >
-                {event.description ||
-                  "No description available for this event."}
+                {event.description || "No description available for this event."}
               </Typography>
-
               {event.perks && event.perks.length > 0 && (
                 <>
                   <Typography
@@ -512,9 +704,7 @@ const EventPage = () => {
                   >
                     Event Perks
                   </Typography>
-                  <Box
-                    sx={{ display: "flex", flexWrap: "wrap", gap: 1, mt: 1 }}
-                  >
+                  <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mt: 1 }}>
                     {event.perks.map((perk, index) => (
                       <Chip
                         key={index}
@@ -527,7 +717,6 @@ const EventPage = () => {
               )}
             </CardContent>
           </Card>
-
           <Card
             sx={{
               mt: isMobile ? 1 : 3,
@@ -583,17 +772,10 @@ const EventPage = () => {
               >
                 {event.venueDetails
                   ? (() => {
-                      const { streetName, area, city, state, pincode } =
-                        event.venueDetails;
+                      const { streetName, area, city, state, pincode } = event.venueDetails;
                       const parts = [];
-
-                      // Add street name if exists
                       if (streetName) parts.push(streetName);
-
-                      // Add area if exists
                       if (area) parts.push(area);
-
-                      // Add city - pincode if both exist, or just city/pincode individually
                       if (city && pincode) {
                         parts.push(`${city} - ${pincode}`);
                       } else if (city) {
@@ -601,21 +783,13 @@ const EventPage = () => {
                       } else if (pincode) {
                         parts.push(pincode);
                       }
-
-                      // Add state if exists
                       if (state) parts.push(state);
-
-                      return parts.length > 0
-                        ? parts.join(", ")
-                        : "Address not provided";
+                      return parts.length > 0 ? parts.join(", ") : "Address not provided";
                     })()
                   : "Address not provided"}
               </Typography>
             </CardContent>
           </Card>
-
-          {/* FAQ Section */}
-
           <Card
             sx={{
               mt: isMobile ? 1 : 3,
@@ -626,7 +800,7 @@ const EventPage = () => {
           >
             <CardContent
               sx={{
-                maxWidth: !isMobile ? "900px" : "400px", // Set max width for the content
+                maxWidth: !isMobile ? "900px" : "400px",
                 width: !isMobile ? "100%" : "90%",
               }}
             >
@@ -648,7 +822,7 @@ const EventPage = () => {
                         fontWeight: "bold",
                         fontSize: isMobile ? "16px" : "18px",
                         fontFamily: "albert sans",
-                        wordWrap: "break-word", // Handle long words
+                        wordWrap: "break-word",
                         overflowWrap: "break-word",
                       }}
                     >
@@ -660,9 +834,9 @@ const EventPage = () => {
                       sx={{
                         fontSize: isMobile ? "14px" : "16px",
                         fontFamily: "albert sans",
-                        wordWrap: "break-word", // Handle long words
+                        wordWrap: "break-word",
                         overflowWrap: "break-word",
-                        lineHeight: 1.6, // Better readability for long text
+                        lineHeight: 1.6,
                       }}
                     >
                       {faq.answer}
@@ -682,20 +856,10 @@ const EventPage = () => {
             </CardContent>
           </Card>
         </Box>
-
-        {/* Right Section */}
-        <Box
-          sx={{
-            flex: 1,
-            mt: isMobile ? -2 : 0,
-            width: {lg:'20%', md: "30%", sm: "100%" },
-          }}
-        >
+        <Box sx={{ flex: 1, mt: isMobile ? -2 : 0, width: { lg: "20%", md: "30%", sm: "100%" } }}>
           <Card sx={{ borderRadius: "20px", boxShadow: "none" }}>
             <CardContent>
-              <Box
-                sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}
-              >
+              <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
                 <EventIcon />
                 <Box>
                   <Typography
@@ -705,16 +869,12 @@ const EventPage = () => {
                   >
                     Date & Time
                   </Typography>
-                  <Typography
-                    sx={{ fontWeight: "bold", fontFamily: "albert sans" }}
-                  >
+                  <Typography sx={{ fontWeight: "bold", fontFamily: "albert sans" }}>
                     {formatDateTime(event.eventDate)}
                   </Typography>
                 </Box>
               </Box>
-              <Box
-                sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}
-              >
+              <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
                 <LocationOnIcon />
                 <Box>
                   <Typography
@@ -724,9 +884,7 @@ const EventPage = () => {
                   >
                     Location
                   </Typography>
-                  <Typography
-                    sx={{ fontWeight: "bold", fontFamily: "albert sans" }}
-                  >
+                  <Typography sx={{ fontWeight: "bold", fontFamily: "albert sans" }}>
                     {event.venueDetails?.venueName || "Venue not specified"}
                   </Typography>
                 </Box>
@@ -741,9 +899,7 @@ const EventPage = () => {
                   >
                     Capacity
                   </Typography>
-                  <Typography
-                    sx={{ fontWeight: "bold", fontFamily: "albert sans" }}
-                  >
+                  <Typography sx={{ fontWeight: "bold", fontFamily: "albert sans" }}>
                     {getEventCapacity(event.pricing)}
                   </Typography>
                 </Box>
@@ -781,7 +937,6 @@ const EventPage = () => {
               sx={{
                 mt: 2,
                 fontFamily: "albert sans",
-
                 borderColor: "#19AEDC",
                 color: "#19AEDC",
                 borderRadius: "8px",
@@ -797,7 +952,6 @@ const EventPage = () => {
               Share Event
             </Button>
           )}
-          {/* Share Menu */}
           <Menu
             anchorEl={shareAnchorEl}
             open={Boolean(shareAnchorEl)}
@@ -811,54 +965,40 @@ const EventPage = () => {
             <MenuItem onClick={copyToClipboard} sx={{ minWidth: "180px" }}>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 <ContentCopyIcon fontSize="small" />
-                <Typography sx={{ fontFamily: "albert sans" }}>
-                  Copy Link
-                </Typography>
+                <Typography sx={{ fontFamily: "albert sans" }}>Copy Link</Typography>
               </Box>
             </MenuItem>
             <MenuItem onClick={() => shareVia("facebook")}>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 <FacebookIcon fontSize="small" sx={{ color: "#1877F2" }} />
-                <Typography sx={{ fontFamily: "albert sans" }}>
-                  Facebook
-                </Typography>
+                <Typography sx={{ fontFamily: "albert sans" }}>Facebook</Typography>
               </Box>
             </MenuItem>
             <MenuItem onClick={() => shareVia("twitter")}>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 <TwitterIcon fontSize="small" sx={{ color: "#1DA1F2" }} />
-                <Typography sx={{ fontFamily: "albert sans" }}>
-                  Twitter
-                </Typography>
+                <Typography sx={{ fontFamily: "albert sans" }}>Twitter</Typography>
               </Box>
             </MenuItem>
             <MenuItem onClick={() => shareVia("linkedin")}>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 <LinkedInIcon fontSize="small" sx={{ color: "#0A66C2" }} />
-                <Typography sx={{ fontFamily: "albert sans" }}>
-                  LinkedIn
-                </Typography>
+                <Typography sx={{ fontFamily: "albert sans" }}>LinkedIn</Typography>
               </Box>
             </MenuItem>
             <MenuItem onClick={() => shareVia("whatsapp")}>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 <WhatsAppIcon fontSize="small" sx={{ color: "#25D366" }} />
-                <Typography sx={{ fontFamily: "albert sans" }}>
-                  WhatsApp
-                </Typography>
+                <Typography sx={{ fontFamily: "albert sans" }}>WhatsApp</Typography>
               </Box>
             </MenuItem>
             <MenuItem onClick={() => shareVia("email")}>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 <EmailIcon fontSize="small" sx={{ color: "#EA4335" }} />
-                <Typography sx={{ fontFamily: "albert sans" }}>
-                  Email
-                </Typography>
+                <Typography sx={{ fontFamily: "albert sans" }}>Email</Typography>
               </Box>
             </MenuItem>
           </Menu>
-
-          {/* Speakers Section */}
           {speakers && speakers.length > 0 && (
             <Card
               sx={{
@@ -908,8 +1048,6 @@ const EventPage = () => {
               </CardContent>
             </Card>
           )}
-
-          {/* Tags Section */}
           {tagsList.length > 0 && (
             <Card
               sx={{
@@ -917,8 +1055,8 @@ const EventPage = () => {
                 borderRadius: "20px",
                 boxShadow: "none",
                 width: "100%",
-                maxWidth: "100%", // Ensures it doesn't exceed parent width
-                overflow: "hidden", // Optional: hides overflow
+                maxWidth: "100%",
+                overflow: "hidden",
               }}
             >
               <CardContent>
@@ -943,12 +1081,12 @@ const EventPage = () => {
                       sx={{
                         backgroundColor: "#E0F2FE",
                         color: "#19AEDC",
-                        maxWidth: "100%", // Prevents overflow on long tag text
+                        maxWidth: "100%",
                         overflow: "hidden",
-                        whiteSpace: "pre-line", // Keeps line breaks from \n
-                        wordBreak: "break-word", // Ensures long words or URLs wrap
+                        whiteSpace: "pre-line",
+                        wordBreak: "break-word",
                         overflowWrap: "break-word",
-                        whiteSpace: "normal", // Or use "normal" if you want multiline tags
+                        whiteSpace: "normal",
                         fontFamily: "albert sans",
                       }}
                     />
@@ -957,9 +1095,14 @@ const EventPage = () => {
               </CardContent>
             </Card>
           )}
-
           {youtubeVideoId && (
-            <Card sx={{ mt: 3, borderRadius: "20px", boxShadow: "none" }}>
+            <Card
+              sx={{
+                mt: 3,
+                borderRadius: "20px",
+                boxShadow: "none",
+              }}
+            >
               <CardContent>
                 <Typography
                   variant="h6"
@@ -991,7 +1134,6 @@ const EventPage = () => {
                       borderRadius: "10px",
                     }}
                   />
-
                   <Box
                     className="play-overlay"
                     sx={{
@@ -1034,67 +1176,53 @@ const EventPage = () => {
               </CardContent>
             </Card>
           )}
-
-         {/*previous events */}
-{event?.bannerImages?.length >= 6 && (
-  <Card
-    sx={{
-      mt: isMobile ? 1 : 3,
-      borderRadius: "20px",
-      boxShadow: "none",
-    }}
-  >
-    <CardContent>
-      <Typography
-        variant="h6"
-        sx={{ fontWeight: "bold", mb: 2, fontFamily: "albert sans" }}
-      >
-        Previous Event
-      </Typography>
-      <Box
-        sx={{
-          position: "relative",
-          borderRadius: "10px",
-          overflow: "hidden",
-          width: "100%",
-          height: "200px", // Set fixed height on container
-        }}
-      >
-        <Slider
-          dots
-          infinite
-          speed={500}
-          slidesToShow={1}
-          slidesToScroll={1}
-          arrows
-          adaptiveHeight={false}
-          className="event-carousel"
-          autoplay={true}
-          autoplaySpeed={5000}
-        >
-          {event.bannerImages.slice(2, 5).map((imgUrl, index) => (
-            <div key={index} style={{ height: "200px" }}>
-              <img
-                src={imgUrl}
-                alt={`Event Slide ${index + 4}`}
-                style={{
-                  width: "100%",
-                  height: "200px",
-                  objectFit: "cover", // Changed from "contain" to "cover"
-                  objectPosition: "center",
-                  display: "block",
-                  borderRadius: "10px",
-                }}
-              />
-            </div>
-          ))}
-        </Slider>
-      </Box>
-    </CardContent>
-  </Card>
-)}
-          {/* Similar Events Section */}
-          {similarEvents.length > 0 && (
+          {event?.bannerImages?.length >= 6 && (
+            <Card
+              sx={{
+                mt: isMobile ? 1 : 3,
+                borderRadius: "20px",
+                boxShadow: "none",
+              }}
+            >
+              <CardContent>
+                <Typography
+                  variant="h6"
+                  sx={{ fontWeight: "bold", mb: 2, fontFamily: "albert sans" }}
+                >
+                  Previous Event
+                </Typography>
+                <Box
+                  sx={{
+                    position: "relative",
+                    borderRadius: "10px",
+                    overflow: "hidden",
+                    width: "100%",
+                    height: "200px",
+                  }}
+                >
+                  <Slider {...sliderSettings} className="event-carousel">
+                    {event.bannerImages.slice(2, 5).map((imgUrl, index) => (
+                      <div key={index} style={{ height: "200px" }}>
+                        <img
+                          src={imgUrl}
+                          alt={`Event Slide ${index + 4}`}
+                          style={{
+                            width: "100%",
+                            height: "200px",
+                            objectFit: "cover",
+                            objectPosition: "center",
+                            display: "block",
+                            borderRadius: "10px",
+                          }}
+                        />
+                      </div>
+                    ))}
+                  </Slider>
+                </Box>
+              </CardContent>
+            </Card>
+          )}
+          {liveEvents.length > 0 ? (
             <Card
               sx={{
                 mt: isMobile ? 1 : 3,
@@ -1108,9 +1236,9 @@ const EventPage = () => {
                   variant="h6"
                   sx={{ fontWeight: "bold", mb: 2, fontFamily: "albert sans" }}
                 >
-                  Similar Events
+                  Events You May Like
                 </Typography>
-                {similarEvents.map((similarEvent, index) => (
+                {liveEvents.map((liveEvent, index) => (
                   <Box
                     key={index}
                     sx={{
@@ -1123,13 +1251,13 @@ const EventPage = () => {
                       padding: "1%",
                     }}
                     onClick={() =>
-                      navigate(`/eventpage/${similarEvent.id}/${userUID}`)
+                      navigate(`/eventpage/${liveEvent.id}/${userUID}`)
                     }
                   >
                     <CardMedia
                       component="img"
-                      image={similarEvent.img || eventImg}
-                      alt={similarEvent.title}
+                      image={liveEvent.img || eventImg}
+                      alt={liveEvent.title}
                       sx={{
                         width: 80,
                         height: 80,
@@ -1141,31 +1269,54 @@ const EventPage = () => {
                       <Typography
                         sx={{ fontWeight: "bold", fontFamily: "albert sans" }}
                       >
-                        {similarEvent.title}
+                        {liveEvent.title}
                       </Typography>
                       <Typography
                         variant="body2"
                         color="text.secondary"
                         sx={{ fontFamily: "albert sans" }}
                       >
-                        {similarEvent.date}
+                        {liveEvent.date}
                       </Typography>
                       <Typography
                         variant="body2"
                         color="text.secondary"
                         sx={{ fontFamily: "albert sans" }}
                       >
-                        {similarEvent.location}
+                        {liveEvent.location}
                       </Typography>
                     </Box>
                   </Box>
                 ))}
               </CardContent>
             </Card>
+          ) : (
+            <Card
+              sx={{
+                mt: isMobile ? 1 : 3,
+                borderRadius: "20px",
+                boxShadow: "none",
+                mb: isMobile ? 9 : 0,
+              }}
+            >
+              <CardContent>
+                <Typography
+                  variant="h6"
+                  sx={{ fontWeight: "bold", mb: 2, fontFamily: "albert sans" }}
+                >
+                  Events You May Like
+                </Typography>
+                <Typography
+                  color="text.secondary"
+                  sx={{ fontFamily: "albert sans" }}
+                >
+                  No live events found at this time.
+                </Typography>
+              </CardContent>
+            </Card>
           )}
         </Box>
       </Box>
-
       {isMobile && (
         <Box
           sx={{
@@ -1191,7 +1342,6 @@ const EventPage = () => {
               backgroundColor: "#19AEDC",
               color: "#FFFFFF",
               fontFamily: "albert sans",
-
               borderRadius: "15px",
               width: "60%",
               padding: 1,
@@ -1206,14 +1356,12 @@ const EventPage = () => {
           </Button>
         </Box>
       )}
-
       <Snackbar
         open={snackbarOpen}
         autoHideDuration={3000}
         onClose={handleSnackbarClose}
         message={snackbarMessage}
       />
-
       <Dialog open={showShareDialog} onClose={handleDialogClose}>
         <DialogTitle>Share Event</DialogTitle>
         <DialogContent>
@@ -1250,7 +1398,7 @@ const EventPage = () => {
             }}
             color="primary"
             variant="contained"
-            fontFamily="albert sans"
+            sx={{ fontFamily: "albert sans" }}
           >
             Copy
           </Button>

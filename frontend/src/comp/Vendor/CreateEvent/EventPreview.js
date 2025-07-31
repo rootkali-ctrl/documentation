@@ -184,110 +184,126 @@ const EventPage = () => {
     }
   }, [isMobile]);
 
+  // NEW handleSubmit from the new code
   const handleSubmit = async () => {
     const { eventDetails, pricing, finalSetup } = formData;
-    const form = new FormData();
-
-    eventDetails.banner.forEach((file) => {
-      form.append("bannerImages", file);
-    });
-
-    const perksWithImages = await Promise.all(
-      (pricing.addons || []).map(async (addon) => {
-        const itemName = addon.itemName || "";
-        let imageUrl = "";
-
-        try {
-          const res = await axios.get(
-            `https://api.unsplash.com/search/photos`,
-            {
-              params: {
-                query: itemName,
-                per_page: 1,
-                orientation: "landscape",
-              },
-              headers: {
-                Authorization: `Client-ID ${process.env.REACT_APP_UNSPLASH_ACCESS_KEY}`,
-              },
-            }
-          );
-
-          const results = res.data.results;
-          if (results.length > 0) {
-            imageUrl = results[0].urls.small;
-          }
-        } catch (error) {
-          console.warn(`Unsplash image fetch failed for "${itemName}"`, error);
-        }
-
-        return {
-          itemName,
-          price: parseFloat(addon.price) || 0,
-          limit: parseInt(addon.limit) || 0,
-          url: imageUrl,
-        };
-      })
-    );
-
-    const payload = {
-      name: eventDetails.name,
-      description: eventDetails.description,
-      category: eventDetails.category,
-      eventDate: eventDetails.eventDate,
-      eventHost: eventDetails.eventHost,
-      mediaLink: eventDetails.mediaLink || "",
-      vendorId: eventDetails.vendorId,
-
-      speaker: (eventDetails.speaker || []).map((sp) => ({
-        name: sp.name || "",
-        role: sp.role || "",
-      })),
-
-      venueDetails: eventDetails.venueDetails,
-
-      pricing: (pricing.tickets || []).map((ticket) => ({
-        ticketType: ticket.ticketType || "",
-        features: ticket.features || "",
-        price: parseFloat(ticket.price) || 0,
-        tax: !!ticket.tax,
-        free: !!ticket.freeEvent,
-        seats: parseInt(ticket.seats) || 0,
-      })),
-
-      perks: perksWithImages,
-
-      coupons: (pricing.coupons || []).map((coupon) => ({
-        couponCode: coupon.couponCode || "",
-        couponLimits: parseInt(coupon.couponLimits) || 0,
-        reducePert: parseFloat(coupon.reducePert) || 0,
-        startTime: coupon.startTime || "",
-        endTime: coupon.endTime || "",
-      })),
-
-      contact: finalSetup.contact || "",
-      FAQ: (finalSetup.FAQ || []).map((faq) => ({
-        question: faq.ques || "",
-        answer: faq.ans || "",
-      })),
-
-      ticketCount: finalSetup.ticketCount || "",
-      tags: finalSetup.tags || "",
-      cancellationAvailable: finalSetup.cancellationAvailable || false,
-      cancellationDays: finalSetup.cancellationDays || "",
-      deductionType: finalSetup.deductionType || "",
-      deductionRate: finalSetup.deductionRate || "",
-      createdAt: new Date().toISOString(),
-    };
-
-    Object.entries(payload).forEach(([key, value]) => {
-      form.append(
-        key,
-        typeof value === "object" ? JSON.stringify(value) : value
-      );
-    });
 
     try {
       setSubmitting(true);
+      showDialog("Uploading images and creating event...");
+
+      // Create FormData for multipart upload
+      const form = new FormData();
+
+      // Add all banner images to FormData (up to 9 images)
+      if (eventDetails.banner && eventDetails.banner.length > 0) {
+        const imagesToUpload = eventDetails.banner.slice(0, 9); // Limit to 9 images
+        imagesToUpload.forEach((file, index) => {
+          if (file instanceof File) {
+            form.append("bannerImages", file);
+          }
+        });
+        console.log(`Preparing to upload ${imagesToUpload.length} images`);
+      }
+
+      // Process perks with Unsplash images
+      const perksWithImages = await Promise.all(
+        (pricing.addons || []).map(async (addon) => {
+          const itemName = addon.itemName || "";
+          let imageUrl = "";
+
+          try {
+            const res = await axios.get(
+              `https://api.unsplash.com/search/photos`,
+              {
+                params: {
+                  query: itemName,
+                  per_page: 1,
+                  orientation: "landscape",
+                },
+                headers: {
+                  Authorization: `Client-ID ${process.env.REACT_APP_UNSPLASH_ACCESS_KEY}`,
+                },
+              }
+            );
+
+            const results = res.data.results;
+            if (results.length > 0) {
+              imageUrl = res.data.results[0].urls.small;
+            }
+          } catch (error) {
+            console.warn(`Unsplash image fetch failed for "${itemName}"`, error);
+          }
+
+          return {
+            itemName,
+            price: parseFloat(addon.price) || 0,
+            limit: parseInt(addon.limit) || 0,
+            url: imageUrl,
+          };
+        })
+      );
+
+      // Prepare the payload (no file objects, only data)
+      const payload = {
+        name: eventDetails.name,
+        description: eventDetails.description,
+        category: eventDetails.category,
+        eventDate: eventDetails.eventDate,
+        eventHost: eventDetails.eventHost,
+        mediaLink: eventDetails.mediaLink || "",
+        vendorId: eventDetails.vendorId,
+
+        speaker: (eventDetails.speaker || []).map((sp) => ({
+          name: sp.name || "",
+          role: sp.role || "",
+        })),
+
+        venueDetails: eventDetails.venueDetails,
+
+        pricing: (pricing.tickets || []).map((ticket) => ({
+          ticketType: ticket.ticketType || "",
+          features: ticket.features || "",
+          price: parseFloat(ticket.price) || 0,
+          tax: !!ticket.tax,
+          free: !!ticket.freeEvent,
+          seats: parseInt(ticket.seats) || 0,
+        })),
+
+        perks: perksWithImages,
+
+        coupons: (pricing.coupons || []).map((coupon) => ({
+          couponCode: coupon.couponCode || "",
+          couponLimits: parseInt(coupon.couponLimits) || 0,
+          reducePert: parseFloat(coupon.reducePert) || 0,
+          startTime: coupon.startTime || "",
+          endTime: coupon.endTime || "",
+        })),
+
+        contact: finalSetup.contact || "",
+        FAQ: (finalSetup.FAQ || []).map((faq) => ({
+          question: faq.ques || "",
+          answer: faq.ans || "",
+        })),
+
+        ticketCount: finalSetup.ticketCount || "",
+        tags: finalSetup.tags || "",
+        cancellationAvailable: finalSetup.cancellationAvailable || false,
+        cancellationDays: finalSetup.cancellationDays || "",
+        deductionType: finalSetup.deductionType || "",
+        deductionRate: finalSetup.deductionRate || "",
+        createdAt: new Date().toISOString(),
+      };
+
+      // Append all payload data to FormData
+      Object.entries(payload).forEach(([key, value]) => {
+        form.append(
+          key,
+          typeof value === "object" ? JSON.stringify(value) : value
+        );
+      });
+
+      // Submit to backend
       const response = await axios.post(
         `${process.env.REACT_APP_API_BASE_URL}/api/event/`,
         form,
@@ -298,14 +314,23 @@ const EventPage = () => {
         }
       );
 
-      console.log(response);
+      console.log("Event created successfully:", response.data);
+
+      // Show success message
+      closeDialog();
       setOpenDialog(true);
+
+      // Navigate to vendor home and reset form
       navigate(`/vendorhome/${formData.eventDetails.vendorId}`);
       setTimeout(() => resetForm(), 100);
     } catch (error) {
-      showDialog("Failed to create event.");
+      console.error("Error creating event:", error);
+      closeDialog();
+      showDialog("Failed to create event. Please try again.");
 
-      console.error(error);
+      setTimeout(() => {
+        closeDialog();
+      }, 3000);
     } finally {
       setSubmitting(false);
     }
@@ -336,7 +361,6 @@ const EventPage = () => {
   return (
     <Box sx={{ minHeight: "100vh", bgcolor: "#F9FAFB" }}>
       {/* Header */}
-      {/* <Header/> */}
       <Box
         sx={{
           width: "90%",
@@ -435,7 +459,6 @@ const EventPage = () => {
                   objectFit: "cover",
                 }}
               />
-
               {isMobile && (
                 <Box
                   sx={{
@@ -809,6 +832,7 @@ const EventPage = () => {
                     backgroundColor: "#B0BEC5",
                   },
                 }}
+                onClick={() => navigate(`/ticketpricepage/${eventId}/${userUID}`)}
               >
                 Get Tickets
               </Button>
@@ -967,7 +991,6 @@ const EventPage = () => {
                       objectFit: "cover",
                     }}
                   />
-
                   <Box
                     className="play-overlay"
                     sx={{
@@ -1062,7 +1085,7 @@ const EventPage = () => {
                           style={{
                             width: "100%",
                             height: "200px",
-                            objectFit: "cover", // Changed from "contain" to "cover"
+                            objectFit: "cover",
                             objectPosition: "center",
                             display: "block",
                             borderRadius: "10px",
@@ -1091,7 +1114,6 @@ const EventPage = () => {
             padding: `10px 0 ${paddingBottom}px 0`,
             zIndex: 1300,
             display: "flex",
-
             justifyContent: "center",
             alignItems: "center",
             transition: "padding 0.3s ease-in-out",
@@ -1104,7 +1126,6 @@ const EventPage = () => {
               backgroundColor: "#19AEDC",
               color: "#FFFFFF",
               fontFamily: "albert sans",
-
               borderRadius: "15px",
               width: "60%",
               padding: "12px",
@@ -1129,7 +1150,7 @@ const EventPage = () => {
       <Dialog
         open={dialogState.open}
         onClose={closeDialog}
-        sx={{ zIndex: 9999 }} // Ensure it appears above everything
+        sx={{ zIndex: 9999 }}
       >
         <DialogTitle sx={{ fontFamily: "albert sans" }}>Notice</DialogTitle>
         <DialogContent>

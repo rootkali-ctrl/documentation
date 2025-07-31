@@ -1,3 +1,4 @@
+import { useEffect, useRef, useCallback, useState, createRef } from "react";
 import {
   Box,
   Button,
@@ -13,12 +14,12 @@ import {
   Typography,
   useMediaQuery,
 } from "@mui/material";
-import React, { useEffect, useState } from "react";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { useEventContext } from "./EventContext";
 import { useNavigate, useParams } from "react-router-dom";
-import axios from "axios";
+// import axios from "axios"; // Not used in this component currently
 import { Add, Remove } from "@mui/icons-material";
+
 const FinalSetup = () => {
   const navigate = useNavigate();
   const { vendorId } = useParams();
@@ -30,6 +31,30 @@ const FinalSetup = () => {
     stepCompletion,
   } = useEventContext();
   const isMobile = useMediaQuery("(max-width:900px)");
+
+  // State for form fields
+  const [localData, setLocalData] = useState({ contact: "", tags: "" });
+  const [FAQ, setFAQ] = useState([{ ques: "", ans: "" }]);
+  const [isCancel, setIsCancel] = useState(false);
+  const [cancelDays, setCancelDays] = useState("");
+  const [deductionRate, setDeductionRate] = useState("");
+  const [deductionType, setDeductionType] = useState("");
+  const [ticketCount, setTicketCount] = useState(10); // Default value
+  const [isFocused, setIsFocused] = useState(false); // For select focus behavior
+
+  // State for validation
+  const [validationTriggered, setValidationTriggered] = useState(false);
+  const [invalidFields, setInvalidFields] = useState({});
+
+  // Maximum and Minimum ticket limits for the counter
+  const maxLimit = 10;
+  const minLimit = 1;
+
+  // Total attendees from pricing tickets (for context, though not directly used in validation here)
+  const totalAttendees = formData?.pricing?.tickets?.reduce((acc, ticket) => {
+    return acc + Number(ticket.seats || 0);
+  }, 0);
+
   // Redirect logic for reload detection and step validation
   useEffect(() => {
     // Redirect to step 1 if page was reloaded
@@ -49,36 +74,125 @@ const FinalSetup = () => {
       navigate(`/createevent/${vendorId}/step1`);
       return;
     }
+
+    // Populate form data from context if available
+    if (formData.finalSetup) {
+      setLocalData({
+        contact: formData.finalSetup.contact || "",
+        tags: formData.finalSetup.tags || "",
+      });
+      setFAQ(formData.finalSetup.FAQ || [{ ques: "", ans: "" }]);
+      setIsCancel(formData.finalSetup.cancellationAvailable || false);
+      setCancelDays(formData.finalSetup.cancellationDays || "");
+      setDeductionRate(formData.finalSetup.deductionRate || "");
+      setDeductionType(formData.finalSetup.deductionType || "");
+      setTicketCount(formData.finalSetup.ticketCount || 10);
+    }
   }, [shouldRedirectToStep1, stepCompletion, formData, navigate, vendorId]);
 
-  const handleChange = (e) => {
+
+  // Validation function using useCallback for memoization
+  const validateForm = useCallback(() => {
+    const newInvalidFields = {};
+    let isValid = true;
+    let firstInvalidField = null;
+
+    const setInvalid = (key, value = true) => {
+      newInvalidFields[key] = value;
+      if (value) { // Only set isValid to false if it's actually invalid
+        isValid = false;
+        if (!firstInvalidField) firstInvalidField = key;
+      }
+    };
+
+    // Validate Contact Details
+    if (localData.contact.trim() === "") {
+      setInvalid("contact");
+    } else if (!/^\S+@\S+\.\S+$/.test(localData.contact)) { // Basic email regex
+      setInvalid("contact", "invalid");
+    }
+
+    // Validate FAQs
+    // If there are no FAQs, it's considered valid (optional to add)
+    // But if FAQs are added, they must be filled.
+    if (FAQ.length > 0) {
+      FAQ.forEach((item, index) => {
+        if (item.ques.trim() === "") {
+          setInvalid(`faqQues${index}`);
+        }
+        if (item.ans.trim() === "") {
+          setInvalid(`faqAns${index}`);
+        }
+      });
+    }
+
+
+    // Validate Tags
+    if (localData.tags.trim() === "") {
+      setInvalid("tags");
+    }
+
+    // Validate Cancellation Policy fields if enabled
+    if (isCancel) {
+      if (cancelDays.trim() === "" || parseInt(cancelDays) <= 0) {
+        setInvalid("cancelDays");
+      }
+      if (deductionType.trim() === "") {
+        setInvalid("deductionType");
+      }
+      if (deductionRate.trim() === "" || parseFloat(deductionRate) <= 0) {
+        setInvalid("deductionRate");
+      }
+    }
+
+    setInvalidFields(newInvalidFields);
+    return { isValid, firstInvalidField };
+  }, [localData, FAQ, isCancel, cancelDays, deductionType, deductionRate]);
+
+  // Effect to re-validate when form data changes, if validation has been triggered
+  useEffect(() => {
+    if (validationTriggered) {
+      validateForm();
+    }
+  }, [localData, FAQ, isCancel, cancelDays, deductionType, deductionRate, validationTriggered, validateForm]);
+
+
+  // General input change handler for localData fields and specific others
+  const handleChangeInput = (e) => {
     const { name, value } = e.target;
 
-    if (name === "deductionRate") setDeductionRate(value);
-    else if (name === "deductionType") setDeductionType(value);
+    if (name === "deductionRate") {
+      if (/^\d*\.?\d{0,2}$/.test(value) || value === "") {
+        setDeductionRate(value);
+      }
+    } else if (name === "deductionType") {
+      setDeductionType(value);
+    } else if (name === "cancelDays") {
+      if (/^\d*$/.test(value) || value === "") {
+        setCancelDays(value);
+      }
+    }
     else {
       setLocalData((prev) => ({
         ...prev,
         [name]: value,
       }));
     }
+
+    if (validationTriggered) {
+      // Re-validate specific field if validation was triggered
+      if (name === "contact") {
+        const isInvalid = value.trim() === "" || !/^\S+@\S+\.\S+$/.test(value);
+        setInvalidFields(prev => ({ ...prev, [name]: isInvalid ? (value.trim() === "" ? true : "invalid") : false }));
+      } else if (name === "deductionRate" || name === "cancelDays") {
+          setInvalidFields(prev => ({ ...prev, [name]: value.trim() === "" || parseFloat(value) <= 0 }));
+      } else if (name === "deductionType") {
+          setInvalidFields(prev => ({ ...prev, [name]: value.trim() === "" }));
+      } else {
+          setInvalidFields(prev => ({ ...prev, [name]: value.trim() === "" }));
+      }
+    }
   };
-
-  useEffect(() => {
-    console.log(formData);
-  });
-
-  const [localData, setLocalData] = useState({ contact: "", tags: "" });
-  const [FAQ, setFAQ] = useState([{ ques: "", ans: "" }]);
-  const [isCancel, setIsCancel] = useState(false);
-  const [cancelDays, setCancelDays] = useState("");
-  const [deductionRate, setDeductionRate] = useState("");
-  const [deductionType, setDeductionType] = useState("");
-  const [isFocused, setIsFocused] = useState(false);
-
-  const totalAttendees = formData?.pricing?.tickets?.reduce((acc, ticket) => {
-    return acc + Number(ticket.seats || 0);
-  }, 0);
 
   const handleAddFAQ = () => {
     setFAQ([
@@ -88,21 +202,37 @@ const FinalSetup = () => {
         ans: "",
       },
     ]);
+    if (validationTriggered) {
+        // Clear potential FAQ validation errors for new empty fields
+        setInvalidFields(prev => ({
+            ...prev,
+            [`faqQues${FAQ.length}`]: false,
+            [`faqAns${FAQ.length}`]: false,
+        }));
+    }
   };
 
-  const isFormValid = () => {
-    const faqs =
-      FAQ.length > 0 &&
-      FAQ.every((t) => t.ques.trim() !== "" && t.ans.trim() !== "");
-    const tags = localData.tags.length > 0;
-
-    return faqs && tags;
+  const handleRemoveFAQ = (indexToRemove) => {
+    const removeItem = [...FAQ];
+    removeItem.splice(indexToRemove, 1);
+    setFAQ(removeItem);
+    if (validationTriggered) {
+        // Re-validate FAQs after removal
+        validateForm();
+    }
   };
 
-  const [ticketCount, setTicketCount] = useState(10);
-  const maxLimit = 10;
-  const minLimit = 1;
+  const handleFAQChange = (index, field, value) => {
+    const updatedFAQ = [...FAQ];
+    updatedFAQ[index][field] = value;
+    setFAQ(updatedFAQ);
+    if (validationTriggered) {
+      setInvalidFields(prev => ({ ...prev, [`faq${field === 'ques' ? 'Ques' : 'Ans'}${index}`]: value.trim() === "" }));
+    }
+  };
 
+
+  // Ticket Count handlers
   const handleIncrement = () => {
     if (ticketCount < maxLimit) {
       setTicketCount((prev) => prev + 1);
@@ -115,46 +245,55 @@ const FinalSetup = () => {
     }
   };
 
-  const handleInputChange = (e) => {
+  const handleInputTicketCountChange = (e) => {
     const value = parseInt(e.target.value);
     if (!isNaN(value)) {
       setTicketCount(value);
+    } else if (e.target.value === "") {
+      setTicketCount(""); // Allow empty temporarily for user input
     }
   };
 
-  const handleBlur = () => {
-    if (ticketCount < minLimit) {
+  const handleBlurTicketCount = () => {
+    if (ticketCount === "" || isNaN(ticketCount)) {
+      setTicketCount(minLimit); // Default to min if left empty or invalid
+    } else if (ticketCount < minLimit) {
       setTicketCount(minLimit);
     } else if (ticketCount > maxLimit) {
       setTicketCount(maxLimit);
     }
   };
 
-  const handleRemoveFAQ = (indexToRemove) => {
-    const removeItem = [...FAQ];
-    removeItem.splice(indexToRemove, 1);
-    setFAQ(removeItem);
-  };
 
   const handleFinal = async () => {
-    updateFormSection("finalSetup", {
-      contact: localData.contact,
-      tags: localData.tags,
-      FAQ,
-      cancellationAvailable: isCancel,
-      cancellationDays: cancelDays,
-      deductionType,
-      deductionRate,
-      ticketCount,
-    });
-    markStepCompleted("step3");
-    navigate(`/createevent/${vendorId}/eventpreview`);
-  };
+    setValidationTriggered(true); // Trigger validation on submit
+    const { isValid, firstInvalidField } = validateForm();
 
-  const handleFAQChange = (index, field, value) => {
-    const updatedFAQ = [...FAQ];
-    updatedFAQ[index][field] = value;
-    setFAQ(updatedFAQ);
+    if (isValid) {
+      updateFormSection("finalSetup", {
+        contact: localData.contact,
+        tags: localData.tags,
+        FAQ,
+        cancellationAvailable: isCancel,
+        cancellationDays: isCancel ? cancelDays : "", // Only save if cancellation is enabled
+        deductionType: isCancel ? deductionType : "", // Only save if cancellation is enabled
+        deductionRate: isCancel ? deductionRate : "", // Only save if cancellation is enabled
+        ticketCount: ticketCount === "" ? minLimit : ticketCount, // Ensure a default if somehow empty
+      });
+      markStepCompleted("step3");
+      navigate(`/createevent/${vendorId}/eventpreview`);
+    } else {
+      // Scroll to the first invalid field
+      if (firstInvalidField) {
+        const element = document.querySelector(`[data-field="${firstInvalidField}"]`);
+        if (element) {
+          element.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+          });
+        }
+      }
+    }
   };
 
   return (
@@ -181,6 +320,7 @@ const FinalSetup = () => {
             boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
           }}
         >
+          {/* Contact Details */}
           <Box>
             <Typography
               sx={{
@@ -206,8 +346,9 @@ const FinalSetup = () => {
               </Typography>
               <OutlinedInput
                 name="contact"
+                data-field="contact" // Data attribute for scrolling
                 value={localData.contact}
-                onChange={handleChange}
+                onChange={handleChangeInput}
                 placeholder="xyz@gmail.com"
                 sx={{
                   width: isMobile ? "90%" : "50%",
@@ -220,13 +361,25 @@ const FinalSetup = () => {
                     borderColor: "#19AEDC",
                   },
                   "& .MuiOutlinedInput-notchedOutline": {
-                    borderColor: "#ccc",
+                    borderColor:
+                      validationTriggered && invalidFields.contact ? "red" : "#ccc",
                   },
                 }}
               />
+              {validationTriggered && invalidFields.contact && (
+                <Typography
+                  color="error"
+                  sx={{ fontFamily: "albert sans", fontSize: "12px", mt: 1 }}
+                >
+                  {invalidFields.contact === "invalid"
+                    ? "Please enter a valid email address."
+                    : "Email is required."}
+                </Typography>
+              )}
             </FormControl>
           </Box>
 
+          {/* Ticket Limit */}
           <Box sx={{ mt: "2%" }}>
             <Typography
               sx={{
@@ -269,10 +422,12 @@ const FinalSetup = () => {
 
                 <TextField
                   value={ticketCount}
-                  onChange={handleInputChange}
-                  onBlur={handleBlur}
+                  onChange={handleInputTicketCountChange}
+                  onBlur={handleBlurTicketCount}
                   inputProps={{
                     style: { textAlign: "center", width: "40px" },
+                    inputMode: "numeric",
+                    pattern: "[0-9]*"
                   }}
                   size="small"
                 />
@@ -287,6 +442,7 @@ const FinalSetup = () => {
             </Box>
           </Box>
 
+          {/* FAQs */}
           <Box sx={{ mt: "2%" }}>
             <Box
               sx={{
@@ -328,7 +484,12 @@ const FinalSetup = () => {
                 sx={{
                   display: "flex",
                   boxSizing: "border-box",
-                  border: "1px solid #ccc",
+                  border:
+                    validationTriggered &&
+                    (invalidFields[`faqQues${index}`] ||
+                      invalidFields[`faqAns${index}`])
+                      ? "1px solid red"
+                      : "1px solid #ccc",
                   padding: "2%",
                   mt: isMobile ? 1 : "1%",
                   borderRadius: "10px",
@@ -337,6 +498,7 @@ const FinalSetup = () => {
                 <Box sx={{ width: isMobile ? "90%" : "95%" }}>
                   <FormControl fullWidth variant="outlined">
                     <OutlinedInput
+                      data-field={`faqQues${index}`} // Data attribute for scrolling
                       value={t.ques}
                       onChange={(e) => {
                         handleFAQChange(index, "ques", e.target.value);
@@ -353,13 +515,25 @@ const FinalSetup = () => {
                           borderColor: "#19AEDC",
                         },
                         "& .MuiOutlinedInput-notchedOutline": {
-                          borderColor: "#ccc",
+                          borderColor:
+                            validationTriggered && invalidFields[`faqQues${index}`]
+                              ? "red"
+                              : "#ccc",
                         },
                       }}
                     />
+                    {validationTriggered && invalidFields[`faqQues${index}`] && (
+                      <Typography
+                        color="error"
+                        sx={{ fontFamily: "albert sans", fontSize: "12px", mt: 1 }}
+                      >
+                        FAQ Question is required.
+                      </Typography>
+                    )}
                   </FormControl>
                   <FormControl fullWidth variant="outlined" sx={{ mt: "1%" }}>
                     <OutlinedInput
+                      data-field={`faqAns${index}`} // Data attribute for scrolling
                       value={t.ans}
                       onChange={(e) => {
                         handleFAQChange(index, "ans", e.target.value);
@@ -377,10 +551,21 @@ const FinalSetup = () => {
                           borderColor: "#19AEDC",
                         },
                         "& .MuiOutlinedInput-notchedOutline": {
-                          borderColor: "#ccc",
+                          borderColor:
+                            validationTriggered && invalidFields[`faqAns${index}`]
+                              ? "red"
+                              : "#ccc",
                         },
                       }}
                     />
+                    {validationTriggered && invalidFields[`faqAns${index}`] && (
+                      <Typography
+                        color="error"
+                        sx={{ fontFamily: "albert sans", fontSize: "12px", mt: 1 }}
+                      >
+                        FAQ Answer is required.
+                      </Typography>
+                    )}
                   </FormControl>
                 </Box>
                 <Box
@@ -390,19 +575,22 @@ const FinalSetup = () => {
                     width: "5%",
                   }}
                 >
-                  <DeleteIcon
-                    onClick={() => handleRemoveFAQ(index)}
-                    sx={{
-                      cursor: "pointer",
-                      color: "gray",
-                      "&:hover": { color: "red" },
-                    }}
-                  />
+                  {FAQ.length > 1 && ( // Allow removing only if more than one FAQ
+                    <DeleteIcon
+                      onClick={() => handleRemoveFAQ(index)}
+                      sx={{
+                        cursor: "pointer",
+                        color: "gray",
+                        "&:hover": { color: "red" },
+                      }}
+                    />
+                  )}
                 </Box>
               </Box>
             ))}
           </Box>
 
+          {/* Tags */}
           <Box sx={{ mt: "2%" }}>
             <Typography
               sx={{
@@ -416,9 +604,10 @@ const FinalSetup = () => {
             <FormControl fullWidth variant="outlined" sx={{ mt: "2%" }}>
               <OutlinedInput
                 name="tags"
+                data-field="tags" // Data attribute for scrolling
                 value={localData.tags}
-                onChange={handleChange}
-                placeholder="add tags"
+                onChange={handleChangeInput}
+                placeholder="add tags (comma separated, e.g., music, festival)"
                 sx={{
                   width: isMobile ? "90%" : "50%",
                   height: "40px",
@@ -430,19 +619,41 @@ const FinalSetup = () => {
                     borderColor: "#19AEDC",
                   },
                   "& .MuiOutlinedInput-notchedOutline": {
-                    borderColor: "#ccc",
+                    borderColor:
+                      validationTriggered && invalidFields.tags ? "red" : "#ccc",
                   },
                 }}
               />
+              {validationTriggered && invalidFields.tags && (
+                <Typography
+                  color="error"
+                  sx={{ fontFamily: "albert sans", fontSize: "12px", mt: 1 }}
+                >
+                  Tags are required.
+                </Typography>
+              )}
             </FormControl>
           </Box>
 
+          {/* Cancellation Policy */}
           <Box sx={{ mt: "2%" }}>
             <FormControlLabel
               control={
                 <Checkbox
                   checked={isCancel}
-                  onChange={(e) => setIsCancel(e.target.checked)}
+                  onChange={(e) => {
+                    setIsCancel(e.target.checked);
+                    if (!e.target.checked && validationTriggered) {
+                        // Clear cancellation policy errors if unchecked
+                        setInvalidFields(prev => {
+                            const newPrev = { ...prev };
+                            delete newPrev.cancelDays;
+                            delete newPrev.deductionType;
+                            delete newPrev.deductionRate;
+                            return newPrev;
+                        });
+                    }
+                  }}
                   sx={{
                     color: "gray",
                     "&.Mui-checked": {
@@ -455,7 +666,7 @@ const FinalSetup = () => {
               sx={{
                 "& .MuiFormControlLabel-label": {
                   fontFamily: "Albert Sans",
-                  fontSize: "16px", // optional
+                  fontSize: "16px",
                 },
               }}
             />
@@ -470,6 +681,8 @@ const FinalSetup = () => {
                 }}
               >
                 <OutlinedInput
+                  name="cancelDays" // Added name
+                  data-field="cancelDays" // Data attribute for scrolling
                   sx={{
                     width: "100%",
                     height: "40px",
@@ -481,24 +694,40 @@ const FinalSetup = () => {
                       borderColor: "#19AEDC",
                     },
                     "& .MuiOutlinedInput-notchedOutline": {
-                      borderColor: "#ccc",
+                      borderColor:
+                        validationTriggered && invalidFields.cancelDays
+                          ? "red"
+                          : "#ccc",
                     },
                   }}
                   placeholder="Cancel up to X days before (Enter only numbers)"
                   value={cancelDays}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    if (/^\d*$/.test(value)) {
-                      setCancelDays(value);
-                    }
-                  }}
+                  onChange={handleChangeInput}
                   inputProps={{ inputMode: "numeric", pattern: "[0-9]*" }}
                 />
+                {validationTriggered && invalidFields.cancelDays && (
+                  <Typography
+                    color="error"
+                    sx={{ fontFamily: "albert sans", fontSize: "12px", mt: -0.5 }} // Adjusted margin
+                  >
+                    Days before cancellation is required and must be greater than 0.
+                  </Typography>
+                )}
                 <FormControl
                   sx={{
                     width: "100%",
-                    height: "40px",
+                    height: "40px", // Adjusted height for better alignment
                     fontFamily: "Albert Sans",
+                    // Added validation border color
+                    "& .MuiOutlinedInput-notchedOutline": {
+                      borderColor:
+                        validationTriggered && invalidFields.deductionType
+                          ? "red"
+                          : "#ccc",
+                    },
+                    "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                      borderColor: "#19AEDC",
+                    },
                   }}
                   size="small"
                 >
@@ -511,23 +740,26 @@ const FinalSetup = () => {
                   <Select
                     labelId="deduction-type-label"
                     id="deduction-type-select"
+                    name="deductionType" // Added name
+                    data-field="deductionType" // Data attribute for scrolling
                     value={deductionType}
-                    onChange={handleChange}
+                    onChange={handleChangeInput}
                     onFocus={() => setIsFocused(true)}
                     onBlur={() => setIsFocused(false)}
-                    name="deductionType"
                     input={
                       <OutlinedInput
                         label="Deduction Type"
                         sx={{
-                          height: "50px",
-                          mt: "1%",
+                          height: "50px", // Maintained consistency for Select input height
                           fontFamily: "Albert Sans",
                           "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
                             borderColor: "#19AEDC",
                           },
                           "& .MuiOutlinedInput-notchedOutline": {
-                            borderColor: "#ccc",
+                            borderColor:
+                              validationTriggered && invalidFields.deductionType
+                                ? "red"
+                                : "#ccc",
                           },
                         }}
                       />
@@ -539,28 +771,48 @@ const FinalSetup = () => {
                     >
                       Percentage
                     </MenuItem>
+                    {/* Add other deduction types if needed */}
                   </Select>
+                  {validationTriggered && invalidFields.deductionType && (
+                    <Typography
+                      color="error"
+                      sx={{ fontFamily: "albert sans", fontSize: "12px", mt: 0.5 }}
+                    >
+                      Deduction Type is required.
+                    </Typography>
+                  )}
                 </FormControl>
                 <OutlinedInput
-                  placeholder="Deduction Rate (Enter only numbers)"
-                  disabled={isFocused}
+                  name="deductionRate" // Added name
+                  data-field="deductionRate" // Data attribute for scrolling
+                  placeholder="Deduction Rate (e.g., 10 for 10%)"
+                  disabled={isFocused} // Keep disabled if select is focused to avoid interaction issues
                   sx={{
                     width: "100%",
                     height: "40px",
                     fontFamily: "Albert Sans",
                     "& .MuiOutlinedInput-notchedOutline": {
-                      borderColor: "#ccc",
+                      borderColor:
+                        validationTriggered && invalidFields.deductionRate
+                          ? "red"
+                          : "#ccc",
+                    },
+                    "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                      borderColor: "#19AEDC",
                     },
                   }}
-                  inputProps={{ inputMode: "numeric", pattern: "[0-9]*" }}
+                  inputProps={{ inputMode: "decimal", pattern: "[0-9.]*" }} // Allows decimals
                   value={deductionRate}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    if (/^\d*$/.test(value)) {
-                      setDeductionRate(value);
-                    }
-                  }}
+                  onChange={handleChangeInput}
                 />
+                {validationTriggered && invalidFields.deductionRate && (
+                  <Typography
+                    color="error"
+                    sx={{ fontFamily: "albert sans", fontSize: "12px", mt: -0.5 }}
+                  >
+                    Deduction Rate is required and must be greater than 0.
+                  </Typography>
+                )}
               </Box>
             )}
           </Box>
@@ -576,8 +828,7 @@ const FinalSetup = () => {
         >
           <Button
             onClick={handleFinal}
-            disabled={!isFormValid()}
-            variant="contained"
+            variant="contained" // Removed disabled={!isFormValid()}
             sx={{
               textTransform: "none",
               backgroundColor: "#19AEDC",

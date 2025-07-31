@@ -1,5 +1,3 @@
-
-
 const { insertNewEvent } = require('../models/eventModel');
 const { db, bucket} = require('../config/firebase_config');
 const { v4: uuidv4 } = require('uuid');
@@ -9,10 +7,12 @@ const addEvent = async (req, res) => {
     const eventId = uuidv4();
     const bannerImages = [];
 
-    // 1. Upload each file to Firebase Storage
+    // 1. Upload each file to Firebase Storage (up to 9 images)
     if (req.files && req.files.length > 0) {
-      for (const file of req.files) {
-        const fileName = `events/${eventId}/banner_${Date.now()}_${file.originalname}`;
+      console.log(`Uploading ${req.files.length} banner images...`);
+
+      for (const [index, file] of req.files.entries()) {
+        const fileName = `events/${eventId}/banner_${index + 1}_${Date.now()}_${file.originalname}`;
         const fileUpload = bucket.file(fileName);
 
         const blobStream = fileUpload.createWriteStream({
@@ -21,24 +21,38 @@ const addEvent = async (req, res) => {
           },
         });
 
-        await new Promise((resolve, reject) => {
-          blobStream.on("error", reject);
-          blobStream.on("finish", async () => {
-            try {
-              await fileUpload.makePublic();
-              const publicUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
+        try {
+          await new Promise((resolve, reject) => {
+            blobStream.on("error", (error) => {
+              console.error(`Error uploading file ${index + 1}:`, error);
+              reject(error);
+            });
 
-              bannerImages.push(publicUrl);
+            blobStream.on("finish", async () => {
+              try {
+                // Make the file public
+                await fileUpload.makePublic();
+                const publicUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
 
-              resolve();
-            } catch (err) {
-              reject(err);
-            }
+                bannerImages.push(publicUrl);
+                console.log(`Successfully uploaded image ${index + 1}: ${publicUrl}`);
+                resolve();
+              } catch (err) {
+                console.error(`Error making file ${index + 1} public:`, err);
+                reject(err);
+              }
+            });
+
+            blobStream.end(file.buffer);
           });
-          blobStream.end(file.buffer);
-        });
+        } catch (uploadError) {
+          console.error(`Failed to upload image ${index + 1}:`, uploadError);
+          // Continue with other images even if one fails
+        }
       }
     }
+
+    console.log(`Total images uploaded: ${bannerImages.length}`);
 
     const parseIfJson = (val) => {
       try {
@@ -59,7 +73,7 @@ const addEvent = async (req, res) => {
       eventId,
       name,
       description,
-      bannerImages,
+      bannerImages, // This will now contain Firebase Storage URLs
       category: parseIfJson(category),
       eventDate,
       eventHost,
@@ -86,10 +100,11 @@ const addEvent = async (req, res) => {
     return res.status(code === 200 ? 201 : 500).json({
       message: code === 200 ? "New event added successfully" : "Error adding event",
       eventId,
+      bannerImagesCount: bannerImages.length,
     });
 
   } catch (err) {
-    console.log("Event upload error:", err);
+    console.error("Event upload error:", err);
     return res.status(500).json({ error: err.message });
   }
 };

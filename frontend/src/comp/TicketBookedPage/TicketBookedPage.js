@@ -29,6 +29,7 @@ import { QRCodeCanvas as QRCode } from "qrcode.react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { auth, db, storage } from "../../firebase_config";
+import { v4 as uuidv4 } from 'uuid'; // Added for generating unique booking IDs
 
 const TicketBookedPage = () => {
   const navigate = useNavigate();
@@ -67,7 +68,7 @@ const TicketBookedPage = () => {
     },
     bookingId: passedBookingId,
   } = location.state || {};
-  const [bookingId, setBookingId] = useState(passedBookingId);
+  const [bookingId, setBookingId] = useState(passedBookingId || `BOOK-${Date.now()}-${uuidv4().slice(0, 8)}`);
   const HOME_REDIRECT_TIMEOUT_MS = 60 * 1000;
   const redirectTimerRef = useRef(null);
 
@@ -346,6 +347,11 @@ const TicketBookedPage = () => {
         return;
       }
 
+      if (!bookingId) {
+        console.error("bookingId is undefined, generating a fallback");
+        setBookingId(`BOOK-${Date.now()}-${uuidv4().slice(0, 8)}`);
+      }
+
       try {
         setBookingStatus({
           status: "pending",
@@ -354,7 +360,6 @@ const TicketBookedPage = () => {
 
         if (retryCount === 0) {
           await new Promise((resolve) => setTimeout(resolve, 1000));
-
           try {
             await currentUser.getIdToken(true);
           } catch (tokenError) {
@@ -369,6 +374,7 @@ const TicketBookedPage = () => {
             status: "success",
             message: "Ticket already saved!",
           });
+          startRedirectTimer();
           return;
         }
 
@@ -381,13 +387,16 @@ const TicketBookedPage = () => {
         const userEmail = currentUser.email || profileData?.email || "N/A";
 
         let currentEventData = eventData || event;
-
         if (!currentEventData || Object.keys(currentEventData).length === 0) {
+          console.log("Fetching event data due to missing data...");
           currentEventData = await fetchEventData();
         }
 
-        const resolvedEventId =
-          eventId || currentEventData.id || currentEventData.eventId || null;
+        if (!currentEventData?.id) {
+          throw new Error("Event ID is missing from event data");
+        }
+
+        const resolvedEventId = currentEventData.id;
         const resolvedVendorId =
           currentEventData.vendorId ||
           currentEventData.vendor_id ||
@@ -395,45 +404,34 @@ const TicketBookedPage = () => {
           vendorIdHere ||
           null;
 
-        console.log(
-          "Saving ticket with eventId:",
-          resolvedEventId,
-          "vendorId:",
-          resolvedVendorId
-        );
-
-        if (!resolvedEventId) {
-          throw new Error("Event ID is required but not found");
+        if (!resolvedVendorId) {
+          console.warn("Vendor ID is missing, proceeding with null");
         }
 
         const eventDateRaw =
-          currentEventData.date ||
           currentEventData.eventDate ||
+          currentEventData.date ||
           currentEventData.startDate ||
           currentEventData.dateTime ||
           null;
 
-        console.log("Raw event date from data:", eventDateRaw);
+        const { formattedDate: eventFormattedDate, eventTime: eventFormattedTime } =
+          formatEventDateTime(eventDateRaw);
 
-        const {
-          formattedDate: eventFormattedDate,
-          eventTime: eventFormattedTime,
-        } = formatEventDateTime(eventDateRaw);
-
-        console.log(
-          "Formatted date:",
-          eventFormattedDate,
-          "Formatted time:",
-          eventFormattedTime
-        );
+        if (!eventFormattedDate || !eventFormattedTime) {
+          console.warn("Event date or time formatting failed, using defaults");
+        }
 
         const ticketData = {
-          eventName: currentEventData.name || currentEventData.title || "Event",
+          eventName: currentEventData.name || "Event",
           eventDate: eventFormattedDate,
           eventTime: eventFormattedTime,
-          location: currentEventData.venueDetails.venueName || "N/A",
-          phone: userPhone || "N/A",
-          email: userEmail || "N/A",
+          location:
+            currentEventData.venueDetails?.venueName ||
+            currentEventData.location ||
+            "N/A",
+          phone: userPhone,
+          email: userEmail,
           ticketSummary: ticketSummary || [],
           foodSummary: foodSummary || [],
           financial: financial || {
@@ -465,7 +463,6 @@ const TicketBookedPage = () => {
         await runTransaction(db, async (transaction) => {
           const existingTicketRef = doc(db, "tickets", cleanTicketId);
           const eventDocRef = doc(db, "events", resolvedEventId);
-
           const existingTicket = await transaction.get(existingTicketRef);
           const eventDoc = await transaction.get(eventDocRef);
 
@@ -487,25 +484,23 @@ const TicketBookedPage = () => {
               "tickets",
               cleanTicketId
             );
-
-            const userTicketData = {
+            transaction.set(userTicketRef, {
               ticketId: cleanTicketId,
-              eventName:
-                currentEventData.name || currentEventData.title || "Event",
+              eventName: currentEventData.name || "Event",
               bookingDate: new Date().toISOString(),
               status: "booked",
               eventId: resolvedEventId,
               vendorId: resolvedVendorId || "",
               userId: currentUser.uid,
-            };
-
-            transaction.set(userTicketRef, userTicketData);
+            });
           }
 
           const eventData = eventDoc.data();
           const pricing = [...(eventData.pricing || [])];
 
-          console.log("Current pricing before update:", pricing);
+          if (pricing.length === 0) {
+            console.warn("No pricing data found in event document");
+          }
 
           const bookedTicketsForUpdate = ticketSummary.map((ticket) => ({
             type: ticket.type,
@@ -516,20 +511,23 @@ const TicketBookedPage = () => {
             const ticketIndex = pricing.findIndex(
               (p) => p.ticketType === bookedTicket.type
             );
-
             if (ticketIndex !== -1) {
               const currentTicket = pricing[ticketIndex];
               const totalSeats = currentTicket.seats || 0;
-
               const currentBooked = currentTicket.booked || 0;
               const newBookedCount = currentBooked + bookedTicket.quantity;
+
+              if (newBookedCount > totalSeats) {
+                throw new Error(
+                  `Insufficient seats for ${bookedTicket.type}: ${totalSeats} available, ${newBookedCount} requested`
+                );
+              }
 
               pricing[ticketIndex] = {
                 ...currentTicket,
                 booked: newBookedCount,
                 available: Math.max(0, totalSeats - newBookedCount),
               };
-
               console.log(
                 `Updated ${bookedTicket.type}: booked ${currentBooked} -> ${newBookedCount}, available: ${pricing[ticketIndex].available}`
               );
@@ -540,24 +538,12 @@ const TicketBookedPage = () => {
             }
           });
 
-          const totalSeats = pricing.reduce(
-            (sum, p) => sum + (p.seats || 0),
-            0
-          );
+          const totalSeats = pricing.reduce((sum, p) => sum + (p.seats || 0), 0);
           const totalBookedTickets = pricing.reduce(
             (sum, p) => sum + (p.booked || 0),
             0
           );
-          const totalAvailableTickets = Math.max(
-            0,
-            totalSeats - totalBookedTickets
-          );
-
-          console.log("Calculated totals:", {
-            totalSeats,
-            totalBookedTickets,
-            totalAvailableTickets,
-          });
+          const totalAvailableTickets = Math.max(0, totalSeats - totalBookedTickets);
 
           const updateData = {
             pricing: pricing,
@@ -571,7 +557,6 @@ const TicketBookedPage = () => {
         console.log(
           "Transaction completed successfully - ticket saved and availability updated"
         );
-
         setAvailabilityUpdated(true);
         setTicketIsSaved(true);
         setBookingStatus({
@@ -598,9 +583,7 @@ const TicketBookedPage = () => {
         ) {
           if (retryCount < MAX_RETRY_ATTEMPTS) {
             console.log(
-              `Permission denied, retrying... (${
-                retryCount + 1
-              }/${MAX_RETRY_ATTEMPTS})`
+              `Permission denied, retrying... (${retryCount + 1}/${MAX_RETRY_ATTEMPTS})`
             );
             await new Promise((resolve) => setTimeout(resolve, 2000));
             return saveTicketToDatabase(currentUser, retryCount + 1);
@@ -611,6 +594,11 @@ const TicketBookedPage = () => {
                 "Permission denied. Please check your account permissions or contact support.",
             });
           }
+        } else if (error.message.includes("Insufficient seats")) {
+          setBookingStatus({
+            status: "error",
+            message: "Not enough tickets available. Please try again.",
+          });
         } else {
           setBookingStatus({
             status: "error",
@@ -845,361 +833,359 @@ const TicketBookedPage = () => {
   }, [saveTicketToDatabase]);
 
   const handleDownloadTicket = async () => {
-  try {
-    setBookingStatus({
-      status: bookingStatus.status,
-      message: "Preparing your ticket for download...",
-    });
+    try {
+      setBookingStatus({
+        status: bookingStatus.status,
+        message: "Preparing your ticket for download...",
+      });
 
-    const pdf = new jsPDF({
-      orientation: "portrait",
-      unit: "mm",
-      format: "a4",
-    });
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4",
+      });
 
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = pdf.internal.pageSize.getHeight();
-    const margin = 15;
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const margin = 15;
 
-    const colors = {
-      primary: [25, 174, 220],
-      primaryDark: [20, 139, 176],
-      background: [248, 250, 252],
-      cardBackground: [255, 255, 255],
-      textPrimary: [31, 41, 55],
-      textSecondary: [107, 114, 128],
-      textLight: [156, 163, 175],
-      border: [229, 231, 235],
-      success: [16, 185, 129],
-      accent: [245, 247, 250],
-    };
+      const colors = {
+        primary: [25, 174, 220],
+        primaryDark: [20, 139, 176],
+        background: [248, 250, 252],
+        cardBackground: [255, 255, 255],
+        textPrimary: [31, 41, 55],
+        textSecondary: [107, 114, 128],
+        textLight: [156, 163, 175],
+        border: [229, 231, 235],
+        success: [16, 185, 129],
+        accent: [245, 247, 250],
+      };
 
-    const setColor = (colorArray) => pdf.setTextColor(...colorArray);
-    const setFillColor = (colorArray) => pdf.setFillColor(...colorArray);
-    const setDrawColor = (colorArray) => pdf.setDrawColor(...colorArray);
+      const setColor = (colorArray) => pdf.setTextColor(...colorArray);
+      const setFillColor = (colorArray) => pdf.setFillColor(...colorArray);
+      const setDrawColor = (colorArray) => pdf.setDrawColor(...colorArray);
 
-    setFillColor(colors.background);
-    pdf.rect(0, 0, pdfWidth, pdfHeight, "F");
+      setFillColor(colors.background);
+      pdf.rect(0, 0, pdfWidth, pdfHeight, "F");
 
-    for (let i = 0; i < 5; i++) {
-      const alpha = 0.1 - (i * 0.02);
-      const grayValue = 248 + i;
-      pdf.setFillColor(grayValue, grayValue, grayValue);
-      pdf.rect(0, i * 10, pdfWidth, 8, "F");
-    }
-
-    const ticketWidth = pdfWidth - 2 * margin;
-    const ticketHeight = 280;
-    const startY = 15;
-
-    setFillColor([0, 0, 0, 0.1]);
-    pdf.roundedRect(margin + 2, startY + 2, ticketWidth, ticketHeight, 8, 8, "F");
-
-    setFillColor(colors.cardBackground);
-    pdf.roundedRect(margin, startY, ticketWidth, ticketHeight, 8, 8, "F");
-
-    setFillColor(colors.primary);
-    pdf.roundedRect(margin, startY, ticketWidth, 8, 8, 8, "F");
-    pdf.rect(margin, startY + 4, ticketWidth, 4, "F");
-
-    const cutoutY = startY + ticketHeight * 0.35;
-    const cutoutSize = 6;
-
-    setDrawColor(colors.border);
-    pdf.setLineWidth(0.5);
-    pdf.setLineDashPattern([2, 2], 0);
-    pdf.line(margin + 15, cutoutY, margin + ticketWidth - 15, cutoutY);
-    pdf.setLineDashPattern([], 0);
-
-    setFillColor(colors.background);
-    pdf.circle(margin, cutoutY, cutoutSize, "F");
-    pdf.circle(margin + ticketWidth, cutoutY, cutoutSize, "F");
-
-    let yOffset = startY + 25;
-
-    setColor(colors.textPrimary);
-    pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(20);
-    const eventName = eventData?.name || "Event";
-    pdf.text(eventName, margin + 15, yOffset);
-
-    const eventNameWidth = pdf.getTextWidth(eventName);
-    setDrawColor(colors.primary);
-    pdf.setLineWidth(1);
-    pdf.line(margin + 15, yOffset + 2, margin + 15 + eventNameWidth, yOffset + 2);
-
-    yOffset += 20;
-
-    pdf.setFont("helvetica", "normal");
-    pdf.setFontSize(12);
-    setColor(colors.textSecondary);
-
-    const detailsStartX = margin + 15;
-    pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(10);
-    setColor(colors.textPrimary);
-
-    pdf.text("DATE", detailsStartX, yOffset);
-    pdf.text("TIME", detailsStartX + 80, yOffset);
-    pdf.text("VENUE", detailsStartX + 140, yOffset);
-
-    yOffset += 6;
-
-    pdf.setFont("helvetica", "normal");
-    pdf.setFontSize(11);
-    setColor(colors.textSecondary);
-
-    pdf.text(formattedDate, detailsStartX, yOffset);
-    pdf.text(eventTime, detailsStartX + 80, yOffset);
-
-    const venueText = eventData?.venueDetails?.venueName || event.location || "N/A";
-    const venueLines = pdf.splitTextToSize(venueText, 35);
-    pdf.text(venueLines, detailsStartX + 140, yOffset);
-
-    yOffset += Math.max(8, venueLines.length * 4) + 15;
-
-    const qrSectionY = yOffset;
-    const qrSectionHeight = 70;
-
-    setFillColor(colors.accent);
-    setDrawColor(colors.border);
-    pdf.setLineWidth(0.5);
-    pdf.roundedRect(margin + 15, qrSectionY, ticketWidth - 30, qrSectionHeight, 4, 4, "FD");
-
-    const qrCanvas = qrRef.current?.querySelector("canvas");
-    if (qrCanvas) {
-      const qrDataUrl = qrCanvas.toDataURL("image/png");
-      const qrSize = 40;
-      const qrX = margin + 25;
-      const qrY = qrSectionY + 15;
-
-      setFillColor(colors.cardBackground);
-      setDrawColor(colors.border);
-      pdf.roundedRect(qrX - 2, qrY - 2, qrSize + 4, qrSize + 4, 2, 2, "FD");
-
-      pdf.addImage(qrDataUrl, "PNG", qrX, qrY, qrSize, qrSize);
-    }
-
-    const detailsX = margin + 80;
-    let detailsY = qrSectionY + 20;
-
-    pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(10);
-    setColor(colors.textPrimary);
-    pdf.text("BOOKING ID", detailsX, detailsY);
-
-    pdf.setFont("helvetica", "normal");
-    pdf.setFontSize(12);
-    setColor(colors.primary);
-    pdf.text(bookingId, detailsX, detailsY + 6);
-    detailsY += 18;
-
-    pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(10);
-    setColor(colors.textPrimary);
-    pdf.text("TICKETS", detailsX, detailsY);
-
-    const ticketSummaryText = `${totalTickets} Tickets (${ticketSummary
-      .map((t) => `${t.type} x${t.quantity}`)
-      .join(", ")})`;
-    const ticketLines = pdf.splitTextToSize(ticketSummaryText, 90);
-
-    pdf.setFont("helvetica", "normal");
-    pdf.setFontSize(10);
-    setColor(colors.textSecondary);
-    pdf.text(ticketLines, detailsX, detailsY + 6);
-
-    // Fixed spacing of text below QR code
-    pdf.setFont("helvetica", "normal");
-    pdf.setFontSize(9);
-    setColor(colors.textLight);
-    pdf.text("Present this QR code at", margin + 25, qrSectionY + qrSectionHeight - 8);
-    pdf.text("the venue entrance for entry", margin + 25, qrSectionY + qrSectionHeight - 4);
-
-    yOffset = qrSectionY + qrSectionHeight + 20;
-
-    setFillColor(colors.primary);
-    pdf.rect(margin + 15, yOffset - 5, ticketWidth - 30, 12, "F");
-
-    pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(12);
-    setColor(colors.cardBackground);
-    pdf.text("ORDER SUMMARY", margin + 20, yOffset + 3);
-    yOffset += 15;
-
-    setFillColor(colors.accent);
-    pdf.rect(margin + 15, yOffset, ticketWidth - 30, 8, "F");
-
-    pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(9);
-    setColor(colors.textPrimary);
-    pdf.text("ITEM", margin + 20, yOffset + 5);
-    pdf.text("QTY", margin + 120, yOffset + 5);
-    pdf.text("AMOUNT", margin + 150, yOffset + 5);
-    yOffset += 12;
-
-    pdf.setFont("helvetica", "normal");
-    pdf.setFontSize(9);
-    setColor(colors.textSecondary);
-
-    let rowIndex = 0;
-    ticketSummary.forEach((ticket) => {
-      if (rowIndex % 2 === 0) {
-        setFillColor([252, 252, 252]);
-        pdf.rect(margin + 15, yOffset - 2, ticketWidth - 30, 8, "F");
+      for (let i = 0; i < 5; i++) {
+        const alpha = 0.1 - (i * 0.02);
+        const grayValue = 248 + i;
+        pdf.setFillColor(grayValue, grayValue, grayValue);
+        pdf.rect(0, i * 10, pdfWidth, 8, "F");
       }
 
-      const itemName = pdf.splitTextToSize(ticket.type, 85);
-      pdf.text(itemName, margin + 20, yOffset + 3);
-      pdf.text(ticket.quantity.toString(), margin + 120, yOffset + 3);
+      const ticketWidth = pdfWidth - 2 * margin;
+      const ticketHeight = 280;
+      const startY = 15;
 
-      const ticketAmount = ticket.price === 0 ? "FREE" : formatCurrency(ticket.price * ticket.quantity);
-      pdf.text(ticketAmount, margin + 150, yOffset + 3);
+      setFillColor([0, 0, 0, 0.1]);
+      pdf.roundedRect(margin + 2, startY + 2, ticketWidth, ticketHeight, 8, 8, "F");
 
-      yOffset += Math.max(8, itemName.length * 4);
-      rowIndex++;
-    });
+      setFillColor(colors.cardBackground);
+      pdf.roundedRect(margin, startY, ticketWidth, ticketHeight, 8, 8, "F");
 
-    if (foodSummary && foodSummary.length > 0) {
-      foodSummary.forEach((food) => {
+      setFillColor(colors.primary);
+      pdf.roundedRect(margin, startY, ticketWidth, 8, 8, 8, "F");
+      pdf.rect(margin, startY + 4, ticketWidth, 4, "F");
+
+      const cutoutY = startY + ticketHeight * 0.35;
+      const cutoutSize = 6;
+
+      setDrawColor(colors.border);
+      pdf.setLineWidth(0.5);
+      pdf.setLineDashPattern([2, 2], 0);
+      pdf.line(margin + 15, cutoutY, margin + ticketWidth - 15, cutoutY);
+      pdf.setLineDashPattern([], 0);
+
+      setFillColor(colors.background);
+      pdf.circle(margin, cutoutY, cutoutSize, "F");
+      pdf.circle(margin + ticketWidth, cutoutY, cutoutSize, "F");
+
+      let yOffset = startY + 25;
+
+      setColor(colors.textPrimary);
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(20);
+      const eventName = eventData?.name || "Event";
+      pdf.text(eventName, margin + 15, yOffset);
+
+      const eventNameWidth = pdf.getTextWidth(eventName);
+      setDrawColor(colors.primary);
+      pdf.setLineWidth(1);
+      pdf.line(margin + 15, yOffset + 2, margin + 15 + eventNameWidth, yOffset + 2);
+
+      yOffset += 20;
+
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(12);
+      setColor(colors.textSecondary);
+
+      const detailsStartX = margin + 15;
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(10);
+      setColor(colors.textPrimary);
+
+      pdf.text("DATE", detailsStartX, yOffset);
+      pdf.text("TIME", detailsStartX + 80, yOffset);
+      pdf.text("VENUE", detailsStartX + 140, yOffset);
+
+      yOffset += 6;
+
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(11);
+      setColor(colors.textSecondary);
+
+      pdf.text(formattedDate, detailsStartX, yOffset);
+      pdf.text(eventTime, detailsStartX + 80, yOffset);
+
+      const venueText = eventData?.venueDetails?.venueName || event.location || "N/A";
+      const venueLines = pdf.splitTextToSize(venueText, 35);
+      pdf.text(venueLines, detailsStartX + 140, yOffset);
+
+      yOffset += Math.max(8, venueLines.length * 4) + 15;
+
+      const qrSectionY = yOffset;
+      const qrSectionHeight = 70;
+
+      setFillColor(colors.accent);
+      setDrawColor(colors.border);
+      pdf.setLineWidth(0.5);
+      pdf.roundedRect(margin + 15, qrSectionY, ticketWidth - 30, qrSectionHeight, 4, 4, "FD");
+
+      const qrCanvas = qrRef.current?.querySelector("canvas");
+      if (qrCanvas) {
+        const qrDataUrl = qrCanvas.toDataURL("image/png");
+        const qrSize = 40;
+        const qrX = margin + 25;
+        const qrY = qrSectionY + 15;
+
+        setFillColor(colors.cardBackground);
+        setDrawColor(colors.border);
+        pdf.roundedRect(qrX - 2, qrY - 2, qrSize + 4, qrSize + 4, 2, 2, "FD");
+
+        pdf.addImage(qrDataUrl, "PNG", qrX, qrY, qrSize, qrSize);
+      }
+
+      const detailsX = margin + 80;
+      let detailsY = qrSectionY + 20;
+
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(10);
+      setColor(colors.textPrimary);
+      pdf.text("BOOKING ID", detailsX, detailsY);
+
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(12);
+      setColor(colors.primary);
+      pdf.text(bookingId, detailsX, detailsY + 6);
+      detailsY += 18;
+
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(10);
+      setColor(colors.textPrimary);
+      pdf.text("TICKETS", detailsX, detailsY);
+
+      const ticketSummaryText = `${totalTickets} Tickets (${ticketSummary
+        .map((t) => `${t.type} x${t.quantity}`)
+        .join(", ")})`;
+      const ticketLines = pdf.splitTextToSize(ticketSummaryText, 90);
+
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(10);
+      setColor(colors.textSecondary);
+      pdf.text(ticketLines, detailsX, detailsY + 6);
+
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(9);
+      setColor(colors.textLight);
+      pdf.text("Present this QR code at", margin + 25, qrSectionY + qrSectionHeight - 8);
+      pdf.text("the venue entrance for entry", margin + 25, qrSectionY + qrSectionHeight - 4);
+
+      yOffset = qrSectionY + qrSectionHeight + 20;
+
+      setFillColor(colors.primary);
+      pdf.rect(margin + 15, yOffset - 5, ticketWidth - 30, 12, "F");
+
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(12);
+      setColor(colors.cardBackground);
+      pdf.text("ORDER SUMMARY", margin + 20, yOffset + 3);
+      yOffset += 15;
+
+      setFillColor(colors.accent);
+      pdf.rect(margin + 15, yOffset, ticketWidth - 30, 8, "F");
+
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(9);
+      setColor(colors.textPrimary);
+      pdf.text("ITEM", margin + 20, yOffset + 5);
+      pdf.text("QTY", margin + 120, yOffset + 5);
+      pdf.text("AMOUNT", margin + 150, yOffset + 5);
+      yOffset += 12;
+
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(9);
+      setColor(colors.textSecondary);
+
+      let rowIndex = 0;
+      ticketSummary.forEach((ticket) => {
         if (rowIndex % 2 === 0) {
           setFillColor([252, 252, 252]);
           pdf.rect(margin + 15, yOffset - 2, ticketWidth - 30, 8, "F");
         }
 
-        const itemName = pdf.splitTextToSize(food.name, 85);
+        const itemName = pdf.splitTextToSize(ticket.type, 85);
         pdf.text(itemName, margin + 20, yOffset + 3);
-        pdf.text(food.quantity.toString(), margin + 120, yOffset + 3);
-        pdf.text(formatCurrency(food.price * food.quantity), margin + 150, yOffset + 3);
+        pdf.text(ticket.quantity.toString(), margin + 120, yOffset + 3);
+
+        const ticketAmount = ticket.price === 0 ? "FREE" : formatCurrency(ticket.price * ticket.quantity);
+        pdf.text(ticketAmount, margin + 150, yOffset + 3);
 
         yOffset += Math.max(8, itemName.length * 4);
         rowIndex++;
       });
-    }
 
-    yOffset += 8;
+      if (foodSummary && foodSummary.length > 0) {
+        foodSummary.forEach((food) => {
+          if (rowIndex % 2 === 0) {
+            setFillColor([252, 252, 252]);
+            pdf.rect(margin + 15, yOffset - 2, ticketWidth - 30, 8, "F");
+          }
 
-    if (!financial.isFreeEvent) {
-      const financialItems = [
-        { label: "Convenience Fee", amount: formatCurrency(financial.convenienceFee || 0) },
-        ...(financial.discount > 0 ? [{
-          label: "Discount",
-          amount: `-${formatCurrency(financial.discount || 0)}`,
-          isDiscount: true
-        }] : []),
-        { label: "Tax", amount: formatCurrency(financial.tax || 0) },
-      ];
+          const itemName = pdf.splitTextToSize(food.name, 85);
+          pdf.text(itemName, margin + 20, yOffset + 3);
+          pdf.text(food.quantity.toString(), margin + 120, yOffset + 3);
+          pdf.text(formatCurrency(food.price * food.quantity), margin + 150, yOffset + 3);
 
-      financialItems.forEach((item) => {
-        setColor(item.isDiscount ? colors.success : colors.textSecondary);
-        pdf.text(item.label + ":", margin + 100, yOffset);
-        pdf.text(item.amount, margin + 150, yOffset);
-        yOffset += 5;
-      });
-
-      yOffset += 3;
-
-      setDrawColor(colors.border);
-      pdf.setLineWidth(1);
-      pdf.line(margin + 95, yOffset, margin + ticketWidth - 15, yOffset);
-      yOffset += 8;
-    }
-
-    setFillColor(colors.primary);
-    pdf.roundedRect(margin + 15, yOffset - 3, ticketWidth - 30, 15, 3, 3, "F");
-
-    pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(14);
-    setColor(colors.cardBackground);
-    pdf.text("TOTAL AMOUNT", margin + 20, yOffset + 6);
-
-    // Fixed alignment of Total Amount
-    const totalAmountText = financial.isFreeEvent ? "FREE" : formatCurrency(financial.totalAmount || 0);
-    pdf.text(totalAmountText, margin + ticketWidth - 15, yOffset + 6, { align: "right" });
-
-    yOffset += 25;
-
-    setFillColor(colors.accent);
-    pdf.rect(margin + 15, yOffset - 5, ticketWidth - 30, 8, "F");
-
-    pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(11);
-    setColor(colors.textPrimary);
-    pdf.text("BOOKING INFORMATION", margin + 20, yOffset);
-    yOffset += 12;
-
-    const bookingInfo = [
-      { label: "Booking Date:", value: `${currentDate} ${currentTime}` },
-      { label: "Email:", value: user?.email || "N/A" },
-      {
-        label: "Phone:",
-        value: userProfileData?.phoneNumber || userProfileData?.phone || user?.phone || "N/A",
-      },
-    ];
-
-    pdf.setFont("helvetica", "normal");
-    pdf.setFontSize(10);
-
-    bookingInfo.forEach((info) => {
-      setColor(colors.textPrimary);
-      pdf.text(info.label, margin + 20, yOffset);
-      setColor(colors.textSecondary);
-      pdf.text(info.value, margin + 55, yOffset);
-      yOffset += 7;
-    });
-
-    yOffset += 15;
-
-    setFillColor([250, 250, 250]);
-    pdf.rect(0, yOffset - 8, pdfWidth, 25, "F");
-
-    setDrawColor(colors.border);
-    pdf.setLineWidth(0.5);
-    pdf.line(0, yOffset - 8, pdfWidth, yOffset - 8);
-
-    pdf.setFont("helvetica", "normal");
-    pdf.setFontSize(9);
-    setColor(colors.textLight);
-    const centerX = pdfWidth / 2;
-
-    pdf.text("🎫 Please present this ticket (digital or printed) at the venue entrance", centerX, yOffset, { align: "center" });
-    pdf.text("📞 For support, contact us through the app or visit our website", centerX, yOffset + 5, { align: "center" });
-
-    pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(8);
-    setColor(colors.primary);
-    pdf.text("Powered by Your Event Platform", centerX, yOffset + 12, { align: "center" });
-
-    const cleanBookingId = bookingId.replace("#", "");
-    const cleanEventName = (event.name || "Event")
-      .replace(/[^a-zA-Z0-9\s]/g, "")
-      .replace(/\s+/g, "_");
-
-    pdf.save(`${cleanEventName}_Ticket_${cleanBookingId}.pdf`);
-
-    setBookingStatus({
-      status: bookingStatus.status,
-      message: "Professional ticket downloaded successfully! ✨",
-    });
-
-    setTimeout(() => {
-      if (bookingStatus.status === "success") {
-        setBookingStatus({
-          status: "success",
-          message: "Ticket booked successfully!",
+          yOffset += Math.max(8, itemName.length * 4);
+          rowIndex++;
         });
       }
-    }, 3000);
-  } catch (error) {
-    console.error("Error generating professional ticket:", error);
-    alert("There was an error downloading your ticket. Please try again or contact support.");
 
-    setBookingStatus({
-      status: bookingStatus.status,
-      message: bookingStatus.status === "success" ? "Ticket booked successfully!" : bookingStatus.message,
-    });
-  }
-};
+      yOffset += 8;
+
+      if (!financial.isFreeEvent) {
+        const financialItems = [
+          { label: "Convenience Fee", amount: formatCurrency(financial.convenienceFee || 0) },
+          ...(financial.discount > 0 ? [{
+            label: "Discount",
+            amount: `-${formatCurrency(financial.discount || 0)}`,
+            isDiscount: true
+          }] : []),
+          { label: "Tax", amount: formatCurrency(financial.tax || 0) },
+        ];
+
+        financialItems.forEach((item) => {
+          setColor(item.isDiscount ? colors.success : colors.textSecondary);
+          pdf.text(item.label + ":", margin + 100, yOffset);
+          pdf.text(item.amount, margin + 150, yOffset);
+          yOffset += 5;
+        });
+
+        yOffset += 3;
+
+        setDrawColor(colors.border);
+        pdf.setLineWidth(1);
+        pdf.line(margin + 95, yOffset, margin + ticketWidth - 15, yOffset);
+        yOffset += 8;
+      }
+
+      setFillColor(colors.primary);
+      pdf.roundedRect(margin + 15, yOffset - 3, ticketWidth - 30, 15, 3, 3, "F");
+
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(14);
+      setColor(colors.cardBackground);
+      pdf.text("TOTAL AMOUNT", margin + 20, yOffset + 6);
+
+      const totalAmountText = financial.isFreeEvent ? "FREE" : formatCurrency(financial.totalAmount || 0);
+      pdf.text(totalAmountText, margin + ticketWidth - 15, yOffset + 6, { align: "right" });
+
+      yOffset += 25;
+
+      setFillColor(colors.accent);
+      pdf.rect(margin + 15, yOffset - 5, ticketWidth - 30, 8, "F");
+
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(11);
+      setColor(colors.textPrimary);
+      pdf.text("BOOKING INFORMATION", margin + 20, yOffset);
+      yOffset += 12;
+
+      const bookingInfo = [
+        { label: "Booking Date:", value: `${currentDate} ${currentTime}` },
+        { label: "Email:", value: user?.email || "N/A" },
+        {
+          label: "Phone:",
+          value: userProfileData?.phoneNumber || userProfileData?.phone || user?.phone || "N/A",
+        },
+      ];
+
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(10);
+
+      bookingInfo.forEach((info) => {
+        setColor(colors.textPrimary);
+        pdf.text(info.label, margin + 20, yOffset);
+        setColor(colors.textSecondary);
+        pdf.text(info.value, margin + 55, yOffset);
+        yOffset += 7;
+      });
+
+      yOffset += 15;
+
+      setFillColor([250, 250, 250]);
+      pdf.rect(0, yOffset - 8, pdfWidth, 25, "F");
+
+      setDrawColor(colors.border);
+      pdf.setLineWidth(0.5);
+      pdf.line(0, yOffset - 8, pdfWidth, yOffset - 8);
+
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(9);
+      setColor(colors.textLight);
+      const centerX = pdfWidth / 2;
+
+      pdf.text("🎫 Please present this ticket (digital or printed) at the venue entrance", centerX, yOffset, { align: "center" });
+      pdf.text("📞 For support, contact us through the app or visit our website", centerX, yOffset + 5, { align: "center" });
+
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(8);
+      setColor(colors.primary);
+      pdf.text("Powered by Your Event Platform", centerX, yOffset + 12, { align: "center" });
+
+      const cleanBookingId = bookingId.replace("#", "");
+      const cleanEventName = (event.name || "Event")
+        .replace(/[^a-zA-Z0-9\s]/g, "")
+        .replace(/\s+/g, "_");
+
+      pdf.save(`${cleanEventName}_Ticket_${cleanBookingId}.pdf`);
+
+      setBookingStatus({
+        status: bookingStatus.status,
+        message: "Professional ticket downloaded successfully! ✨",
+      });
+
+      setTimeout(() => {
+        if (bookingStatus.status === "success") {
+          setBookingStatus({
+            status: "success",
+            message: "Ticket booked successfully!",
+          });
+        }
+      }, 3000);
+    } catch (error) {
+      console.error("Error generating professional ticket:", error);
+      alert("There was an error downloading your ticket. Please try again or contact support.");
+
+      setBookingStatus({
+        status: bookingStatus.status,
+        message: bookingStatus.status === "success" ? "Ticket booked successfully!" : bookingStatus.message,
+      });
+    }
+  };
 
   return (
     <Box

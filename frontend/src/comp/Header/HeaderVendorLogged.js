@@ -1,4 +1,3 @@
-
 import { Box, Typography, IconButton, Button, Menu, MenuItem, Avatar , useMediaQuery} from "@mui/material";
 import AccountCircleOutlinedIcon from "@mui/icons-material/AccountCircleOutlined";
 import { useState } from "react";
@@ -9,6 +8,7 @@ const HeaderVendorLogged = ({ vendorId, userProfile, onLogout }) => {
   const [openMenu, setOpenMenu] = useState(false);
   const navigate = useNavigate();
   const isMobile = useMediaQuery("(max-width:900px)"); // Adjust based on your design breakpoints
+
   const handleMenuClick = (event) => {
     setAnchorEl(event.currentTarget);
     setOpenMenu(true);
@@ -37,6 +37,11 @@ const HeaderVendorLogged = ({ vendorId, userProfile, onLogout }) => {
     }
   };
 
+  // Function to navigate to the landing page
+  const handleLogoClick = () => {
+    navigate("/");
+  };
+
   return (
     <div>
       <Box sx={{ margin: "1% 2%" }}>
@@ -52,11 +57,13 @@ const HeaderVendorLogged = ({ vendorId, userProfile, onLogout }) => {
           {/* Left Section */}
           <Box sx={{ display: "flex", alignItems: "center", gap: 6, width: "55%" }}>
             <Typography
+              onClick={handleLogoClick} // Added onClick handler here
               sx={{
                 fontFamily: "Albert Sans",
                 fontWeight: 900,
                 fontSize: 30,
                 color: "rgb(25, 174, 220)",
+                cursor: "pointer", // Added cursor pointer to indicate it's clickable
               }}
             >
               ticketb
@@ -76,8 +83,8 @@ const HeaderVendorLogged = ({ vendorId, userProfile, onLogout }) => {
             <Box sx={{ display: "flex", alignItems: "center" }}>
               <IconButton onClick={handleMenuClick}>
                 {userProfile && userProfile.photoURL ? (
-                  <Avatar 
-                    src={userProfile.photoURL} 
+                  <Avatar
+                    src={userProfile.photoURL}
                     alt={userProfile.displayName || "Profile"}
                     sx={{ width: 40, height: 40 ,  bgcolor: "rgb(25, 174, 220)", }}
                   />
@@ -96,7 +103,7 @@ const HeaderVendorLogged = ({ vendorId, userProfile, onLogout }) => {
                 }}
                 sx={{
                   "& .MuiPaper-root": {
-                    width: "150px", 
+                    width: "150px",
                   },
                 }}
               >

@@ -144,8 +144,7 @@ const TicketPricePage = ({ activeStep = 0 }) => {
     return () => unsubscribe();
   }, [eventId]);
 
-  useEffect(() => {
-  }, [userUID]);
+  useEffect(() => {}, [userUID]);
 
   const handleIncrement = (ticketId) => {
     if (!ticketId || !event || !event.ticket) return;
@@ -158,19 +157,13 @@ const TicketPricePage = ({ activeStep = 0 }) => {
     const totalSelected = getTotalTicketCount();
     const maxTicketCount = event.ticketCount || 10;
 
-    if (
-      currentCount < available &&
-      totalSelected < maxTicketCount &&
-      !isFreeTicket
-    ) {
+    if (currentCount < available && totalSelected < maxTicketCount) {
       setSelectedTickets((prev) => ({
         ...prev,
         [ticketId]: currentCount + 1,
       }));
     } else if (totalSelected >= maxTicketCount) {
-      setError(
-        `Cannot select more than ${maxTicketCount} tickets per purchase.`
-      );
+      setError(`Cannot select more than ${maxTicketCount} tickets per purchase.`);
     }
   };
 
@@ -244,10 +237,7 @@ const TicketPricePage = ({ activeStep = 0 }) => {
   };
 
   const getTotalTicketCount = () => {
-    return Object.values(selectedTickets).reduce(
-      (sum, count) => sum + count,
-      0
-    );
+    return Object.values(selectedTickets).reduce((sum, count) => sum + count, 0);
   };
 
   const getTotalFoodCount = () => {
@@ -288,13 +278,13 @@ const TicketPricePage = ({ activeStep = 0 }) => {
     try {
       if (
         getTotalTicketCount() === 0 &&
-        !isFreeTicket &&
-        getTotalFoodCount() === 0
+        getTotalFoodCount() === 0 &&
+        !isFreeTicket
       ) {
         throw new Error("Please select at least one ticket or food item");
       }
 
-      if (getTotalTicketCount() > event.ticketCount && !isFreeTicket) {
+      if (getTotalTicketCount() > event.ticketCount) {
         throw new Error(
           `Cannot select more than ${event.ticketCount} tickets per purchase.`
         );
@@ -309,15 +299,6 @@ const TicketPricePage = ({ activeStep = 0 }) => {
           subtotal: selectedTickets[id] * (ticket?.price || 0),
         };
       });
-
-      if (isFreeTicket) {
-        ticketSummary.push({
-          type: "Free Admission",
-          quantity: 1,
-          price: 0,
-          subtotal: 0,
-        });
-      }
 
       const foodSummary = Object.keys(selectedFoodItems).map((id) => {
         const item = foodItems.find((item) => item.id === parseInt(id));
@@ -343,7 +324,7 @@ const TicketPricePage = ({ activeStep = 0 }) => {
           foodSummary,
           financial: {
             subtotal: calculateSubtotal(),
-            convenienceFee: CONVENIENCE_FEE,
+            convenienceFee: getTotalTicketCount() > 0 || getTotalFoodCount() > 0 ? CONVENIENCE_FEE : 0,
             totalAmount: calculateTotal(),
           },
           selectedPerks: prepareSelectedFoodPerks(),
@@ -406,16 +387,24 @@ const TicketPricePage = ({ activeStep = 0 }) => {
             <Step key={index}>
               <StepLabel
                 sx={{
-                  fontFamily:'albert sans',
+                  fontFamily: "albert sans",
                   "& .MuiStepLabel-label": {
                     color: activeStep === index ? "#19AEDC" : "#ccc",
-                    fontWeight: activeStep === index ? "bold" : "normal",fontFamily:'albert sans',
+                    fontWeight: activeStep === index ? "bold" : "normal",
+                    fontFamily: "albert sans",
                   },
                   "& .MuiStepIcon-root": {
-                    color: activeStep === index ? "#19AEDC" : "#ccc", fontFamily:'albert sans',
+                    color: activeStep === index ? "#19AEDC" : "#ccc",
+                    fontFamily: "albert sans",
                   },
-                  "& .Mui-active .MuiStepIcon-root": { color: "#19AEDC" ,fontFamily:'albert sans', },
-                  "& .Mui-completed .MuiStepIcon-root": { color: "#19AEDC", fontFamily:'albert sans', },
+                  "& .Mui-active .MuiStepIcon-root": {
+                    color: "#19AEDC",
+                    fontFamily: "albert sans",
+                  },
+                  "& .Mui-completed .MuiStepIcon-root": {
+                    color: "#19AEDC",
+                    fontFamily: "albert sans",
+                  },
                 }}
               >
                 {label}
@@ -446,7 +435,7 @@ const TicketPricePage = ({ activeStep = 0 }) => {
               sx={{
                 fontWeight: "bold",
                 textAlign: { xs: "left", sm: "center" },
-                fontFamily:'albert sans'
+                fontFamily: "albert sans",
               }}
             >
               {event?.name || "Event Name"}
@@ -465,7 +454,7 @@ const TicketPricePage = ({ activeStep = 0 }) => {
             >
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 <EventIcon sx={{ color: "#19AEDC" }} />
-                <Typography variant="body2" sx={{ color: "#4B5563" ,    fontFamily:'albert sans'}}>
+                <Typography variant="body2" sx={{ color: "#4B5563", fontFamily: "albert sans" }}>
                   {event?.eventDate
                     ? new Date(event.eventDate).toLocaleDateString("en-US", {
                         month: "long",
@@ -478,7 +467,7 @@ const TicketPricePage = ({ activeStep = 0 }) => {
 
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 <AccessTimeIcon sx={{ color: "#19AEDC" }} />
-                <Typography variant="body2" sx={{ color: "#4B5563",    fontFamily:'albert sans' }}>
+                <Typography variant="body2" sx={{ color: "#4B5563", fontFamily: "albert sans" }}>
                   {event?.eventDate
                     ? new Date(event.eventDate).toLocaleTimeString("en-US", {
                         hour: "numeric",
@@ -491,7 +480,7 @@ const TicketPricePage = ({ activeStep = 0 }) => {
 
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 <LocationOnIcon sx={{ color: "#19AEDC" }} />
-                <Typography variant="body2" sx={{ color: "#4B5563",fontFamily:'albert sans' }}>
+                <Typography variant="body2" sx={{ color: "#4B5563", fontFamily: "albert sans" }}>
                   {event?.venueDetails?.city || "Location"}
                 </Typography>
               </Box>
@@ -501,7 +490,7 @@ const TicketPricePage = ({ activeStep = 0 }) => {
       </Container>
 
       <Container maxWidth="md" sx={{ mt: 3 }}>
-        <Typography variant="h6" sx={{ fontWeight: "bold", mb: 2,fontFamily:'albert sans' }}>
+        <Typography variant="h6" sx={{ fontWeight: "bold", mb: 2, fontFamily: "albert sans" }}>
           Select Your Tickets (Max {event.ticketCount} per purchase)
         </Typography>
 
@@ -528,7 +517,7 @@ const TicketPricePage = ({ activeStep = 0 }) => {
                 }}
               >
                 <Box>
-                  <Typography variant="subtitle1" sx={{ fontWeight: "bold",fontFamily:'albert sans' }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: "bold", fontFamily: "albert sans" }}>
                     {ticket.ticketType || "Standard Ticket"}
                   </Typography>
                   <Typography
@@ -539,8 +528,8 @@ const TicketPricePage = ({ activeStep = 0 }) => {
                           ? "text.secondary"
                           : "text.primary",
                       textDecoration:
-                        isFreeTicket || ticket.free ? "line-through" : "none"
-                        ,fontFamily:'albert sans'
+                        isFreeTicket || ticket.free ? "line-through" : "none",
+                      fontFamily: "albert sans",
                     }}
                   >
                     ₹{ticket.price || 0}
@@ -548,7 +537,7 @@ const TicketPricePage = ({ activeStep = 0 }) => {
                   {(isFreeTicket || ticket.free) && (
                     <Typography
                       variant="body2"
-                      sx={{ color: "green", fontWeight: "bold" ,fontFamily:'albert sans'}}
+                      sx={{ color: "green", fontWeight: "bold", fontFamily: "albert sans" }}
                     >
                       FREE
                     </Typography>
@@ -556,13 +545,13 @@ const TicketPricePage = ({ activeStep = 0 }) => {
                   {isSoldOut && (
                     <Typography
                       variant="body2"
-                      sx={{ color: "error.main", fontWeight: "bold",fontFamily:'albert sans' }}
+                      sx={{ color: "error.main", fontWeight: "bold", fontFamily: "albert sans" }}
                     >
                       Sold Out
                     </Typography>
                   )}
                   {!isSoldOut && available < 10 && available > 0 && (
-                    <Typography variant="body2" sx={{ color: "warning.main",fontFamily:'albert sans' }}>
+                    <Typography variant="body2" sx={{ color: "warning.main", fontFamily: "albert sans" }}>
                       Only {available} left
                     </Typography>
                   )}
@@ -570,7 +559,7 @@ const TicketPricePage = ({ activeStep = 0 }) => {
                     <Typography
                       variant="body2"
                       color="text.secondary"
-                      sx={{ mt: 1,fontFamily:'albert sans' }}
+                      sx={{ mt: 1, fontFamily: "albert sans" }}
                     >
                       {ticket.features}
                     </Typography>
@@ -578,7 +567,7 @@ const TicketPricePage = ({ activeStep = 0 }) => {
                 </Box>
 
                 {isSoldOut ? (
-                  <Typography sx={{ color: "error.main", fontWeight: "bold",fontFamily:'albert sans' }}>
+                  <Typography sx={{ color: "error.main", fontWeight: "bold", fontFamily: "albert sans" }}>
                     Sold Out
                   </Typography>
                 ) : thisTicketCount > 0 ? (
@@ -597,15 +586,14 @@ const TicketPricePage = ({ activeStep = 0 }) => {
                     >
                       <RemoveIcon sx={{ color: "#19AEDC" }} />
                     </IconButton>
-                    <Typography sx={{ margin: "0 10px", fontWeight: "bold",fontFamily:'albert sans' }}>
+                    <Typography sx={{ margin: "0 10px", fontWeight: "bold", fontFamily: "albert sans" }}>
                       {thisTicketCount}
                     </Typography>
                     <IconButton
                       onClick={() => handleIncrement(ticketId)}
                       disabled={
                         thisTicketCount >= available ||
-                        getTotalTicketCount() >= event.ticketCount ||
-                        isFreeTicket
+                        getTotalTicketCount() >= event.ticketCount
                       }
                       size="small"
                     >
@@ -613,8 +601,7 @@ const TicketPricePage = ({ activeStep = 0 }) => {
                         sx={{
                           color:
                             thisTicketCount >= available ||
-                            getTotalTicketCount() >= event.ticketCount ||
-                            isFreeTicket
+                            getTotalTicketCount() >= event.ticketCount
                               ? "#ccc"
                               : "#19AEDC",
                         }}
@@ -625,17 +612,15 @@ const TicketPricePage = ({ activeStep = 0 }) => {
                   <Button
                     variant="outlined"
                     onClick={() => handleIncrement(ticketId)}
-                    disabled={
-                      getTotalTicketCount() >= event.ticketCount || isFreeTicket
-                    }
+                    disabled={getTotalTicketCount() >= event.ticketCount}
                     sx={{
                       borderColor: "#19AEDC",
                       color: "#19AEDC",
                       "&:hover": {
                         borderColor: "#19AEDC",
-                        backgroundColor: "rgba(25, 174, 220, 0.1)"
-                      }
-                      ,fontFamily:'albert sans'
+                        backgroundColor: "rgba(25, 174, 220, 0.1)",
+                      },
+                      fontFamily: "albert sans",
                     }}
                   >
                     Add
@@ -645,7 +630,7 @@ const TicketPricePage = ({ activeStep = 0 }) => {
             );
           })
         ) : (
-          <Typography variant="body2" color="text.secondary" sx={{fontFamily:'albert sans'}}>
+          <Typography variant="body2" color="text.secondary" sx={{ fontFamily: "albert sans" }}>
             No tickets available for this event
           </Typography>
         )}
@@ -672,10 +657,11 @@ const TicketPricePage = ({ activeStep = 0 }) => {
                 fontWeight: "bold",
                 color: "#19AEDC",
                 display: "flex",
-                alignItems: "center",fontFamily:'albert sans',
+                alignItems: "center",
                 gap: 2,
                 flex: 1,
                 justifyContent: "center",
+                fontFamily: "albert sans",
               }}
               onClick={() => {
                 setIsFreeTicket(!isFreeTicket);
@@ -698,7 +684,7 @@ const TicketPricePage = ({ activeStep = 0 }) => {
                 }}
               >
                 {isFreeTicket && (
-                  <Typography sx={{ color: "white", fontWeight: "bold" ,fontFamily:'albert sans'}}>
+                  <Typography sx={{ color: "white", fontWeight: "bold", fontFamily: "albert sans" }}>
                     ✓
                   </Typography>
                 )}
@@ -710,7 +696,7 @@ const TicketPricePage = ({ activeStep = 0 }) => {
             <Button
               variant="contained"
               sx={{
-                fontFamily:'albert sans',
+                fontFamily: "albert sans",
                 backgroundColor: "#fff",
                 boxShadow: "0px 2px 4px rgba(0, 0, 0, 0.2)",
                 borderRadius: "10px",
@@ -785,7 +771,7 @@ const TicketPricePage = ({ activeStep = 0 }) => {
               component="h2"
               fontWeight="bold"
               textAlign={{ xs: "center", sm: "left" }}
-              sx={{fontFamily:'albert sans'}}
+              sx={{ fontFamily: "albert sans" }}
             >
               Add Snacks & Beverages
             </Typography>
@@ -862,7 +848,7 @@ const TicketPricePage = ({ activeStep = 0 }) => {
                             component="h3"
                             fontSize={{ xs: "1rem", sm: "1.1rem" }}
                             gutterBottom
-                            sx={{fontFamily:'albert sans'}}
+                            sx={{ fontFamily: "albert sans" }}
                           >
                             {item.name}
                           </Typography>
@@ -871,12 +857,13 @@ const TicketPricePage = ({ activeStep = 0 }) => {
                             color="text.secondary"
                             sx={{
                               mb: 1,
-                              fontSize: { xs: "0.85rem", sm: "0.95rem" },fontFamily:'albert sans'
+                              fontSize: { xs: "0.85rem", sm: "0.95rem" },
+                              fontFamily: "albert sans",
                             }}
                           >
                             {item.description}
                           </Typography>
-                          <Typography variant="subtitle1" fontWeight="bold" sx={{fontFamily:'albert sans'}}>
+                          <Typography variant="subtitle1" fontWeight="bold" sx={{ fontFamily: "albert sans" }}>
                             ₹{item.price}
                           </Typography>
                         </Box>
@@ -898,7 +885,7 @@ const TicketPricePage = ({ activeStep = 0 }) => {
                               >
                                 <RemoveIcon />
                               </IconButton>
-                              <Typography fontWeight="bold" sx={{fontFamily:'albert sans'}}>{count}</Typography>
+                              <Typography fontWeight="bold" sx={{ fontFamily: "albert sans" }}>{count}</Typography>
                               <IconButton
                                 size="small"
                                 onClick={() => handleFoodIncrement(item.id)}
@@ -915,7 +902,8 @@ const TicketPricePage = ({ activeStep = 0 }) => {
                               sx={{
                                 borderColor: "#19AEDC",
                                 color: "#19AEDC",
-                                fontSize: { xs: "0.75rem", sm: "0.875rem" },fontFamily:'albert sans'
+                                fontSize: { xs: "0.75rem", sm: "0.875rem" },
+                                fontFamily: "albert sans",
                               }}
                             >
                               Add
@@ -929,7 +917,7 @@ const TicketPricePage = ({ activeStep = 0 }) => {
               </Grid>
             </>
           ) : (
-            <Typography variant="body1" sx={{ textAlign: "center", py: 4,fontFamily:'albert sans' }}>
+            <Typography variant="body1" sx={{ textAlign: "center", py: 4, fontFamily: "albert sans" }}>
               No food items available for this event.
             </Typography>
           )}
@@ -944,7 +932,7 @@ const TicketPricePage = ({ activeStep = 0 }) => {
               gap: 2,
             }}
           >
-            <Typography variant="h6" fontSize={{ xs: "1rem", sm: "1.2rem" }} sx={{fontFamily:'albert sans'}}>
+            <Typography variant="h6" fontSize={{ xs: "1rem", sm: "1.2rem" }} sx={{ fontFamily: "albert sans" }}>
               {getTotalFoodCount() > 0
                 ? `${getTotalFoodCount()} items selected`
                 : "No items selected"}
@@ -957,7 +945,8 @@ const TicketPricePage = ({ activeStep = 0 }) => {
                 backgroundColor: "#19AEDC",
                 "&:hover": { backgroundColor: "#148db1" },
                 maxWidth: { sm: "200px" },
-                alignSelf: { xs: "center", sm: "auto" },fontFamily:'albert sans'
+                alignSelf: { xs: "center", sm: "auto" },
+                fontFamily: "albert sans",
               }}
             >
               Done
@@ -982,7 +971,7 @@ const TicketPricePage = ({ activeStep = 0 }) => {
         }}
       >
         <Box>
-          <Typography variant="body2" sx={{ color: "#6B7280",fontFamily:'albert sans' }}>
+          <Typography variant="body2" sx={{ color: "#6B7280", fontFamily: "albert sans" }}>
             {getTotalTicketCount() > 0
               ? `${getTotalTicketCount()} ${
                   getTotalTicketCount() === 1 ? "ticket" : "tickets"
@@ -991,7 +980,7 @@ const TicketPricePage = ({ activeStep = 0 }) => {
               ? "Free Admission"
               : "No tickets selected"}
           </Typography>
-          <Typography variant="h6" sx={{ fontWeight: "bold",fontFamily:'albert sans' }}>
+          <Typography variant="h6" sx={{ fontWeight: "bold", fontFamily: "albert sans" }}>
             ₹{calculateTotal()}
           </Typography>
         </Box>
@@ -1007,7 +996,8 @@ const TicketPricePage = ({ activeStep = 0 }) => {
           }
           sx={{
             backgroundColor: "#19AEDC",
-            "&:hover": { backgroundColor: "#148db1" },fontFamily:'albert sans',
+            "&:hover": { backgroundColor: "#148db1" },
+            fontFamily: "albert sans",
             fontWeight: "bold",
             boxShadow: "0px 4px 12px rgba(0, 0, 0, 0.2)",
             borderRadius: "8px",

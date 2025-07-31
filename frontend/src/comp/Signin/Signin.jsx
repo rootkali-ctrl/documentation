@@ -73,14 +73,9 @@ const SignIn = ({
       setCheckPassword(true);
 
       // Send verification email
-            await sendEmailVerification(user, {
-      url:
-          process.env.NODE_ENV === "production"
-            ? process.env.REACT_APP_API_BASE_URL_EMAIL
-            : undefined,      });
-      //await sendEmailVerification(user);
+      await sendEmailVerification(user);
 
-      // Save user data to Firestore
+      // Save user data to Firestore with account creation timestamp
       await setDoc(doc(db, "users", user.uid), {
         authId: user.uid,
         username,
@@ -88,7 +83,8 @@ const SignIn = ({
         lastName: "",
         email,
         type: "manual",
-        password,
+        password, // ⚠️ Security Warning: Consider removing this field
+        accountcreated: new Date(), // Added account creation timestamp
       });
 
       // IMPORTANT: Sign out the user so they remain logged out until email verification
@@ -127,7 +123,7 @@ const SignIn = ({
       const displayName = user.displayName || "";
       const [firstName, lastName] = displayName.split(" ");
 
-      // Store the Google user data in Firestore
+      // Store the Google user data in Firestore with account creation timestamp
       await setDoc(doc(db, "users", user.uid), {
         authId,
         username,
@@ -135,6 +131,7 @@ const SignIn = ({
         lastName: lastName || "",
         email,
         type: "google-signin",
+        accountcreated: new Date(), // Added account creation timestamp
       });
 
       if (onSigninSuccess) {
