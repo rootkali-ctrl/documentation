@@ -339,6 +339,8 @@ const DesktopMainPage = () => {
   const [banners, setBanners] = useState([]);
   const [inlineBanner, setInlineBanner] = useState({ imageUrl: "", link: "" });
   const [userUID, setUserUID] = useState(null);
+const [bannersLoading, setBannersLoading] = useState(true);
+
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
@@ -394,60 +396,65 @@ const DesktopMainPage = () => {
   }, []);
 
   useEffect(() => {
-    const fetchBanners = async () => {
-      try {
-        // Fetch hero banners
-        const res = await axios.get(
-          `${process.env.REACT_APP_API_BASE_URL}/api/admin/banners/recent`
-        );
-        setBanners(res.data.banners);
+  const fetchBanners = async () => {
+    try {
+      setBannersLoading(true); // Set loading to true when starting fetch
 
-        // Fetch inline banner
-        const inlineResponse = await axios.get(
-          `${process.env.REACT_APP_API_BASE_URL}/api/admin/banners/recent-inline`
-        );
-        console.log("Inline response data:", inlineResponse.data);
+      // Fetch hero banners
+      const res = await axios.get(
+        `${process.env.REACT_APP_API_BASE_URL}/api/admin/banners/recent`
+      );
+      setBanners(res.data.banners);
 
-        // Check if banners array exists and has items
+      // Fetch inline banner
+      const inlineResponse = await axios.get(
+        `${process.env.REACT_APP_API_BASE_URL}/api/admin/banners/recent-inline`
+      );
+      console.log("Inline response data:", inlineResponse.data);
+
+      // Check if banners array exists and has items
+      if (
+        inlineResponse.data.banners &&
+        inlineResponse.data.banners.length > 0
+      ) {
+        const firstInlineBanner = inlineResponse.data.banners[0];
+        console.log("First inline banner:", firstInlineBanner);
+
+        // Handle different response formats
         if (
-          inlineResponse.data.banners &&
-          inlineResponse.data.banners.length > 0
+          typeof firstInlineBanner === "object" &&
+          firstInlineBanner !== null
         ) {
-          const firstInlineBanner = inlineResponse.data.banners[0];
-          console.log("First inline banner:", firstInlineBanner);
-
-          // Handle different response formats
-          if (
-            typeof firstInlineBanner === "object" &&
-            firstInlineBanner !== null
-          ) {
-            // New format with imageUrl and redirectUrl
-            setInlineBanner({
-              imageUrl:
-                firstInlineBanner.imageUrl || firstInlineBanner.url || "",
-              link: firstInlineBanner.redirectUrl || "",
-            });
-          } else if (typeof firstInlineBanner === "string") {
-            // Old format with just URL string
-            setInlineBanner({
-              imageUrl: firstInlineBanner,
-              link: "#", // Default link
-            });
-          }
-        } else {
-          console.log("No inline banners found");
-          // Reset to empty state when no banners exist
-          setInlineBanner({ imageUrl: "", link: "" });
+          // New format with imageUrl and redirectUrl
+          setInlineBanner({
+            imageUrl:
+              firstInlineBanner.imageUrl || firstInlineBanner.url || "",
+            link: firstInlineBanner.redirectUrl || "",
+          });
+        } else if (typeof firstInlineBanner === "string") {
+          // Old format with just URL string
+          setInlineBanner({
+            imageUrl: firstInlineBanner,
+            link: "#", // Default link
+          });
         }
-      } catch (err) {
-        console.error("Failed to fetch banners", err);
-        // Reset to empty state on error
+      } else {
+        console.log("No inline banners found");
+        // Reset to empty state when no banners exist
         setInlineBanner({ imageUrl: "", link: "" });
       }
-    };
+    } catch (err) {
+      console.error("Failed to fetch banners", err);
+      // Reset to empty state on error
+      setInlineBanner({ imageUrl: "", link: "" });
+    } finally {
+      setBannersLoading(false); // Set loading to false when fetch completes
+    }
+  };
 
-    fetchBanners();
-  }, []);
+  fetchBanners();
+}, []);
+
 
   // Improved click handler for inline banner
   const handleInlineBannerClick = () => {
@@ -1015,31 +1022,92 @@ const DesktopMainPage = () => {
   );
 
   const settings = {
-    dots: true,
-    infinite: true,
-    speed: 800,
-    slidesToShow: 1,
-    slidesToScroll: 1,
-    autoplay: true,
-    autoplaySpeed: 2000,
-    arrows: true,
-    centerMode: false,
-    centerPadding: "0px",
-  };
+  dots: true,
+  infinite: banners.length > 1, // Only enable infinite if there are multiple banners
+  speed: 800,
+  slidesToShow: 1,
+  slidesToScroll: 1,
+  autoplay: banners.length > 1, // Only autoplay if there are multiple banners
+  autoplaySpeed: 2000,
+  arrows: banners.length > 1, // Only show arrows if there are multiple banners
+  centerMode: false,
+  centerPadding: "0px",
+  adaptiveHeight: true, // Add this to prevent height issues
+};
 
   return (
-    <Box sx={{ overflowX: "hidden", overflowY: "hidden" }}>
-      <Header />
-      <Box sx={{ overflowX: "hidden" }}>
-        <Box sx={{ padding: isMobile ? 1.5 : 3 }}>
-          <Box
-            sx={{
-              width: "100%",
-              overflowX: "hidden",
-              overflowY: "hidden",
-              height: isMobile ? "auto" : "auto",
-            }}
-          >
+  <Box sx={{ overflowX: "hidden", overflowY: "hidden" }}>
+    <Header />
+    <Box sx={{ overflowX: "hidden" }}>
+      <Box sx={{ padding: isMobile ? 1.5 : 3 }}>
+        <Box
+          sx={{
+            width: "100%",
+            overflowX: "hidden",
+            overflowY: "hidden",
+            height: isMobile ? "auto" : "auto",
+          }}
+        >
+          {bannersLoading ? (
+            // Loading skeleton for banner
+            <Card
+              sx={{
+                borderRadius: "12px",
+                overflow: "hidden",
+                height: !isMobile ? "500px" : "200px",
+                width: "100%",
+              }}
+            >
+              <Skeleton
+                variant="rectangular"
+                width="100%"
+                height="100%"
+                animation="wave"
+              />
+            </Card>
+          ) : banners.length === 0 ? (
+            // Fallback if no banners
+            <Card
+              sx={{
+                borderRadius: "12px",
+                overflow: "hidden",
+                height: !isMobile ? "500px" : "200px",
+                width: "100%",
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                backgroundColor: "#f5f5f5",
+              }}
+            >
+              <Typography variant="h6" color="text.secondary">
+                No banners available
+              </Typography>
+            </Card>
+          ) : banners.length === 1 ? (
+            // Single banner without slider
+            <Card
+              sx={{
+                borderRadius: "12px",
+                overflow: "hidden",
+                height: !isMobile ? "500px" : "200px",
+                width: "100%",
+              }}
+            >
+              <CardMedia
+                component="div"
+                sx={{
+                  backgroundImage: `url(${banners[0]})`,
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
+                  position: "relative",
+                  height: !isMobile ? "500px" : "200px",
+                  objectFit: "cover",
+                  width: "100%",
+                }}
+              />
+            </Card>
+          ) : (
+            // Multiple banners with slider
             <Slider {...settings}>
               {banners.map((url, idx) => (
                 <Card
@@ -1054,7 +1122,6 @@ const DesktopMainPage = () => {
                   <CardMedia
                     component="div"
                     sx={{
-                      //height: isMobile ? "30vh" : "60vh",
                       backgroundImage: `url(${url})`,
                       backgroundSize: "cover",
                       backgroundPosition: "center",
@@ -1067,21 +1134,22 @@ const DesktopMainPage = () => {
                 </Card>
               ))}
             </Slider>
-          </Box>
-
-          <Typography
-            variant="h5"
-            sx={{
-              mt: 5,
-              mb: 2,
-              fontWeight: "600",
-              fontSize: { xs: 20, md: 24 },
-              fontFamily: "albert sans",
-            }}
-          >
-            Events made for Youu!!
-          </Typography>
+          )}
         </Box>
+
+        <Typography
+          variant="h5"
+          sx={{
+            mt: 5,
+            mb: 2,
+            fontWeight: "600",
+            fontSize: { xs: 20, md: 24 },
+            fontFamily: "albert sans",
+          }}
+        >
+          Events made for Youu!!
+        </Typography>
+      </Box>
 
         {/* Event Section */}
         <Box sx={{ px: isMobile ? 2 : 4 }}>

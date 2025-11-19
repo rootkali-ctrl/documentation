@@ -68,7 +68,7 @@ const sidebarItems = [
     path: "/admin/postpage",
   },
   {
-    name: "Login Settings",
+    name: "Vendors",
     icon: <SettingsIcon />,
     active: false,
     path: "/admin/loginsettings",

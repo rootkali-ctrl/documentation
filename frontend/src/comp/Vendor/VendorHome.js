@@ -1,3 +1,4 @@
+// VendorHome.js - Complete Modified Code with Suspension Check
 import { React, useEffect, useState, useCallback } from "react";
 import {
   Box,
@@ -14,21 +15,21 @@ import {
   DialogContent,
   DialogActions,
   Card,
+  Alert,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EventIcon from "@mui/icons-material/Event";
-import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
-import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import CurrencyRupeeOutlinedIcon from "@mui/icons-material/CurrencyRupeeOutlined";
 import ConfirmationNumberIcon from "@mui/icons-material/ConfirmationNumber";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import SearchIcon from "@mui/icons-material/Search";
+import BlockIcon from "@mui/icons-material/Block";
 import { useNavigate } from "react-router-dom";
 import { useParams } from "react-router-dom";
 import axios from "axios";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
 import { db, auth } from "../../firebase_config";
-import { Snackbar, Alert, useMediaQuery } from "@mui/material";
+import { Snackbar, useMediaQuery } from "@mui/material";
 import HeaderVendorLogged from "../Header/HeaderVendorLogged";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 
@@ -36,6 +37,7 @@ const VendorHome = () => {
   const navigate = useNavigate();
   const { vendorId } = useParams();
   const isMobile = useMediaQuery("(max-width:900px)");
+  
   // Vendor and event data states
   const [vendorData, setVendorData] = useState(null);
   const [eventData, setEventData] = useState([]);
@@ -51,10 +53,10 @@ const VendorHome = () => {
   const [grossSales, setGrossSales] = useState(0);
   const [activeEvents, setActiveEvents] = useState(0);
 
-  // Growth metrics states
-  const [eventsGrowth, setEventsGrowth] = useState(12);
-  const [ticketsGrowth, setTicketsGrowth] = useState(8);
-  const [salesGrowth, setSalesGrowth] = useState(15);
+  // Suspension state
+  const [isSuspended, setIsSuspended] = useState(false);
+  const [suspensionDialog, setSuspensionDialog] = useState(false);
+
   const [dialogState, setDialogState] = useState({
     open: false,
     message: "",
@@ -74,8 +76,31 @@ const VendorHome = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [passvendorId, passsetVendorId] = useState(null);
   const [username, setUsername] = useState("");
-
   const [userProfile, setUserProfile] = useState(null);
+
+  // Check vendor suspension status
+  const checkVendorSuspension = async (vendorId) => {
+    try {
+      const vendorDocRef = doc(db, "vendors", vendorId);
+      const vendorDoc = await getDoc(vendorDocRef);
+
+      if (vendorDoc.exists()) {
+        const vendorData = vendorDoc.data();
+        const suspended = vendorData.suspended === true;
+        setIsSuspended(suspended);
+        
+        if (suspended) {
+          setSuspensionDialog(true);
+        }
+        
+        return suspended;
+      }
+      return false;
+    } catch (error) {
+      console.error("Error checking vendor suspension:", error);
+      return false;
+    }
+  };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -84,7 +109,6 @@ const VendorHome = () => {
         const derivedUsername = user.displayName || user.email.split("@")[0];
         setUsername(derivedUsername);
 
-        // Add this userProfile setting
         setUserProfile({
           photoURL: user.photoURL,
           displayName: user.displayName,
@@ -105,7 +129,10 @@ const VendorHome = () => {
           const data = await res.json();
           if (res.ok) {
             localStorage.setItem("vendorId", data.vendorId);
-            passsetVendorId(data.vendorId); // Make sure you set this in state
+            passsetVendorId(data.vendorId);
+            
+            // Check if vendor is suspended
+            await checkVendorSuspension(data.vendorId);
           } else {
             console.error("Vendor not found:", data.message);
           }
@@ -115,24 +142,35 @@ const VendorHome = () => {
       } else {
         setIsAuthenticated(false);
         setUsername("");
-        setUserProfile(null); // Add this
-        passsetVendorId(null); // Add this
+        setUserProfile(null);
+        passsetVendorId(null);
       }
     });
 
     return () => unsubscribe();
   }, []);
 
+  // Check suspension on vendorId change
+  useEffect(() => {
+    if (vendorId) {
+      checkVendorSuspension(vendorId);
+    }
+  }, [vendorId]);
+
   const handleLogout = async () => {
     try {
       await signOut(auth);
-      localStorage.removeItem("vendorId"); // Add this line
+      localStorage.removeItem("vendorId");
       navigate("/");
     } catch (error) {
       console.error("Logout error:", error);
-
       showDialog("Failed to log out. Please try again.");
     }
+  };
+
+  const handleSuspensionDialogClose = () => {
+    setSuspensionDialog(false);
+    handleLogout();
   };
 
   const handleChange = (event) => {
@@ -141,6 +179,10 @@ const VendorHome = () => {
   };
 
   const handleClick = (event, selectedEventData) => {
+    if (isSuspended) {
+      setSuspensionDialog(true);
+      return;
+    }
     event.stopPropagation();
     setAnchorEl(event.currentTarget);
     setSelectedEvent(selectedEventData);
@@ -155,7 +197,6 @@ const VendorHome = () => {
     setCurrentPage(1);
   };
 
-  // Calculate maximum tickets for an event
   const getMaxTickets = (event) => {
     if (!event.pricing || !Array.isArray(event.pricing)) return 0;
     return event.pricing.reduce((total, item) => {
@@ -163,7 +204,6 @@ const VendorHome = () => {
     }, 0);
   };
 
-  // Calculate event status
   const getEventStatus = (event) => {
     const now = new Date();
     const eventDate = new Date(event.eventDate);
@@ -182,7 +222,6 @@ const VendorHome = () => {
     return "On Sale";
   };
 
-  // Update event data with status
   const updateEventDataWithStatus = (events) => {
     return events.map((event) => ({
       ...event,
@@ -190,7 +229,6 @@ const VendorHome = () => {
     }));
   };
 
-  // Filter events based on search term and status
   const filteredEvents = eventData.filter((event) => {
     const eventStatus = getEventStatus(event);
     return (
@@ -204,7 +242,6 @@ const VendorHome = () => {
   const endIndex = startIndex + eventsPerPage;
   const paginatedEvents = filteredEvents.slice(startIndex, endIndex);
 
-  // Fetch vendor details
   useEffect(() => {
     const fetchVendorDetails = async () => {
       try {
@@ -222,7 +259,6 @@ const VendorHome = () => {
     }
   }, [vendorId]);
 
-  // Fetch event data and calculate metrics
   useEffect(() => {
     const fetchVendorEvents = async () => {
       try {
@@ -282,7 +318,6 @@ const VendorHome = () => {
           }
         }
 
-        // Update events with status
         const updatedEvents = updateEventDataWithStatus(events);
         setEventData(updatedEvents);
         setTicketsSold(cumulativeTicketsSold);
@@ -298,16 +333,28 @@ const VendorHome = () => {
   }, [vendorId]);
 
   const handleCreateEvent = () => {
+    if (isSuspended) {
+      setSuspensionDialog(true);
+      return;
+    }
     navigate(`/createevent/${vendorId}/step1`);
   };
 
   const handleEventClick = (eventData) => {
+    if (isSuspended) {
+      setSuspensionDialog(true);
+      return;
+    }
     navigate(`/eventdashboard/${eventData.eventId}/${vendorId}`, {
       state: { eventData },
     });
   };
 
   const handleUpdateEvent = (e) => {
+    if (isSuspended) {
+      setSuspensionDialog(true);
+      return;
+    }
     e.stopPropagation();
     if (selectedEvent) {
       navigate(`/editevent/${vendorId}/${selectedEvent.eventId}`, {
@@ -320,6 +367,10 @@ const VendorHome = () => {
   const [showSuccess, setShowSuccess] = useState(false);
 
   const handleDeleteEvent = async (e) => {
+    if (isSuspended) {
+      setSuspensionDialog(true);
+      return;
+    }
     e.stopPropagation();
     if (selectedEvent) {
       try {
@@ -344,7 +395,7 @@ const VendorHome = () => {
             (prevSold) => prevSold - (selectedEvent.ticketsSold || 0)
           );
           setGrossSales((prevSales) => prevSales - (selectedEvent.gross || 0));
-          setShowSuccess(true); // 👈 show snackbar
+          setShowSuccess(true);
           handleClose();
         }
       } catch (err) {
@@ -358,6 +409,54 @@ const VendorHome = () => {
 
   return (
     <div>
+      {/* Suspension Alert */}
+      {isSuspended && (
+        <Alert
+          severity="error"
+          icon={<BlockIcon />}
+          sx={{
+            position: "fixed",
+            top: 90,
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 9999,
+            width: "90%",
+            maxWidth: "600px",
+          }}
+        >
+          Your account has been suspended by the admin. Please contact support at sharveshraj@snippetscript.com for assistance.
+        </Alert>
+      )}
+
+      {/* Suspension Dialog */}
+      <Dialog
+        open={suspensionDialog}
+        onClose={handleSuspensionDialogClose}
+        aria-labelledby="suspension-dialog-title"
+      >
+        <DialogTitle id="suspension-dialog-title" sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <BlockIcon color="error" />
+          Account Suspended
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ fontFamily: "albert sans" }}>
+            Your vendor account has been suspended by the admin. You cannot perform any actions until your account is reactivated.
+            <br /><br />
+            Please contact the admin at <strong>sharveshraj@snippetscript.com</strong> for further assistance.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={handleSuspensionDialogClose}
+            color="primary"
+            variant="contained"
+            sx={{ fontFamily: "albert sans" }}
+          >
+            Logout
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       <Snackbar
         open={showSuccess}
         autoHideDuration={3000}
@@ -378,7 +477,8 @@ const VendorHome = () => {
         userProfile={userProfile}
         onLogout={handleLogout}
       />
-      <Box sx={{ display: "flex", flexDirection: "column", width: "100%" }}>
+      
+      <Box sx={{ display: "flex", flexDirection: "column", width: "100%", opacity: isSuspended ? 0.6 : 1, pointerEvents: isSuspended ? "none" : "auto" }}>
         <Box
           sx={{
             width: !isMobile ? "90%" : "95%",
@@ -443,31 +543,11 @@ const VendorHome = () => {
                   gap: "8px",
                 }}
                 onClick={handleCreateEvent}
+                disabled={isSuspended}
               >
                 <AddIcon sx={{ fontSize: "20px" }} /> Create Event
               </Button>
             </Box>
-            {/* <Box>
-            <Button
-              variant="contained"
-              sx={{
-                backgroundColor: "#19AEDC",
-                color: "white",
-                padding: !isMobile?"8px 16px":"4px 8px",
-                fontWeight: "600",
-                fontFamily: "Albert Sans",
-                textTransform: "none",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-              }}
-              onClick={() =>
-                navigate(`/vendorprofile/vendorscanner/${vendorId}`)
-              }
-            >
-              Scan tickets
-            </Button>
-          </Box> */}
           </Box>
         </Box>
 
@@ -645,6 +725,7 @@ const VendorHome = () => {
             </Box>
           </Box>
         )}
+        
         {isMobile && (
           <Box
             sx={{
@@ -742,6 +823,7 @@ const VendorHome = () => {
                 </Typography>
               </Box>
             </Box>
+            
             <Box
               sx={{
                 display: "flex",
@@ -838,6 +920,7 @@ const VendorHome = () => {
             </Box>
           </Box>
         )}
+        
         <Box
           sx={{
             display: "flex",
@@ -960,7 +1043,6 @@ const VendorHome = () => {
             </Box>
           </Box>
           {isMobile ? (
-            // ------------------ MOBILE CARD VIEW ------------------
             <Box
               sx={{
                 width: "93%",
@@ -982,7 +1064,6 @@ const VendorHome = () => {
                       "&:hover": { backgroundColor: "#F9FAFB" },
                     }}
                   >
-                    {/* Top: Title and Status */}
                     <Box
                       sx={{
                         display: "flex",
@@ -1007,13 +1088,11 @@ const VendorHome = () => {
                           padding: "4px 12px",
                           borderRadius: "999px",
                         }}
-                        onClick={() => handleEventClick(event)}
                       >
                         {getEventStatus(event)}
                       </Box>
                     </Box>
 
-                    {/* Bottom: Event Details */}
                     <Box
                       sx={{ display: "flex", flexDirection: "column", gap: 1 }}
                       onClick={() => handleEventClick(event)}
@@ -1023,7 +1102,6 @@ const VendorHome = () => {
                           display: "flex",
                           justifyContent: "space-between",
                         }}
-                        onClick={() => handleEventClick(event)}
                       >
                         <Typography
                           sx={{ color: "#6B7280", fontFamily: "albert sans" }}
@@ -1081,8 +1159,7 @@ const VendorHome = () => {
                       </Box>
                     </Box>
 
-                    {/* Optional Edit Button (Keep if needed) */}
-                    <Box sx={{ mt: 1 }} onClick={(e) => handleClick(e, event)}>
+                    <Box sx={{ mt: 1 }}>
                       <Typography
                         sx={{
                           color: "#19AEDC",
@@ -1489,63 +1566,12 @@ const VendorHome = () => {
               </Box>
             </Box>
           )}
-
-          {/* {paginatedEvents.length > 0 && (
-            <Box
-              sx={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                mt: 2,
-                padding: "1% 2%",
-                width: "96%",
-                margin: "0 auto",
-                borderTop: "1px solid #dcdcdc",
-              }}
-            >
-              <Typography sx={{ fontSize: "14px", color: "#6B7280" }}>
-                Showing {startIndex + 1} to{" "}
-                {Math.min(endIndex, filteredEvents.length)} of{" "}
-                {filteredEvents.length} entries
-              </Typography>
-              <Box>
-                <Button
-                  onClick={() =>
-                    setCurrentPage((prev) => Math.max(prev - 1, 1))
-                  }
-                  disabled={currentPage === 1}
-                  sx={{
-                    mr: 1,
-                    color: currentPage === 1 ? "#BDBDBD" : "#19AEDC",
-                    fontFamily: "albert sans",
-                    textTransform: "none",
-                    fontSize: "16px",
-                  }}
-                >
-                  Previous
-                </Button>
-                <Button
-                  onClick={() =>
-                    setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-                  }
-                  disabled={currentPage === totalPages}
-                  sx={{
-                    color: currentPage === totalPages ? "#BDBDBD" : "#19AEDC",
-                    fontFamily: "albert sans",
-                    textTransform: "none",
-                    fontSize: "16px",
-                  }}
-                >
-                  Next
-                </Button>
-              </Box>
-            </Box>
-          )} */}
         </Box>
+        
         <Dialog
           open={dialogState.open}
           onClose={closeDialog}
-          sx={{ zIndex: 9999 }} // Ensure it appears above everything
+          sx={{ zIndex: 9999 }}
         >
           <DialogTitle sx={{ fontFamily: "albert sans" }}>Notice</DialogTitle>
           <DialogContent>

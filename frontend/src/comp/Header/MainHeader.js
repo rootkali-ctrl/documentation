@@ -27,8 +27,10 @@ import EventIcon from "@mui/icons-material/Event";
 import { useNavigate } from "react-router-dom";
 import Login from "../Login/Login";
 import Signin from "../Signin/Signin";
-import { auth } from "../../firebase_config";
+import { auth, db } from "../../firebase_config";
 import { onAuthStateChanged, signOut } from "firebase/auth";
+import { collection, query, where, getDocs } from "firebase/firestore";
+import axios from "axios";
 
 const MainHeader = () => {
   const navigate = useNavigate();
@@ -40,6 +42,8 @@ const MainHeader = () => {
   const [openSignin, setOpenSignin] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [username, setUsername] = useState("");
+  const [userEmail, setUserEmail] = useState(""); // Store user email for vendor lookup
+  const [userId, setUserId] = useState(""); // Store user ID
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
   const open = Boolean(anchorEl);
@@ -407,6 +411,8 @@ const MainHeader = () => {
         setIsAuthenticated(true);
         const derivedUsername = user.displayName || user.email.split("@")[0];
         setUsername(derivedUsername);
+        setUserEmail(user.email); // Store user email
+        setUserId(user.uid); // Store user ID
 
         try {
           const res = await fetch(`${process.env.REACT_APP_API_BASE_URL}/api/user/post-email`, {
@@ -418,15 +424,23 @@ const MainHeader = () => {
           const data = await res.json();
           if (res.ok) {
             localStorage.setItem("vendorId", data.vendorId);
+            setUserId(data.vendorId); // Use vendorId from backend
           } else {
             console.error("Vendor not found:", data.message);
+            // Store Firebase UID as fallback
+            localStorage.setItem("vendorId", user.uid);
           }
         } catch (error) {
           console.error("Error fetching vendor data:", error);
+          // Store Firebase UID as fallback
+          localStorage.setItem("vendorId", user.uid);
         }
       } else {
         setIsAuthenticated(false);
         setUsername("");
+        setUserEmail(""); // Clear email on logout
+        setUserId(""); // Clear user ID
+        localStorage.removeItem("vendorId");
       }
     });
 
@@ -450,6 +464,7 @@ const MainHeader = () => {
   const handleLogout = async () => {
     try {
       await signOut(auth);
+      localStorage.removeItem("vendorId");
       navigate("/");
       handleClose();
     } catch (error) {
@@ -483,6 +498,103 @@ const MainHeader = () => {
       navigate("/recentorders");
     } else {
       setOpenLogin(true);
+    }
+  };
+
+  // **UPDATED** Function to handle Create Events click with vendor verification
+  const handleCreateEventClick = async () => {
+    console.log("=== Create Events Clicked ===");
+
+    // If not authenticated, show login
+    if (!isAuthenticated) {
+      console.log("User not authenticated, showing login modal");
+      setOpenLogin(true);
+      return;
+    }
+
+    try {
+      // Get vendorId from localStorage or state
+      const vendorId = localStorage.getItem("vendorId") || userId;
+      console.log("VendorId:", vendorId);
+      console.log("User Email:", userEmail);
+
+      if (!vendorId || !userEmail) {
+        console.log("No vendorId or email found, redirecting to register");
+        navigate(`/vendor/register/${vendorId || "new"}`);
+        return;
+      }
+
+      // **NEW LOGIC**: Check vendor status from backend API
+      console.log("Checking vendor status from backend...");
+      const response = await axios.get(
+        `${process.env.REACT_APP_API_BASE_URL}/api/vendor/status/${vendorId}`
+      );
+
+      console.log("Vendor status response:", response.data);
+
+      if (response.data.success && response.data.exists) {
+        const { status, vendorId: returnedVendorId } = response.data.vendor;
+        console.log("Vendor exists with status:", status);
+
+        // Handle different statuses
+        if (status === "accepted" || status === "approved") {
+          // Vendor is approved, show alert and redirect to login
+          console.log("Vendor is approved, redirecting to login");
+          alert("Your vendor account already exists and is approved! Please login to continue.");
+          navigate(`/vendor/login/${returnedVendorId}`);
+        } else if (status === "pending") {
+          // Vendor is pending approval
+          console.log("Vendor is pending, redirecting to confirmation");
+          navigate("/vendor/confirmation", {
+            state: {
+              status: "pending",
+              message: "Your registration is still pending approval. Please wait for admin verification.",
+              vendorId: returnedVendorId
+            }
+          });
+        } else if (status === "rejected") {
+          // Vendor was rejected
+          console.log("Vendor was rejected, redirecting to confirmation");
+          navigate("/vendor/confirmation", {
+            state: {
+              status: "rejected",
+              message: "Your registration was rejected. Please contact support for more details.",
+              vendorId: returnedVendorId
+            }
+          });
+        } else if (status === "removed") {
+          // Vendor was removed
+          console.log("Vendor was removed, redirecting to confirmation");
+          navigate("/vendor/confirmation", {
+            state: {
+              status: "removed",
+              message: "Your account has been removed. Please contact support for assistance.",
+              vendorId: returnedVendorId
+            }
+          });
+        } else {
+          // Unknown status, redirect to registration
+          console.log("Unknown vendor status, redirecting to register");
+          navigate(`/vendor/register/${vendorId}`);
+        }
+      } else {
+        // Vendor doesn't exist in backend, proceed to registration
+        console.log("Vendor doesn't exist in backend, redirecting to register");
+        navigate(`/vendor/register/${vendorId}`);
+      }
+    } catch (error) {
+      console.error("Error checking vendor status:", error);
+
+      if (error.response?.status === 404) {
+        // Vendor not found (404), proceed to registration
+        console.log("404 - Vendor not found, redirecting to register");
+        const vendorId = localStorage.getItem("vendorId") || userId;
+        navigate(`/vendor/register/${vendorId}`);
+      } else {
+        // Other errors, show error message
+        console.error("Unexpected error:", error);
+        alert("Something went wrong while checking your vendor status. Please try again later.");
+      }
     }
   };
 
@@ -750,17 +862,7 @@ const MainHeader = () => {
                 }}
               />
             </ListItem>
-            <ListItem
-              button
-              onClick={() => {
-                if (!isAuthenticated) {
-                  setOpenLogin(true);
-                } else {
-                  const vendorId = localStorage.getItem("vendorId");
-                  navigate(`/vendor/register/${vendorId}`);
-                }
-              }}
-            >
+            <ListItem button onClick={handleCreateEventClick}>
               <ListItemText
                 primary="Create Events"
                 sx={{
@@ -927,14 +1029,7 @@ const MainHeader = () => {
                 Recent Orders
               </Typography>
               <Typography
-                onClick={() => {
-                  if (!isAuthenticated) {
-                    setOpenLogin(true);
-                  } else {
-                    const vendorId = localStorage.getItem("vendorId");
-                    navigate(`/vendor/register/${vendorId}`);
-                  }
-                }}
+                onClick={handleCreateEventClick}
                 sx={{
                   cursor: "pointer",
                   fontFamily:'albert sans',
@@ -1026,10 +1121,10 @@ const MainHeader = () => {
         }}
       >
         <MenuItem
-          sx={{ 
-            fontFamily: 'albert sans', 
-            fontWeight: "bold", 
-            color: "rgb(25, 174, 220)" 
+          sx={{
+            fontFamily: 'albert sans',
+            fontWeight: "bold",
+            color: "rgb(25, 174, 220)"
           }}
         >
           {username}

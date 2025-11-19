@@ -800,61 +800,90 @@ const EditEventPage = () => {
                 />
               </Box>
 
-              <Box sx={{ display: isMobile ? "block" : "flex", gap: 2 }}>
-                <LocalizationProvider dateAdapter={AdapterDateFns}>
-                  <DateTimePicker
-                    sx={{ width: isMobile ? "80%" : "25%" }}
-                    label="Event Date & Time"
-                    value={eventData.eventDate}
-                    onChange={(date) => handleDateChange("eventDate", date)}
-                    renderInput={(params) => (
-                      <TextField
-                        {...params}
-                        fullWidth
-                        required
-                        sx={{
-                          "& .MuiInputBase-root": {
-                            fontFamily: "Albert Sans",
-                          },
-                          "& .MuiInputLabel-root": {
-                            fontFamily: "Albert Sans",
-                          },
-                          "& .MuiFormHelperText-root": {
-                            fontFamily: "Albert Sans",
-                          },
-                          "& input::placeholder": {
-                            fontFamily: "Albert Sans",
-                          },
-                        }}
-                      />
-                    )}
-                  />
-                </LocalizationProvider>
+              <Box sx={{ display: isMobile ? "block" : "flex", gap: 2, mb: 2 }}>
+  <LocalizationProvider dateAdapter={AdapterDateFns}>
+    <DateTimePicker
+      sx={{ width: isMobile ? "80%" : "32%", mb: isMobile ? 2 : 0 }}
+      label="Event Booking Start Date & Time"
+      value={eventData.eventHost}
+      onChange={(date) => handleDateChange("eventHost", date)}
+      renderInput={(params) => (
+        <TextField
+          {...params}
+          fullWidth
+          required
+          sx={{
+            "& .MuiInputBase-root": {
+              fontFamily: "Albert Sans",
+            },
+            "& .MuiInputLabel-root": {
+              fontFamily: "Albert Sans",
+            },
+            "& .MuiFormHelperText-root": {
+              fontFamily: "Albert Sans",
+            },
+            "& input::placeholder": {
+              fontFamily: "Albert Sans",
+            },
+          }}
+        />
+      )}
+    />
+  </LocalizationProvider>
 
-                <TextField
-                  fullWidth
-                  label="Media Link (YouTube/Video)"
-                  name="mediaLink"
-                  value={eventData.mediaLink}
-                  onChange={handleChange}
-                  sx={{
-                    "& .MuiInputBase-root": {
-                      fontFamily: "Albert Sans",
-                    },
-                    "& .MuiInputLabel-root": {
-                      fontFamily: "Albert Sans",
-                    },
-                    "& .MuiFormHelperText-root": {
-                      fontFamily: "Albert Sans",
-                    },
-                    "& input::placeholder": {
-                      fontFamily: "Albert Sans",
-                    },
-                    width: isMobile ? "80%" : "24%",
-                    mt: isMobile ? 1 : null,
-                  }}
-                />
-              </Box>
+  <LocalizationProvider dateAdapter={AdapterDateFns}>
+    <DateTimePicker
+      sx={{ width: isMobile ? "80%" : "32%", mb: isMobile ? 2 : 0 }}
+      label="Event Date & Time"
+      value={eventData.eventDate}
+      onChange={(date) => handleDateChange("eventDate", date)}
+      renderInput={(params) => (
+        <TextField
+          {...params}
+          fullWidth
+          required
+          sx={{
+            "& .MuiInputBase-root": {
+              fontFamily: "Albert Sans",
+            },
+            "& .MuiInputLabel-root": {
+              fontFamily: "Albert Sans",
+            },
+            "& .MuiFormHelperText-root": {
+              fontFamily: "Albert Sans",
+            },
+            "& input::placeholder": {
+              fontFamily: "Albert Sans",
+            },
+          }}
+        />
+      )}
+    />
+  </LocalizationProvider>
+
+  <TextField
+    fullWidth
+    label="Media Link (YouTube/Video)"
+    name="mediaLink"
+    value={eventData.mediaLink}
+    onChange={handleChange}
+    sx={{
+      "& .MuiInputBase-root": {
+        fontFamily: "Albert Sans",
+      },
+      "& .MuiInputLabel-root": {
+        fontFamily: "Albert Sans",
+      },
+      "& .MuiFormHelperText-root": {
+        fontFamily: "Albert Sans",
+      },
+      "& input::placeholder": {
+        fontFamily: "Albert Sans",
+      },
+      width: isMobile ? "80%" : "32%",
+    }}
+  />
+</Box>
 
               <TextField
                 fullWidth
@@ -1717,7 +1746,7 @@ const EditEventPage = () => {
             <Button
               variant="outlined"
               color="error"
-              onClick={() => navigate(`/vendor/${vendorId}`)}
+              onClick={() => navigate(`/vendorhome/${vendorId}`)}
               sx={{ fontWeight: 600, fontFamily: "albert sans" }}
             >
               Cancel

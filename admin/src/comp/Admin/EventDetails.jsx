@@ -38,6 +38,8 @@ import {
   DialogContent,
   DialogContentText,
   DialogTitle,
+  Menu,
+  MenuItem,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
@@ -56,6 +58,7 @@ import InfoIcon from "@mui/icons-material/Info";
 import QuestionAnswerIcon from "@mui/icons-material/QuestionAnswer";
 import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
 import PhoneIcon from "@mui/icons-material/Phone";
+import DownloadIcon from "@mui/icons-material/Download";
 import { auth } from "../../firebase/firebase_config";
 import { onAuthStateChanged } from "firebase/auth";
 
@@ -137,6 +140,8 @@ const EventDetails = () => {
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [savingChanges, setSavingChanges] = useState(false);
   const [lastLogin, setLastLogin] = useState("");
+  const [vendorUsername, setVendorUsername] = useState("Loading...");
+  const [exportAnchorEl, setExportAnchorEl] = useState(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -248,16 +253,39 @@ const EventDetails = () => {
     return `₹${Number(amount).toLocaleString("en-IN")}`;
   };
 
+  // Fetch vendor username
+  const fetchVendorUsername = async (vendorId) => {
+    if (!vendorId) {
+      setVendorUsername("Not available");
+      return;
+    }
+
+    try {
+      const vendorDocRef = doc(db, "vendors", vendorId);
+      const vendorDoc = await getDoc(vendorDocRef);
+
+      if (vendorDoc.exists()) {
+        const vendorData = vendorDoc.data();
+        setVendorUsername(vendorData.username || vendorData.name || "Not available");
+      } else {
+        setVendorUsername("Not available");
+      }
+    } catch (err) {
+      console.error("Error fetching vendor username:", err);
+      setVendorUsername("Error loading");
+    }
+  };
+
   // Calculate tax amounts and profit
   const calculateFinancials = (event) => {
     const gross = event.gross || 0;
     const userTaxPercent = event.taxPercentage || 0;
     const userTaxAmount = (userTaxPercent / 100) * gross;
     const vendorTaxAmount = (vendorTax / 100) * gross;
-    const basePlatformTaxPercent = 2; // Base platform tax of 2%
+    const basePlatformTaxPercent = 2;
     const basePlatformTaxAmount = (basePlatformTaxPercent / 100) * gross;
-    const additionalPlatformTax = basePlatformTaxAmount * (18 / 100); // 18% of the 2% tax
-    const platformTaxAmount = basePlatformTaxAmount + additionalPlatformTax; // Total platform tax
+    const additionalPlatformTax = basePlatformTaxAmount * (18 / 100);
+    const platformTaxAmount = basePlatformTaxAmount + additionalPlatformTax;
     const profit = userTaxAmount + vendorTaxAmount - platformTaxAmount;
 
     return {
@@ -331,6 +359,285 @@ const EventDetails = () => {
     });
   };
 
+  // Export menu handlers
+  const handleExportMenuOpen = (event) => {
+    setExportAnchorEl(event.currentTarget);
+  };
+
+  const handleExportMenuClose = () => {
+    setExportAnchorEl(null);
+  };
+
+  // Export to CSV
+  const exportToCSV = () => {
+    if (!event || !event.tickets || event.tickets.length === 0) {
+      setSaveStatus({
+        open: true,
+        message: "No ticket sales data to export",
+        severity: "warning",
+      });
+      return;
+    }
+
+    const csvData = [];
+    const headers = [
+      "Ticket ID",
+      "Buyer Name",
+      "Buyer Email",
+      "Booking Date",
+      "Phone Number",
+      "Ticket Type",
+      "Quantity",
+      "Total Amount"
+    ];
+    csvData.push(headers.join(","));
+
+    event.tickets.forEach((ticket, idx) => {
+      const totalQuantity = ticket.ticketSummary
+        ? ticket.ticketSummary.reduce((sum, t) => sum + (t.quantity || 0), 0)
+        : 0;
+
+      let totalAmount = 0;
+      if (ticket.ticketSummary) {
+        ticket.ticketSummary.forEach((t) => {
+          totalAmount += (t.price || 0) * (t.quantity || 0);
+        });
+      }
+
+      const ticketTypes = ticket.ticketSummary && ticket.ticketSummary.length > 0
+        ? ticket.ticketSummary.map(t => t.ticketType || t.type).join("; ")
+        : "N/A";
+
+      const row = [
+        ticket.ticketId || `TKT-${idx + 1000}`,
+        `"${ticket.buyer?.name || "Anonymous"}"`,
+        `"${ticket.buyer?.email || ""}"`,
+        ticket.bookingDate || "N/A",
+        ticket.phone || "N/A",
+        `"${ticketTypes}"`,
+        totalQuantity,
+        totalAmount
+      ];
+      csvData.push(row.join(","));
+    });
+
+    const csvContent = csvData.join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `${event.name}_ticket_sales_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    handleExportMenuClose();
+    setSaveStatus({
+      open: true,
+      message: "Ticket sales exported successfully as CSV",
+      severity: "success",
+    });
+  };
+
+  // Export to Excel (XLSX format using HTML table method)
+  const exportToExcel = () => {
+    if (!event || !event.tickets || event.tickets.length === 0) {
+      setSaveStatus({
+        open: true,
+        message: "No ticket sales data to export",
+        severity: "warning",
+      });
+      return;
+    }
+
+    let tableHTML = `
+      <table>
+        <thead>
+          <tr>
+            <th>Ticket ID</th>
+            <th>Buyer Name</th>
+            <th>Buyer Email</th>
+            <th>Booking Date</th>
+            <th>Phone Number</th>
+            <th>Ticket Type</th>
+            <th>Quantity</th>
+            <th>Total Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+
+    event.tickets.forEach((ticket, idx) => {
+      const totalQuantity = ticket.ticketSummary
+        ? ticket.ticketSummary.reduce((sum, t) => sum + (t.quantity || 0), 0)
+        : 0;
+
+      let totalAmount = 0;
+      if (ticket.ticketSummary) {
+        ticket.ticketSummary.forEach((t) => {
+          totalAmount += (t.price || 0) * (t.quantity || 0);
+        });
+      }
+
+      const ticketTypes = ticket.ticketSummary && ticket.ticketSummary.length > 0
+        ? ticket.ticketSummary.map(t => t.ticketType || t.type).join(", ")
+        : "N/A";
+
+      tableHTML += `
+        <tr>
+          <td>${ticket.ticketId || `TKT-${idx + 1000}`}</td>
+          <td>${ticket.buyer?.name || "Anonymous"}</td>
+          <td>${ticket.buyer?.email || ""}</td>
+          <td>${ticket.bookingDate || "N/A"}</td>
+          <td>${ticket.phone || "N/A"}</td>
+          <td>${ticketTypes}</td>
+          <td>${totalQuantity}</td>
+          <td>₹${totalAmount}</td>
+        </tr>
+      `;
+    });
+
+    tableHTML += `
+        </tbody>
+      </table>
+    `;
+
+    const blob = new Blob([tableHTML], { type: "application/vnd.ms-excel" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `${event.name}_ticket_sales_${new Date().toISOString().split('T')[0]}.xls`);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    handleExportMenuClose();
+    setSaveStatus({
+      open: true,
+      message: "Ticket sales exported successfully as Excel",
+      severity: "success",
+    });
+  };
+
+  // Export to PDF (simplified version)
+  const exportToPDF = () => {
+    if (!event || !event.tickets || event.tickets.length === 0) {
+      setSaveStatus({
+        open: true,
+        message: "No ticket sales data to export",
+        severity: "warning",
+      });
+      return;
+    }
+
+    const printWindow = window.open("", "_blank");
+
+    let htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Ticket Sales Report - ${event.name}</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; }
+            h1 { color: #19aedc; }
+            h2 { color: #333; margin-top: 30px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+            th { background-color: #19aedc; color: white; }
+            tr:nth-child(even) { background-color: #f9f9f9; }
+            .summary { margin-top: 30px; padding: 15px; background-color: #f5f5f5; border-radius: 5px; }
+            .summary-item { margin: 10px 0; }
+            @media print {
+              button { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <h1>Ticket Sales Report</h1>
+          <h2>${event.name}</h2>
+          <p><strong>Event Date:</strong> ${formatDate(event.eventDate)}</p>
+          <p><strong>Location:</strong> ${event.venueDetails?.city || "N/A"}</p>
+          <p><strong>Report Generated:</strong> ${new Date().toLocaleString()}</p>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Ticket ID</th>
+                <th>Buyer Name</th>
+                <th>Buyer Email</th>
+                <th>Booking Date</th>
+                <th>Phone Number</th>
+                <th>Ticket Type</th>
+                <th>Quantity</th>
+                <th>Total Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+    `;
+
+    event.tickets.forEach((ticket, idx) => {
+      const totalQuantity = ticket.ticketSummary
+        ? ticket.ticketSummary.reduce((sum, t) => sum + (t.quantity || 0), 0)
+        : 0;
+
+      let totalAmount = 0;
+      if (ticket.ticketSummary) {
+        ticket.ticketSummary.forEach((t) => {
+          totalAmount += (t.price || 0) * (t.quantity || 0);
+        });
+      }
+
+      const ticketTypes = ticket.ticketSummary && ticket.ticketSummary.length > 0
+        ? ticket.ticketSummary.map(t => t.ticketType || t.type).join(", ")
+        : "N/A";
+
+      htmlContent += `
+        <tr>
+          <td>${ticket.ticketId || `TKT-${idx + 1000}`}</td>
+          <td>${ticket.buyer?.name || "Anonymous"}</td>
+          <td>${ticket.buyer?.email || ""}</td>
+          <td>${ticket.bookingDate || "N/A"}</td>
+          <td>${ticket.phone || "N/A"}</td>
+          <td>${ticketTypes}</td>
+          <td>${totalQuantity}</td>
+          <td>₹${totalAmount.toLocaleString("en-IN")}</td>
+        </tr>
+      `;
+    });
+
+    htmlContent += `
+            </tbody>
+          </table>
+
+          <div class="summary">
+            <h3>Financial Summary</h3>
+            <div class="summary-item"><strong>Total Tickets Sold:</strong> ${event.ticketsSold || 0}</div>
+            <div class="summary-item"><strong>Gross Revenue:</strong> ₹${(event.gross || 0).toLocaleString("en-IN")}</div>
+            <div class="summary-item"><strong>Average Ticket Price:</strong> ${
+              event.ticketsSold > 0
+                ? `₹${Math.round(event.gross / event.ticketsSold).toLocaleString("en-IN")}`
+                : "₹0"
+            }</div>
+          </div>
+
+          <button onclick="window.print()" style="margin-top: 30px; padding: 10px 20px; background-color: #19aedc; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px;">Print / Save as PDF</button>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+
+    handleExportMenuClose();
+    setSaveStatus({
+      open: true,
+      message: "Opening print dialog for PDF export",
+      severity: "success",
+    });
+  };
+
   // Fetch event data with tickets and user details
   useEffect(() => {
     const fetchEventWithTickets = async () => {
@@ -353,6 +660,12 @@ const EventDetails = () => {
         const eventData = eventDoc.data();
 
         setVendorTax(eventData.vendorTax || 0);
+
+        if (eventData.vendorId) {
+          fetchVendorUsername(eventData.vendorId);
+        } else {
+          setVendorUsername("Not available");
+        }
 
         let totalSeats = 0;
         if (eventData.pricing && Array.isArray(eventData.pricing)) {
@@ -870,10 +1183,10 @@ const EventDetails = () => {
                   <Grid item xs={12} md={6}>
                     <Paper sx={{ p: 2 }}>
                       <Typography variant="subtitle1" fontWeight="bold" mb={1}>
-                        Vendor ID
+                        Vendor Username
                       </Typography>
                       <Typography variant="body2">
-                        {event.vendorId || "Not available"}
+                        {vendorUsername}
                       </Typography>
                     </Paper>
                   </Grid>
@@ -1266,9 +1579,42 @@ const EventDetails = () => {
             )}
 
             <TabPanel value={tabValue} index={ticketSalesTabIndex}>
-              <Typography variant="h6" fontWeight="bold" mb={3}>
-                Ticket Sales Overview
-              </Typography>
+              <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+                <Typography variant="h6" fontWeight="bold">
+                  Ticket Sales Overview
+                </Typography>
+
+                {event.tickets && event.tickets.length > 0 && (
+                  <>
+                    <Button
+                      variant="contained"
+                      color="primary"
+                      startIcon={<DownloadIcon />}
+                      onClick={handleExportMenuOpen}
+                    >
+                      Export Ticket Sales
+                    </Button>
+                    <Menu
+                      anchorEl={exportAnchorEl}
+                      open={Boolean(exportAnchorEl)}
+                      onClose={handleExportMenuClose}
+                    >
+                      <MenuItem onClick={exportToCSV}>
+                        <DownloadIcon sx={{ mr: 1 }} fontSize="small" />
+                        Export as CSV
+                      </MenuItem>
+                      <MenuItem onClick={exportToExcel}>
+                        <DownloadIcon sx={{ mr: 1 }} fontSize="small" />
+                        Export as Excel
+                      </MenuItem>
+                      <MenuItem onClick={exportToPDF}>
+                        <DownloadIcon sx={{ mr: 1 }} fontSize="small" />
+                        Export as PDF
+                      </MenuItem>
+                    </Menu>
+                  </>
+                )}
+              </Box>
 
               {event.tickets && event.tickets.length > 0 ? (
                 <>

@@ -18,7 +18,7 @@ import { useNavigate } from "react-router-dom";
 import { useVendor } from "./VendorContext";
 import { useParams } from "react-router-dom";
 import { collection, query, where, getDocs } from "firebase/firestore";
-import { db } from "../../firebase/firebase_config";
+import { db } from "../../firebase_config";
 import SettingsIcon from "@mui/icons-material/Settings";
 import HandymanIcon from "@mui/icons-material/Handyman";
 import AutoFixHighIcon from "@mui/icons-material/AutoFixHigh";
@@ -32,7 +32,7 @@ const VendorRegister = () => {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [emailExists, setEmailExists] = useState(false);
-  const [loginCase, setLoginCase] = useState(null); // null | 'new' | 'manual' | 'google'
+  const [loginCase, setLoginCase] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -41,7 +41,6 @@ const VendorRegister = () => {
     message: "",
   });
 
-  // Optimized dialog handler
   const showDialog = useCallback((message) => {
     setDialogState({ open: true, message });
   }, []);
@@ -57,7 +56,6 @@ const VendorRegister = () => {
     confirmPassword: "",
   });
 
-  // Enhanced password validation function
   const validatePassword = (password) => {
     const minLength = 8;
     const hasUpperCase = /[A-Z]/.test(password);
@@ -65,34 +63,15 @@ const VendorRegister = () => {
     const hasNumbers = /\d/.test(password);
     const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
 
-    if (!password) {
-      return "Password is required";
-    }
-
-    if (password.length < minLength) {
-      return "Password must be at least 8 characters long";
-    }
-
-    if (!hasUpperCase) {
-      return "Password must contain at least one uppercase letter";
-    }
-
-    if (!hasLowerCase) {
-      return "Password must contain at least one lowercase letter";
-    }
-
-    if (!hasNumbers) {
-      return "Password must contain at least one number";
-    }
-
-    if (!hasSpecialChar) {
-      return "Password must contain at least one special character (!@#$%^&*(),.?\":{}|<>)";
-    }
-
-    return ""; // No errors
+    if (!password) return "Password is required";
+    if (password.length < minLength) return "Password must be at least 8 characters long";
+    if (!hasUpperCase) return "Password must contain at least one uppercase letter";
+    if (!hasLowerCase) return "Password must contain at least one lowercase letter";
+    if (!hasNumbers) return "Password must contain at least one number";
+    if (!hasSpecialChar) return "Password must contain at least one special character (!@#$%^&*(),.?\":{}|<>)";
+    return "";
   };
 
-  // Password requirements helper component
   const PasswordRequirements = ({ password }) => {
     const requirements = [
       { test: password.length >= 8, text: "At least 8 characters" },
@@ -130,40 +109,127 @@ const VendorRegister = () => {
     let isMounted = true;
 
     const fetchVendor = async () => {
+      console.log("🔍 Starting vendor check for vendorId:", vendorId);
       setIsLoading(true);
 
-      if (vendorId) {
-        try {
-          // Step 1: Fetch from users collection via backend
-          const res = await fetch(
-            `${process.env.REACT_APP_API_BASE_URL}/api/user/current-user/${vendorId}`
-          );
+      if (!vendorId) {
+        console.log("No vendorId provided, showing new registration form");
+        if (isMounted) {
+          setLoginCase("new");
+          setIsLoading(false);
+        }
+        return;
+      }
 
-          if (!isMounted) return;
+      try {
+        // Step 1: Fetch user data
+        console.log("📡 Fetching user data from backend...");
+        const res = await fetch(
+          `${process.env.REACT_APP_API_BASE_URL}/api/user/current-user/${vendorId}`
+        );
 
-          if (!res.ok) {
-            console.log("User not found or error occurred");
-            setLoginCase("new");
-            return;
+        if (!isMounted) return;
+
+        if (!res.ok) {
+          console.log("❌ User not found, showing new registration form");
+          setLoginCase("new");
+          setIsLoading(false);
+          return;
+        }
+
+        const userData = await res.json();
+        const userEmail = userData.email;
+        console.log("✅ User data fetched, email:", userEmail);
+
+        if (!isMounted) return;
+
+        // Step 2: Check Firestore for vendor
+        console.log("🔍 Checking Firestore for existing vendor...");
+        const vendorsRef = collection(db, "vendors");
+        const q = query(vendorsRef, where("email", "==", userEmail));
+        const querySnapshot = await getDocs(q);
+
+        if (!isMounted) return;
+
+        if (!querySnapshot.empty) {
+          const vendorDoc = querySnapshot.docs[0].data();
+          console.log("📋 Vendor document found:", {
+            email: vendorDoc.email,
+            username: vendorDoc.username,
+            status: vendorDoc.status,
+            statusType: typeof vendorDoc.status
+          });
+
+          // Check if vendor is verified/approved
+          // The status field in vendors collection should be true (Boolean) or "accepted" (string)
+          const isVendorVerified =
+            vendorDoc.status === true ||
+            vendorDoc.status === "true" ||
+            (typeof vendorDoc.status === "string" && vendorDoc.status.toLowerCase() === "accepted");
+
+          console.log("🔐 Is vendor verified/approved?", isVendorVerified);
+
+          if (isVendorVerified) {
+            console.log("✅ VERIFIED VENDOR - Redirecting to login...");
+            // Show a brief message before redirecting
+            if (isMounted) {
+              setDialogState({
+                open: true,
+                message: "Your account is already registered and verified. Redirecting to login..."
+              });
+
+              // Redirect after a short delay
+              setTimeout(() => {
+                navigate(`/vendorlogin/${vendorId}`, { replace: true });
+              }, 1500);
+            }
+            return; // Exit early
           }
 
-          const userData = await res.json();
-          const userEmail = userData.email;
+          // Step 3: If not verified in vendors collection, check registration_request
+          console.log("🔍 Checking registration_request for approval status...");
+          const registrationRef = collection(db, "registration_request");
+          const regQuery = query(registrationRef, where("email", "==", userEmail));
+          const regSnapshot = await getDocs(regQuery);
 
-          if (!isMounted) return;
+          let isRegistrationApproved = false;
 
-          // Step 2: Firestore - Check if vendor exists by email
-          const vendorsRef = collection(db, "vendors");
-          const q = query(vendorsRef, where("email", "==", userEmail));
-          const querySnapshot = await getDocs(q);
+          if (!regSnapshot.empty) {
+            const regDoc = regSnapshot.docs[0].data();
+            console.log("📋 Registration request found:", {
+              email: regDoc.email,
+              status: regDoc.status,
+              statusType: typeof regDoc.status
+            });
 
-          if (!isMounted) return;
+            // Check if status is "accepted" or "approved" (case-insensitive)
+            isRegistrationApproved = regDoc.status &&
+              (regDoc.status.toString().toLowerCase() === "approved" ||
+               regDoc.status.toString().toLowerCase() === "accepted");
 
-          if (!querySnapshot.empty) {
-            // Vendor exists - use vendor data instead of user data
-            const vendorDoc = querySnapshot.docs[0].data();
-            console.log("Vendor data from Firestore:", vendorDoc);
+            console.log("🔐 Is registration approved?", isRegistrationApproved);
+          } else {
+            console.log("⚠️ No registration request found for this email");
+          }
 
+          if (isRegistrationApproved) {
+            console.log("✅ APPROVED REGISTRATION - Redirecting to login...");
+            if (isMounted) {
+              setDialogState({
+                open: true,
+                message: "Your registration has been approved. Redirecting to login..."
+              });
+
+              setTimeout(() => {
+                navigate(`/vendorlogin/${vendorId}`, { replace: true });
+              }, 1500);
+            }
+            return; // Exit early
+          }
+
+          // Vendor exists but not approved
+          console.log("⚠️ Vendor exists but NOT approved");
+          if (isMounted) {
             setFormData({
               email: vendorDoc.email || "",
               username: vendorDoc.username || "",
@@ -171,17 +237,17 @@ const VendorRegister = () => {
               confirmPassword: "",
             });
 
-            setLoginCase(
-              vendorDoc?.type === "google-signin" ? "google" : "manual"
-            );
-
+            setLoginCase(vendorDoc?.type === "google-signin" ? "google" : "manual");
             setEmailExists(true);
             setErrors((prev) => ({
               ...prev,
-              email: "Email already registered as vendor.  Please login",
+              email: "Your registration is pending approval. Please wait for admin verification.",
             }));
-          } else {
-            // Vendor doesn't exist - fallback to user data
+          }
+        } else {
+          // No vendor found - use user data
+          console.log("🆕 No vendor found, using user data for registration");
+          if (isMounted) {
             setFormData({
               email: userData.email || "",
               username: userData.username || "",
@@ -197,19 +263,14 @@ const VendorRegister = () => {
               setLoginCase("new");
             }
           }
-        } catch (err) {
-          console.error("Error fetching data:", err);
-          if (isMounted) {
-            setLoginCase("new");
-          }
-        } finally {
-          if (isMounted) {
-            setIsLoading(false);
-          }
         }
-      } else {
+      } catch (err) {
+        console.error("❌ Error during vendor check:", err);
         if (isMounted) {
           setLoginCase("new");
+        }
+      } finally {
+        if (isMounted) {
           setIsLoading(false);
         }
       }
@@ -220,7 +281,7 @@ const VendorRegister = () => {
     return () => {
       isMounted = false;
     };
-  }, [vendorId]);
+  }, [vendorId, navigate]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -229,7 +290,6 @@ const VendorRegister = () => {
       [name]: value,
     });
 
-    // Clear errors for the field being changed
     setErrors({
       ...errors,
       [name]: "",
@@ -250,10 +310,9 @@ const VendorRegister = () => {
     }
 
     if (emailExists) {
-      newErrors.email = "Email already registered as vendor";
+      newErrors.email = "Your registration is pending approval";
     }
 
-    // Use the enhanced password validation
     const passwordError = validatePassword(formData.password);
     if (passwordError) {
       newErrors.password = passwordError;
@@ -281,19 +340,13 @@ const VendorRegister = () => {
         navigate("/vendor/organization");
       } catch (error) {
         console.error("Error submitting form:", error.message);
-
-        showDialog("Something went wrong.  Please try again.");
+        showDialog("Something went wrong. Please try again.");
       } finally {
         setLoading(false);
       }
     }
   };
 
-  useEffect(() => {
-    console.log("Current loginCase:", loginCase);
-  }, [loginCase]);
-
-  // Show loading state until we determine the login case
   if (isLoading) {
     return (
       <Box
@@ -307,7 +360,7 @@ const VendorRegister = () => {
       >
         <CircularProgress />
         <Typography variant="h5" sx={{ fontFamily: "albert sans", ml: 2 }}>
-          Loading...
+          Checking vendor status...
         </Typography>
       </Box>
     );
@@ -317,26 +370,22 @@ const VendorRegister = () => {
     {
       icon: <SettingsIcon sx={{ color: "#47536B" }} />,
       heading: "Seamless Control",
-      content:
-        "Effortlessly create, edit, and manage your events—all from one streamlined dashboard designed to save you time and effort.",
+      content: "Effortlessly create, edit, and manage your events—all from one streamlined dashboard designed to save you time and effort.",
     },
     {
       icon: <HandymanIcon sx={{ color: "#47536B" }} />,
       heading: "Smart Tools,Smart Moves",
-      content:
-        "Leverage powerful features like real-time analytics, coupon controls, and category tagging to stay ahead and make data-driven decisions.",
+      content: "Leverage powerful features like real-time analytics, coupon controls, and category tagging to stay ahead and make data-driven decisions.",
     },
     {
       icon: <AutoFixHighIcon sx={{ color: "#47536B" }} />,
       heading: "Designed For Ease",
-      content:
-        "Navigate your vendor dashboard with a user-friendly interface that makes event setup and tracking feel natural—even for first-timers.",
+      content: "Navigate your vendor dashboard with a user-friendly interface that makes event setup and tracking feel natural—even for first-timers.",
     },
     {
       icon: <BarChartIcon sx={{ color: "#47536B" }} />,
       heading: "Built to Scale",
-      content:
-        "From small gatherings to grand events, our platform is built to grow with your business—ensuring dependable performance every step of the way.",
+      content: "From small gatherings to grand events, our platform is built to grow with your business—ensuring dependable performance every step of the way.",
     },
   ];
 
@@ -353,7 +402,6 @@ const VendorRegister = () => {
           minHeight: "90vh",
         }}
       >
-        {/* Left: Text/animaton */}
         <Box
           sx={{
             width: { xs: "0%", md: "45%" },
@@ -378,7 +426,7 @@ const VendorRegister = () => {
             {leftSection.map((item, index) => (
               <Box key={index} sx={{ margin: "0 0 0 3%" }}>
                 <Box sx={{ display: "flex", gap: "3%", margin: "2% 0" }}>
-                  <Box mt="0.5%"> {item.icon}</Box>
+                  <Box mt="0.5%">{item.icon}</Box>
                   <Box>
                     <Typography
                       sx={{
@@ -406,7 +454,6 @@ const VendorRegister = () => {
           </Box>
         </Box>
 
-        {/* Right: Registration*/}
         <Box
           component="form"
           onSubmit={handleSubmit}
@@ -445,39 +492,24 @@ const VendorRegister = () => {
             disabled={loginCase === "google" || loginCase === "manual"}
             sx={{
               mb: 2,
-              "& .MuiInputBase-input": {
-                fontFamily: "Albert Sans",
-              },
+              "& .MuiInputBase-input": { fontFamily: "Albert Sans" },
               "& .MuiInputLabel-root": {
                 fontFamily: "Albert Sans",
-                "&.Mui-focused": {
-                  color: "#19AEDC",
-                },
+                "&.Mui-focused": { color: "#19AEDC" },
               },
               "& .MuiOutlinedInput-root": {
                 borderRadius: "4px",
                 fontFamily: "Albert Sans",
-                "& fieldset": {
-                  borderColor: "#ccc",
-                },
-
-                "&.Mui-focused fieldset": {
-                  borderColor: "#19AEDC",
-                },
-
-                "&.Mui-error fieldset": {
-                  borderColor: "#d32f2f",
-                },
+                "& fieldset": { borderColor: "#ccc" },
+                "&.Mui-focused fieldset": { borderColor: "#19AEDC" },
+                "&.Mui-error fieldset": { borderColor: "#d32f2f" },
               },
-              "& .MuiFormHelperText-root": {
-                fontFamily: "Albert Sans",
-              },
+              "& .MuiFormHelperText-root": { fontFamily: "Albert Sans" },
             }}
             error={!!errors.username}
             helperText={errors.username}
           />
 
-          {/* Email */}
           <TextField
             fullWidth
             label="Email ID"
@@ -488,39 +520,24 @@ const VendorRegister = () => {
             onChange={handleChange}
             sx={{
               mb: 2,
-              "& .MuiInputBase-input": {
-                fontFamily: "Albert Sans",
-              },
+              "& .MuiInputBase-input": { fontFamily: "Albert Sans" },
               "& .MuiInputLabel-root": {
                 fontFamily: "Albert Sans",
-                "&.Mui-focused": {
-                  color: "#19AEDC",
-                },
+                "&.Mui-focused": { color: "#19AEDC" },
               },
               "& .MuiOutlinedInput-root": {
                 borderRadius: "4px",
                 fontFamily: "Albert Sans",
-                "& fieldset": {
-                  borderColor: "#ccc",
-                },
-
-                "&.Mui-focused fieldset": {
-                  borderColor: "#19AEDC",
-                },
-
-                "&.Mui-error fieldset": {
-                  borderColor: "#d32f2f",
-                },
+                "& fieldset": { borderColor: "#ccc" },
+                "&.Mui-focused fieldset": { borderColor: "#19AEDC" },
+                "&.Mui-error fieldset": { borderColor: "#d32f2f" },
               },
-              "& .MuiFormHelperText-root": {
-                fontFamily: "Albert Sans",
-              },
+              "& .MuiFormHelperText-root": { fontFamily: "Albert Sans" },
             }}
             error={!!errors.email}
             helperText={errors.email}
           />
 
-          {/* Password */}
           <TextField
             fullWidth
             label="Password"
@@ -531,33 +548,19 @@ const VendorRegister = () => {
             onChange={handleChange}
             sx={{
               mb: 1,
-              "& .MuiInputBase-input": {
-                fontFamily: "Albert Sans",
-              },
+              "& .MuiInputBase-input": { fontFamily: "Albert Sans" },
               "& .MuiInputLabel-root": {
                 fontFamily: "Albert Sans",
-                "&.Mui-focused": {
-                  color: "#19AEDC",
-                },
+                "&.Mui-focused": { color: "#19AEDC" },
               },
               "& .MuiOutlinedInput-root": {
                 borderRadius: "4px",
                 fontFamily: "Albert Sans",
-                "& fieldset": {
-                  borderColor: "#ccc",
-                },
-
-                "&.Mui-focused fieldset": {
-                  borderColor: "#19AEDC",
-                },
-
-                "&.Mui-error fieldset": {
-                  borderColor: "#d32f2f",
-                },
+                "& fieldset": { borderColor: "#ccc" },
+                "&.Mui-focused fieldset": { borderColor: "#19AEDC" },
+                "&.Mui-error fieldset": { borderColor: "#d32f2f" },
               },
-              "& .MuiFormHelperText-root": {
-                fontFamily: "Albert Sans",
-              },
+              "& .MuiFormHelperText-root": { fontFamily: "Albert Sans" },
             }}
             error={!!errors.password}
             helperText={errors.password}
@@ -575,12 +578,10 @@ const VendorRegister = () => {
             }}
           />
 
-          {/* Password Requirements Display */}
           {formData.password && (
             <PasswordRequirements password={formData.password} />
           )}
 
-          {/* Confirm Password */}
           <TextField
             fullWidth
             label="Confirm Password"
@@ -591,33 +592,19 @@ const VendorRegister = () => {
             onChange={handleChange}
             sx={{
               mb: 2,
-              "& .MuiInputBase-input": {
-                fontFamily: "Albert Sans",
-              },
+              "& .MuiInputBase-input": { fontFamily: "Albert Sans" },
               "& .MuiInputLabel-root": {
                 fontFamily: "Albert Sans",
-                "&.Mui-focused": {
-                  color: "#19AEDC",
-                },
+                "&.Mui-focused": { color: "#19AEDC" },
               },
               "& .MuiOutlinedInput-root": {
                 borderRadius: "4px",
                 fontFamily: "Albert Sans",
-                "& fieldset": {
-                  borderColor: "#ccc",
-                },
-
-                "&.Mui-focused fieldset": {
-                  borderColor: "#19AEDC",
-                },
-
-                "&.Mui-error fieldset": {
-                  borderColor: "#d32f2f",
-                },
+                "& fieldset": { borderColor: "#ccc" },
+                "&.Mui-focused fieldset": { borderColor: "#19AEDC" },
+                "&.Mui-error fieldset": { borderColor: "#d32f2f" },
               },
-              "& .MuiFormHelperText-root": {
-                fontFamily: "Albert Sans",
-              },
+              "& .MuiFormHelperText-root": { fontFamily: "Albert Sans" },
             }}
             error={!!errors.confirmPassword}
             helperText={errors.confirmPassword}
@@ -635,18 +622,17 @@ const VendorRegister = () => {
             }}
           />
 
-          {/* Submit Button */}
           <Button
             fullWidth
             type="submit"
             variant="contained"
-            disabled={loading}
+            disabled={loading || emailExists}
             sx={{
               fontFamily: "albert sans",
               py: 1.5,
-              backgroundColor: loading ? "#ccc" : "#53a8d8",
+              backgroundColor: (loading || emailExists) ? "#ccc" : "#53a8d8",
               "&:hover": {
-                backgroundColor: loading ? "#ccc" : "#4795c2",
+                backgroundColor: (loading || emailExists) ? "#ccc" : "#4795c2",
               },
               textTransform: "uppercase",
               borderRadius: "4px",
@@ -656,11 +642,8 @@ const VendorRegister = () => {
             {loading ? "Registering..." : "REGISTER"}
           </Button>
 
-          {/* Redirect to Login */}
           <Box sx={{ display: "flex", mt: 2 }}>
-            <Typography
-              sx={{ fontFamily: "albert sans", color: "#333", mr: 1 }}
-            >
+            <Typography sx={{ fontFamily: "albert sans", color: "#333", mr: 1 }}>
               Already have an account?
             </Typography>
             <Typography
@@ -680,7 +663,8 @@ const VendorRegister = () => {
       <Dialog
         open={dialogState.open}
         onClose={closeDialog}
-        sx={{ zIndex: 9999 }} // Ensure it appears above everything
+        sx={{ zIndex: 9999 }}
+        disableEscapeKeyDown={dialogState.message.includes("Redirecting")}
       >
         <DialogTitle sx={{ fontFamily: "albert sans" }}>Notice</DialogTitle>
         <DialogContent>
@@ -689,11 +673,7 @@ const VendorRegister = () => {
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button
-            onClick={closeDialog}
-            color="primary"
-            sx={{ fontFamily: "albert sans" }}
-          >
+          <Button onClick={closeDialog} color="primary" sx={{ fontFamily: "albert sans" }}>
             Close
           </Button>
         </DialogActions>

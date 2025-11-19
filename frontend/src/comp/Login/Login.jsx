@@ -101,15 +101,13 @@ const Login = ({ open, handleClose, handleSwitchToSignUp, onLoginSuccess }) => {
         onLoginSuccess();
       }
 
-      setDialogMessage("Logged in successfully!");
-      setDialogOpen(true);
       handleClose();
-      navigate("/");
-      
+      // REMOVED: navigate("/") - Don't navigate, stay on current page
+
     } catch (error) {
       console.error("Login error:", error);
       let errorMessage = "Login failed. Please try again.";
-      
+
       if (error.code === "auth/user-not-found") {
         errorMessage = "No account found with this email.";
       } else if (error.code === "auth/wrong-password") {
@@ -119,7 +117,7 @@ const Login = ({ open, handleClose, handleSwitchToSignUp, onLoginSuccess }) => {
       } else if (error.code === "auth/too-many-requests") {
         errorMessage = "Too many failed attempts. Please try again later.";
       }
-      
+
       setDialogMessage(errorMessage);
       setDialogOpen(true);
     } finally {
@@ -166,11 +164,8 @@ const Login = ({ open, handleClose, handleSwitchToSignUp, onLoginSuccess }) => {
         onLoginSuccess();
       }
 
-      setDialogMessage("Logged in with Google!");
-      setDialogOpen(true);
-
       handleClose();
-      navigate("/");
+      // REMOVED: navigate("/") - Don't navigate, stay on current page
     } catch (error) {
       console.error("Google login error:", error);
       setDialogMessage("Google login failed");
@@ -249,8 +244,8 @@ const Login = ({ open, handleClose, handleSwitchToSignUp, onLoginSuccess }) => {
     setNewPassword("");
     setConfirmPassword("");
     setResetError("");
-    navigate("/"); // Redirect to login route
-    handleClose(); // Ensure login modal is closed and can be reopened
+    navigate("/");
+    handleClose();
   };
 
   const handleContinueToLogin = () => {
@@ -455,7 +450,6 @@ const Login = ({ open, handleClose, handleSwitchToSignUp, onLoginSuccess }) => {
         </Box>
       </Modal>
 
-      {/* Dialog moved outside Modal for better performance */}
       <Dialog 
         open={dialogOpen} 
         onClose={() => setDialogOpen(false)}

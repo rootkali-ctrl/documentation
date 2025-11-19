@@ -20,8 +20,7 @@ import {
   sendEmailVerification,
   signInWithPopup,
 } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
-import { useNavigate } from "react-router-dom";
+import { doc, setDoc, getDoc } from "firebase/firestore";
 
 const SignIn = ({
   open,
@@ -33,7 +32,6 @@ const SignIn = ({
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [checkPass, setCheckPassword] = useState(false);
-  const navigate = useNavigate();
   const isMobile = useMediaQuery("(max-width:600px)");
 
   const isFormValid =
@@ -123,28 +121,51 @@ const SignIn = ({
       const displayName = user.displayName || "";
       const [firstName, lastName] = displayName.split(" ");
 
-      // Store the Google user data in Firestore with account creation timestamp
-      await setDoc(doc(db, "users", user.uid), {
-        authId,
-        username,
-        firstName: firstName || username,
-        lastName: lastName || "",
-        email,
-        type: "google-signin",
-        accountcreated: new Date(), // Added account creation timestamp
-      });
+      // Check if user exists and if they're suspended
+      const userRef = doc(db, "users", authId);
+      const userSnap = await getDoc(userRef);
 
+      if (userSnap.exists()) {
+        // User exists, check if suspended
+        if (userSnap.data().suspended === true) {
+          showDialog("Your account has been suspended. Please contact support at bubaln@ticketb.in");
+          await auth.signOut();
+          return;
+        }
+      } else {
+        // New user, create document
+        await setDoc(userRef, {
+          authId,
+          username,
+          firstName: firstName || username,
+          lastName: lastName || "",
+          email,
+          suspended: false,
+          type: "google-signin",
+          accountcreated: new Date(), // Added account creation timestamp
+        });
+      }
+
+      // If everything is good, proceed with sign-in
       if (onSigninSuccess) {
         onSigninSuccess();
       }
 
-      handleClose(); // Close modal first
-      navigate("/");
-      showDialog("Google Sign-in successful!");
+      handleClose(); // Close modal
+      // REMOVED: navigate("/") - Don't navigate, stay on current page
+
     } catch (err) {
       console.error("Google Sign-in error:", err);
       handleClose(); // Close modal first
-      showDialog("Failed to sign in with Google");
+
+      let errorMessage = "Failed to sign in with Google";
+      if (err.code === "auth/popup-closed-by-user") {
+        errorMessage = "Sign-in cancelled. Please try again.";
+      } else if (err.code === "auth/popup-blocked") {
+        errorMessage = "Pop-up blocked. Please allow pop-ups and try again.";
+      }
+
+      showDialog(errorMessage);
     } finally {
       setIsLoading(false);
     }

@@ -28,7 +28,7 @@ const sidebarItems = [
   { name: "Dashboard", icon: <TrendingUpIcon />, active: false, path: "/admin/dashboardupcoming" },
   { name: "Users", icon: <GroupIcon />, active: false, path: "/admin/userpage" },
   { name: "Posts", icon: <ArticleIcon />, active: false, path: "/admin/postpage" },
-  { name: "Login Settings", icon: <SettingsIcon />, active: false, path: "/admin/loginsettings" },
+  { name: "Vendors", icon: <SettingsIcon />, active: false, path: "/admin/loginsettings" },
   { name: "Contact", icon: <ContactPageIcon />, active: true, path: "/admin/contactpage" },
   { name: "Events", icon: <EventIcon />, active: false, path: "/admin/eventmanagement" },
 ];

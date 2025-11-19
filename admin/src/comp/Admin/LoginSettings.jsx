@@ -1,3 +1,4 @@
+// Loginsettings.jsx - Complete Modified Code
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import {
@@ -19,6 +20,13 @@ import {
   CircularProgress,
   Select,
   MenuItem,
+  IconButton,
+  Tooltip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
@@ -27,10 +35,13 @@ import ArticleIcon from "@mui/icons-material/Article";
 import SettingsIcon from "@mui/icons-material/Settings";
 import ContactPageIcon from "@mui/icons-material/ContactPage";
 import EventIcon from "@mui/icons-material/Event";
+import BlockIcon from "@mui/icons-material/Block";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import DeleteIcon from "@mui/icons-material/Delete";
 import { useNavigate } from "react-router-dom";
 import { db, auth } from "../../firebase/firebase_config";
 import { onAuthStateChanged } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc, collection, query, where, getDocs } from "firebase/firestore";
 
 // Sidebar items
 const sidebarItems = [
@@ -53,7 +64,7 @@ const sidebarItems = [
     path: "/admin/postpage",
   },
   {
-    name: "Login Settings",
+    name: "Vendors",
     icon: <SettingsIcon />,
     active: true,
     path: "/admin/loginsettings",
@@ -72,7 +83,7 @@ const sidebarItems = [
   },
 ];
 
-// Updated status colors mapping to include all possible statuses
+// Updated status colors mapping
 const statusColors = {
   active: "#C6F6D5",
   pending: "#FEF3C7",
@@ -80,6 +91,7 @@ const statusColors = {
   accepted: "#C6F6D5",
   rejected: "#FECACA",
   removed: "#FECACA",
+  suspended: "#FECACA",
 };
 
 const statusTextColor = {
@@ -89,20 +101,65 @@ const statusTextColor = {
   accepted: "#047857",
   rejected: "#B91C1C",
   removed: "#B91C1C",
+  suspended: "#B91C1C",
 };
 
 const Loginsettings = () => {
   const [requests, setRequests] = useState([]);
   const [filteredRequests, setFilteredRequests] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("All"); // New state for status filter
+  const [statusFilter, setStatusFilter] = useState("All");
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedRequest, setSelectedRequest] = useState(null);
+  const [isAdminUser, setIsAdminUser] = useState(false);
+  const [actionSuccess, setActionSuccess] = useState(null);
   const requestsPerPage = 5;
   const navigate = useNavigate();
   const [lastLogin, setLastLogin] = useState("");
+
+  // Confirmation dialog state
+  const [confirmDialog, setConfirmDialog] = useState({
+    open: false,
+    title: "",
+    message: "",
+    requestId: null,
+    action: null,
+  });
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        setError("Please log in to access this page.");
+        setIsAdminUser(false);
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const adminDocRef = doc(db, "admins", user.uid);
+        const adminDoc = await getDoc(adminDocRef);
+
+        if (!adminDoc.exists()) {
+          setError("Admin profile not found.");
+          setIsAdminUser(false);
+          setLoading(false);
+          return;
+        }
+
+        setIsAdminUser(true);
+        const data = adminDoc.data();
+        setLastLogin(data.lastlogin || "");
+      } catch (err) {
+        setError("Failed to load admin details: " + err.message);
+      } finally {
+        setLoading(false);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
 
   const fetchRequests = async () => {
     try {
@@ -112,7 +169,6 @@ const Loginsettings = () => {
       const res = await axios.get(
         `${process.env.REACT_APP_API_BASE_URL}/api/admin/allrequests`
       );
-      console.log("API Response:", res.data);
 
       if (res.data && res.data.registration_requests) {
         setRequests(res.data.registration_requests);
@@ -122,7 +178,6 @@ const Loginsettings = () => {
       }
     } catch (err) {
       console.error("Error fetching requests:", err);
-      console.error("Error details:", err.response?.data || err.message);
       setError(err.message || "Failed to fetch registration requests");
     } finally {
       setLoading(false);
@@ -137,7 +192,6 @@ const Loginsettings = () => {
   useEffect(() => {
     let filtered = requests;
 
-    // Apply search term filter
     if (searchTerm.trim() !== "") {
       filtered = filtered.filter((request) => {
         const searchTermLower = searchTerm.toLowerCase();
@@ -155,28 +209,27 @@ const Loginsettings = () => {
       });
     }
 
-    // Apply status filter
     if (statusFilter !== "All") {
       filtered = filtered.filter((request) => {
         const status = request.data.status?.toLowerCase() || "pending";
         if (statusFilter === "Approved") {
           return status === "active" || status === "accepted";
         }
+        if (statusFilter === "Suspended") {
+          return request.data.suspended === true;
+        }
         return status === statusFilter.toLowerCase();
       });
     }
 
     setFilteredRequests(filtered);
-    setCurrentPage(1); // Reset to first page on new filter
+    setCurrentPage(1);
   }, [searchTerm, statusFilter, requests]);
 
-  // Pagination calculation
   const totalPages = Math.ceil(filteredRequests.length / requestsPerPage);
   const startIndex = (currentPage - 1) * requestsPerPage;
-  const currentRequests = filteredRequests.slice(
-    startIndex,
-    startIndex + requestsPerPage
-  );
+  const endIndex = startIndex + requestsPerPage;
+  const currentRequests = filteredRequests.slice(startIndex, endIndex);
 
   const handlePrevPage = () => {
     if (currentPage > 1) setCurrentPage(currentPage - 1);
@@ -207,8 +260,141 @@ const Loginsettings = () => {
     setStatusFilter(e.target.value);
   };
 
+  const sendStatusEmail = async (email, action, username) => {
+    try {
+      const subject =
+        action === "suspend"
+          ? "Your TicketB Vendor Account Has Been Suspended"
+          : "Your TicketB Vendor Account Has Been Activated";
+      const text =
+        action === "suspend"
+          ? `Dear ${username},\n\nYour TicketB vendor account has been suspended by the admin. To reactivate your account, please contact the admin at sharveshraj@snippetscript.com.\n\nBest regards,\nTicketB Team`
+          : `Dear ${username},\n\nYour TicketB vendor account has been successfully activated by the admin. You can now access your account.\n\nBest regards,\nTicketB Team`;
+
+      await axios.post(`${process.env.REACT_APP_API_BASE_URL}/api/send-email`, {
+        to: email,
+        subject,
+        text,
+      });
+      console.log(`Email sent to ${email} for ${action}`);
+    } catch (error) {
+      console.error("Error sending email:", error);
+      setError(`Failed to send ${action} email: ${error.message}`);
+    }
+  };
+
+  const handleToggleStatus = (requestId, data, currentSuspendedStatus) => {
+    if (!isAdminUser) {
+      setError("Only admins can suspend or activate vendor accounts.");
+      return;
+    }
+
+    if (data.status === "removed") {
+      setError("Cannot modify removed vendors.");
+      return;
+    }
+
+    const action = currentSuspendedStatus ? "activate" : "suspend";
+
+    setConfirmDialog({
+      open: true,
+      title: action === "suspend" ? "Suspend Vendor" : "Activate Vendor",
+      message: `Are you sure you want to ${action} this vendor account?`,
+      requestId: requestId,
+      action: action,
+      data: data,
+    });
+  };
+
+  const handleConfirmAction = async () => {
+    setActionLoading(true);
+    const { requestId, action, data } = confirmDialog;
+
+    try {
+      // Get email from request data
+      const email = data.organisationMail || data.email;
+
+      if (!email) {
+        throw new Error("No email found for vendor");
+      }
+
+      // Query vendors collection - try multiple email fields
+      const vendorsRef = collection(db, "vendors");
+
+      // Try querying by organisationMail first
+      let q = query(vendorsRef, where("organisationMail", "==", email));
+      let querySnapshot = await getDocs(q);
+
+      // If not found, try by email field
+      if (querySnapshot.empty) {
+        q = query(vendorsRef, where("email", "==", email));
+        querySnapshot = await getDocs(q);
+      }
+
+      // If still not found, try using requestId as vendorId directly
+      if (querySnapshot.empty) {
+        console.log("Trying with requestId as vendorId:", requestId);
+        const vendorDocRef = doc(db, "vendors", requestId);
+        const vendorDocSnap = await getDoc(vendorDocRef);
+
+        if (!vendorDocSnap.exists()) {
+          throw new Error("Vendor document not found. Please ensure the vendor account has been properly created.");
+        }
+
+        // Update using requestId
+        await updateDoc(vendorDocRef, {
+          suspended: action === "suspend",
+        });
+      } else {
+        // Get the actual vendor document ID from query result
+        const vendorDoc = querySnapshot.docs[0];
+        const vendorId = vendorDoc.id;
+
+        // Update vendor document in Firestore with the correct ID
+        const vendorDocRef = doc(db, "vendors", vendorId);
+        await updateDoc(vendorDocRef, {
+          suspended: action === "suspend",
+        });
+      }
+
+      // Send email notification
+      await sendStatusEmail(email, action, data.username);
+
+      // Update local state
+      setRequests((prev) =>
+        prev.map((request) =>
+          request.requestId === requestId
+            ? {
+                ...request,
+                data: {
+                  ...request.data,
+                  suspended: action === "suspend",
+                },
+              }
+            : request
+        )
+      );
+
+      setActionSuccess(
+        `Vendor account ${
+          action === "suspend" ? "suspended" : "activated"
+        } successfully!`
+      );
+      setTimeout(() => setActionSuccess(null), 3000);
+    } catch (error) {
+      console.error(`Error ${action}ing vendor:`, error);
+      setError(`Failed to ${action} vendor account: ${error.message}`);
+    } finally {
+      setActionLoading(false);
+      setConfirmDialog({ ...confirmDialog, open: false });
+    }
+  };
+
+  const handleCancelAction = () => {
+    setConfirmDialog({ ...confirmDialog, open: false });
+  };
+
   const handleViewMore = (requestId, data) => {
-    console.log("Viewing details for:", requestId, data);
     if (data.status === "pending") {
       navigate(`/admin/vendorstatus/${requestId}`, {
         state: { requestId, data },
@@ -237,35 +423,6 @@ const Loginsettings = () => {
     }
   };
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (!user) {
-        setError("Please log in to access this page.");
-        setLoading(false);
-        return;
-      }
-
-      try {
-        const adminDocRef = doc(db, "admins", user.uid);
-        const adminDoc = await getDoc(adminDocRef);
-
-        if (!adminDoc.exists()) {
-          setError("Admin profile not found.");
-          setLoading(false);
-          return;
-        }
-
-        const data = adminDoc.data();
-        setLastLogin(data.lastlogin || "");
-      } catch (err) {
-        setError("Failed to load admin details: " + err.message);
-      } finally {
-        setLoading(false);
-      }
-    });
-    return () => unsubscribe();
-  }, []);
-
   const formatLastLogin = (timestamp) => {
     if (!timestamp) return "Never";
     try {
@@ -279,22 +436,47 @@ const Loginsettings = () => {
     }
   };
 
-  const renderStatusBadge = (status) => {
-    const lowerStatus = status?.toLowerCase() || "pending";
+  const renderStatusBadge = (request) => {
+    const status = request.data.status?.toLowerCase() || "pending";
+    const isSuspended = request.data.suspended === true;
+
+    if (isSuspended) {
+      return (
+        <Box
+          bgcolor={statusColors.suspended}
+          px={2}
+          py={0.5}
+          borderRadius={2}
+          width="fit-content"
+          margin="auto"
+          color={statusTextColor.suspended}
+          fontWeight="medium"
+          fontSize="13px"
+          textAlign="center"
+          display="flex"
+          alignItems="center"
+          gap={1}
+        >
+          <BlockIcon fontSize="small" />
+          Suspended
+        </Box>
+      );
+    }
+
     return (
       <Box
-        bgcolor={statusColors[lowerStatus] || statusColors.pending}
+        bgcolor={statusColors[status] || statusColors.pending}
         px={2}
         py={0.5}
         borderRadius={2}
         width="fit-content"
         margin="auto"
-        color={statusTextColor[lowerStatus] || statusTextColor.pending}
+        color={statusTextColor[status] || statusTextColor.pending}
         fontWeight="medium"
         fontSize="13px"
         textAlign="center"
       >
-        {status || "Pending"}
+        {request.data.status || "Pending"}
       </Box>
     );
   };
@@ -383,7 +565,7 @@ const Loginsettings = () => {
           maxHeight="calc(100vh - 89px)"
         >
           <Typography variant="h5" fontWeight="bold" mb={4}>
-            Login Settings
+            Vendor Management
           </Typography>
 
           {error && (
@@ -397,6 +579,12 @@ const Loginsettings = () => {
               >
                 Retry
               </Button>
+            </Alert>
+          )}
+
+          {actionSuccess && (
+            <Alert severity="success" sx={{ mb: 3 }}>
+              {actionSuccess}
             </Alert>
           )}
 
@@ -427,6 +615,7 @@ const Loginsettings = () => {
                       <MenuItem value="All">All Statuses</MenuItem>
                       <MenuItem value="Pending">Pending</MenuItem>
                       <MenuItem value="Approved">Approved</MenuItem>
+                      <MenuItem value="Suspended">Suspended</MenuItem>
                       <MenuItem value="Removed">Removed</MenuItem>
                     </Select>
                     <TextField
@@ -456,7 +645,7 @@ const Loginsettings = () => {
                           "Phone",
                           "Account Created",
                           "Status",
-                          "Edit",
+                          "Actions",
                         ].map((header) => (
                           <TableCell
                             key={header}
@@ -512,17 +701,53 @@ const Loginsettings = () => {
                             align="center"
                             sx={{ padding: "12px 16px" }}
                           >
-                            {renderStatusBadge(data.status)}
+                            {renderStatusBadge({ requestId, data })}
                           </TableCell>
                           <TableCell
                             align="center"
-                            sx={{
-                              padding: "12px 16px",
-                              cursor: "pointer",
-                              color: "#42A5F5",
-                            }}
+                            sx={{ padding: "12px 16px" }}
                           >
-                            <Box display="flex" justifyContent="center" gap={1}>
+                            <Box
+                              display="flex"
+                              justifyContent="center"
+                              gap={1}
+                              alignItems="center"
+                            >
+                              {data.status === "accepted" &&
+                                data.status !== "removed" && (
+                                  <Tooltip
+                                    title={
+                                      data.suspended
+                                        ? "Activate Vendor"
+                                        : "Suspend Vendor"
+                                    }
+                                  >
+                                    <span>
+                                      <IconButton
+                                        color={
+                                          data.suspended ? "success" : "error"
+                                        }
+                                        onClick={() =>
+                                          handleToggleStatus(
+                                            requestId,
+                                            data,
+                                            data.suspended
+                                          )
+                                        }
+                                        disabled={
+                                          actionLoading || !isAdminUser
+                                        }
+                                      >
+                                        {data.suspended ? (
+                                          <CheckCircleIcon />
+                                        ) : (
+                                          <BlockIcon />
+                                        )}
+                                      </IconButton>
+                                    </span>
+                                  </Tooltip>
+                                )}
+
                               <Typography
                                 onClick={() => {
                                   if (data.status !== "removed") {
@@ -616,6 +841,41 @@ const Loginsettings = () => {
           )}
         </Box>
       </Box>
+
+      {/* Confirmation Dialog */}
+      <Dialog
+        open={confirmDialog.open}
+        onClose={handleCancelAction}
+        aria-labelledby="alert-dialog-title"
+        aria-describedby="alert-dialog-description"
+      >
+        <DialogTitle id="alert-dialog-title">
+          {confirmDialog.title}
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText id="alert-dialog-description">
+            {confirmDialog.message}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCancelAction} color="primary">
+            Cancel
+          </Button>
+          <Button
+            onClick={handleConfirmAction}
+            color={confirmDialog.action === "suspend" ? "error" : "success"}
+            variant="contained"
+            autoFocus
+            disabled={actionLoading}
+          >
+            {actionLoading ? (
+              <CircularProgress size={24} color="inherit" />
+            ) : (
+              "Confirm"
+            )}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

@@ -28,6 +28,8 @@ import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
 import FastfoodIcon from "@mui/icons-material/Fastfood";
 import { useNavigate, useParams } from "react-router-dom";
 import Header from "../Header/MainHeaderWOS";
+import Login from "../Login/Login";
+import Signin from "../Signin/Signin";
 import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "../../firebase_config";
 import { getAuth } from "firebase/auth";
@@ -47,11 +49,29 @@ const TicketPricePage = ({ activeStep = 0 }) => {
   const [isProcessingBooking, setIsProcessingBooking] = useState(false);
   const [error, setError] = useState(null);
   const [foodItems, setFoodItems] = useState([]);
-  const CONVENIENCE_FEE = 40; // Rs 40 convenience fee
+  const CONVENIENCE_FEE = 40;
   const isMobile = useMediaQuery("(max-width:600px)");
+
+  // Auth states
+  const [openLogin, setOpenLogin] = useState(false);
+  const [openSignin, setOpenSignin] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   const auth = getAuth();
   const userUID = auth.currentUser?.uid;
+
+  // Check authentication status
+  useEffect(() => {
+    const unsubscribeAuth = auth.onAuthStateChanged((user) => {
+      if (user) {
+        setIsAuthenticated(true);
+      } else {
+        setIsAuthenticated(false);
+      }
+    });
+
+    return () => unsubscribeAuth();
+  }, [auth]);
 
   useEffect(() => {
     if (!eventId) return;
@@ -81,7 +101,7 @@ const TicketPricePage = ({ activeStep = 0 }) => {
           .map((perk, index) => {
             const itemName = perk?.itemName;
 
-            if (!itemName || typeof itemName !== "string") return null; // Skip invalid perks
+            if (!itemName || typeof itemName !== "string") return null;
 
             let category = "Other";
             const nameLower = itemName.toLowerCase();
@@ -111,13 +131,13 @@ const TicketPricePage = ({ activeStep = 0 }) => {
               id: index + 1,
               name: itemName,
               description: `Delicious ${itemName} for your event enjoyment`,
-              image: perk.url, // Use directly from backend
+              image: perk.url,
               price: perk.price || 0,
               category,
               limit: perk.limit || 100,
             };
           })
-          .filter(Boolean); // Remove nulls
+          .filter(Boolean);
 
         setFoodItems(processedFoodItems);
         setEvent({
@@ -143,8 +163,6 @@ const TicketPricePage = ({ activeStep = 0 }) => {
 
     return () => unsubscribe();
   }, [eventId]);
-
-  useEffect(() => {}, [userUID]);
 
   const handleIncrement = (ticketId) => {
     if (!ticketId || !event || !event.ticket) return;
@@ -266,10 +284,32 @@ const TicketPricePage = ({ activeStep = 0 }) => {
     });
   };
 
+  const handleLoginSuccess = () => {
+    setIsAuthenticated(true);
+    setOpenLogin(false);
+    setOpenSignin(false);
+    // Tickets remain selected, user can continue booking
+  };
+
+  const handleSwitchToSignUp = () => {
+    setOpenLogin(false);
+    setOpenSignin(true);
+  };
+
+  const handleSwitchToLogin = () => {
+    setOpenLogin(true);
+    setOpenSignin(false);
+  };
+
   const handleProceed = async () => {
+    // Check if user is authenticated
+    if (!isAuthenticated) {
+      setOpenLogin(true);
+      return;
+    }
+
     if (!userUID) {
-      alert("Please sign in to continue");
-      navigate("/");
+      setOpenLogin(true);
       return;
     }
 
@@ -341,7 +381,6 @@ const TicketPricePage = ({ activeStep = 0 }) => {
   const calculateAvailableTickets = (ticket) => {
     const totalSeats = ticket.seats || 0;
     const bookedTickets = ticket.booked || 0;
-
     return Math.max(0, totalSeats - bookedTickets);
   };
 
@@ -491,13 +530,13 @@ const TicketPricePage = ({ activeStep = 0 }) => {
 
       <Container maxWidth="md" sx={{ mt: 3 }}>
         <Typography variant="h6" sx={{ fontWeight: "bold", mb: 2, fontFamily: "albert sans" }}>
-          Select Your Tickets (Max {event.ticketCount} per purchase)
+          Select Your Tickets (Max {event?.ticketCount} per purchase)
         </Typography>
 
         {event?.ticket && event.ticket.length > 0 ? (
           event.ticket.map((ticket) => {
             const ticketId = String(ticket.id);
-            const available = calculateAvailableTickets(ticket); // Use the fixed calculation
+            const available = calculateAvailableTickets(ticket);
             const isSoldOut = available <= 0;
             const thisTicketCount = selectedTickets[ticketId] || 0;
 
@@ -954,6 +993,22 @@ const TicketPricePage = ({ activeStep = 0 }) => {
           </Box>
         </Card>
       </Modal>
+
+      {/* Login Modal */}
+      <Login
+        open={openLogin}
+        handleClose={() => setOpenLogin(false)}
+        handleSwitchToSignUp={handleSwitchToSignUp}
+        onLoginSuccess={handleLoginSuccess}
+      />
+
+      {/* Signin Modal */}
+      <Signin
+        open={openSignin}
+        handleClose={() => setOpenSignin(false)}
+        handleSwitchToLogin={handleSwitchToLogin}
+        onSigninSuccess={handleLoginSuccess}
+      />
 
       <Box
         sx={{

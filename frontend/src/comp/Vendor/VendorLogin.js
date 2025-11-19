@@ -1,6 +1,3 @@
-
-
-
 import { useState, useEffect } from "react";
 import {
   TextField,
@@ -16,25 +13,22 @@ import {
   DialogContentText,
   DialogActions,
 } from "@mui/material";
-import { ArrowBack, Close } from "@mui/icons-material";
+import { Close } from "@mui/icons-material";
 import Slider from "react-slick";
 import { useNavigate, useLocation, useParams } from "react-router-dom";
 import axios from "axios";
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
 
-
 import img1 from "../QR image/Gemini_Generated_Image_ytw5d2ytw5d2ytw5.jpeg";
 import img2 from "../QR image/ChatGPT Image Jun 5, 2025, 03_45_17 PM.png";
 import img3 from "../QR image/Gemini_Generated_Image_70g27o70g27o70g2.jpeg";
 
-
-// Set the base URL for Axios
 axios.defaults.baseURL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080';
 
 const VendorLogin = () => {
   const { vendorId } = useParams();
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
@@ -48,12 +42,15 @@ const VendorLogin = () => {
   const [showResetSuccessModal, setShowResetSuccessModal] = useState(false);
   const [handleError, setHandleError] = useState("");
   const [openDialog, setOpenDialog] = useState(false);
+  const [emailError, setEmailError] = useState("");
 
   const navigate = useNavigate();
   const location = useLocation();
 
-  const isFormValid = username.trim() !== "" && password.trim() !== "";
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const isFormValid = email.trim() !== "" &&
+                     emailRegex.test(email) &&
+                     password.trim() !== "";
   const isResetEmailValid = resetEmail.trim() !== "" && emailRegex.test(resetEmail);
   const isNewPasswordValid = newPassword.trim() !== "" &&
                            confirmPassword.trim() !== "" &&
@@ -82,28 +79,64 @@ const VendorLogin = () => {
     }
   }, [location]);
 
+  const handleEmailChange = (e) => {
+    const value = e.target.value;
+    setEmail(value);
+
+    if (value.trim() !== "" && !emailRegex.test(value)) {
+      setEmailError("Please enter a valid email address");
+    } else {
+      setEmailError("");
+    }
+  };
+
   const handleLogin = async () => {
-    if (!username || !password) {
-      setHandleError("Please enter both username and password.");
+    if (!email || !password) {
+      setHandleError("Please enter both email and password.");
+      setOpenDialog(true);
+      return;
+    }
+
+    if (!emailRegex.test(email)) {
+      setHandleError("Please enter a valid email address.");
       setOpenDialog(true);
       return;
     }
 
     try {
       const response = await axios.post("/api/vendor/login", {
-        username,
+        email: email.toLowerCase(),
         password,
       });
 
+      // Update last login
       await axios.post("/api/vendor/lastlogin", {
-        username,
+        email: email.toLowerCase(),
       });
 
-      if (response.data.Message === "Login successful") {
-        navigate(`/vendorhome/${response.data.vendorId}`);
+      // Handle redirection based on status
+      const { vendorId, status, redirectTo, Message } = response.data;
+
+      if (redirectTo === "dashboard") {
+        // Approved - go to dashboard
+        navigate(`/vendorhome/${vendorId}`);
+      } else if (redirectTo === "confirmation") {
+        // Pending/Rejected/Removed - go to confirmation page
+        navigate(`/vendor/confirmation`, {
+          state: {
+            status: status,
+            message: Message,
+            vendorId: vendorId
+          }
+        });
       } else {
-        setHandleError(response.data.Message);
-        setOpenDialog(true);
+        // Fallback for accepted status
+        if (status === "accepted") {
+          navigate(`/vendorhome/${vendorId}`);
+        } else {
+          setHandleError(Message);
+          setOpenDialog(true);
+        }
       }
     } catch (error) {
       console.error(error);
@@ -114,7 +147,7 @@ const VendorLogin = () => {
     }
   };
 
-const handleForgotPassword = async () => {
+  const handleForgotPassword = async () => {
     if (!emailRegex.test(resetEmail)) {
       setResetEmailError("Please enter a valid email address.");
       return;
@@ -132,17 +165,13 @@ const handleForgotPassword = async () => {
       setResetMessage("Password reset email sent! Please check your inbox and spam folder.");
     } catch (error) {
       console.error("Password reset error:", error);
-      
-      // Handle different error scenarios
+
       if (error.response?.status === 400) {
-        // Backend returns 400 for validation errors and "user not found"
         const errorMessage = error.response?.data?.error || "Invalid request. Please try again.";
         setResetMessage(errorMessage);
       } else if (error.response?.status === 500) {
-        // Server error
         setResetMessage("Server error. Please try again later.");
       } else {
-        // Network or other errors
         setResetMessage("Failed to send reset email. Please check your connection and try again.");
       }
     } finally {
@@ -150,7 +179,7 @@ const handleForgotPassword = async () => {
     }
   };
 
-const handleResetPassword = async () => {
+  const handleResetPassword = async () => {
     const query = new URLSearchParams(location.search);
     const token = query.get("token");
 
@@ -182,8 +211,7 @@ const handleResetPassword = async () => {
       setShowResetSuccessModal(true);
     } catch (error) {
       console.error("Password reset error:", error);
-      
-      // Handle different error scenarios
+
       if (error.response?.status === 400) {
         const errorMessage = error.response?.data?.error || "Invalid request. Please try again.";
         setResetError(errorMessage);
@@ -212,12 +240,12 @@ const handleResetPassword = async () => {
     setResetEmailError("");
     setIsLoading(false);
   };
+
   const handleReturnToLogin = () => {
     setShowResetSuccessModal(false);
     setNewPassword("");
     setConfirmPassword("");
     setResetError("");
-    // Remove token from URL
     navigate("/vendor/login", { replace: true });
   };
 
@@ -558,17 +586,20 @@ const handleResetPassword = async () => {
 
           <TextField
             fullWidth
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
+            value={email}
+            onChange={handleEmailChange}
             variant="outlined"
-            label="Username"
+            label="Email Address"
+            type="email"
+            error={!!emailError}
+            helperText={emailError}
             sx={{
               marginTop: "1.5rem",
               backgroundColor: "#f8f7fc",
               "& .MuiInputBase-input": { fontFamily: "Albert Sans" },
               "& .MuiInputLabel-root": { fontFamily: "Albert Sans" },
               "& .MuiOutlinedInput-root": {
-                "& fieldset": { borderColor: "#ccc" },
+                "& fieldset": { borderColor: emailError ? "red" : "#ccc" },
               },
             }}
           />

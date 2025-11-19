@@ -17,12 +17,16 @@ import MenuIcon from "@mui/icons-material/Menu";
 import CloseIcon from "@mui/icons-material/Close";
 import { useTheme } from "@mui/material/styles";
 import { useNavigate } from "react-router-dom";
+import { collection, query, where, getDocs } from "firebase/firestore";
+import { db } from "../firebase/firebase_config"; // Adjust path as needed
 
-// Dummy profile data
+// Dummy profile data - You should replace this with actual user data from context/state
 const profileData = [
   {
     name: "Sujan Raj",
     image: "https://randomuser.me/api/portraits/men/46.jpg",
+    userId: "tKLRH8aGwvP4lMdw1kJWord2ZCq2", // This should come from your auth context
+    email: "sharveshraj2004@gmail.com", // This should come from your auth context
   },
 ];
 
@@ -42,6 +46,44 @@ const MainHeader = () => {
       return;
     }
     setDrawerOpen(open);
+  };
+
+  // Function to check if vendor exists and is verified
+  const handleCreateEventClick = async () => {
+    try {
+      const userId = profileData[0].userId; // Replace with actual user ID from auth context
+      const userEmail = profileData[0].email; // Replace with actual email from auth context
+
+      if (!userEmail) {
+        // If no user is logged in, redirect to register
+        navigate(`/vendor/register/${userId}`);
+        return;
+      }
+
+      // Check if vendor exists in Firestore
+      const vendorsRef = collection(db, "vendors");
+      const q = query(vendorsRef, where("email", "==", userEmail));
+      const querySnapshot = await getDocs(q);
+
+      if (!querySnapshot.empty) {
+        const vendorDoc = querySnapshot.docs[0].data();
+
+        // If vendor is verified, redirect to login
+        if (vendorDoc.verified === true) {
+          navigate(`/vendorlogin/${userId}`);
+        } else {
+          // If vendor exists but not verified, go to register
+          navigate(`/vendor/register/${userId}`);
+        }
+      } else {
+        // No vendor found, go to register
+        navigate(`/vendor/register/${userId}`);
+      }
+    } catch (error) {
+      console.error("Error checking vendor status:", error);
+      // On error, default to register page
+      navigate(`/vendor/register/${profileData[0].userId}`);
+    }
   };
 
   const renderSearchLocationBox = () => (
@@ -150,12 +192,12 @@ const MainHeader = () => {
       </Box>
       <List>
         <ListItem button onClick={() => navigate("/")}>
-          <ListItemText primary="Find my tickets" />
+          <ListItemText primary="Find my tickets" sx={{fontFamily:'albert sans'}} />
         </ListItem>
         <ListItem button>
           <ListItemText primary="Recent Orders" sx={{fontFamily:'albert sans'}} />
         </ListItem>
-        <ListItem button onClick={() => navigate("/vendorregister")}>
+        <ListItem button onClick={handleCreateEventClick}>
           <ListItemText primary="Create Events" sx={{fontFamily:'albert sans'}} />
         </ListItem>
       </List>
@@ -184,6 +226,7 @@ const MainHeader = () => {
               color: "rgb(25, 174, 220)",
               cursor: "pointer",
             }}
+            onClick={() => navigate("/")}
           >
             ticketb
           </Typography>
@@ -235,7 +278,7 @@ const MainHeader = () => {
               </Typography>
 
               <Typography
-                onClick={() => navigate("/vendorregister")}
+                onClick={handleCreateEventClick}
                 sx={{
                   cursor: "pointer",
                   whiteSpace: "nowrap",

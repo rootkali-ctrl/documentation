@@ -14,7 +14,6 @@ import {
   TableHead,
   TableRow,
   Paper,
-  Avatar,
   CircularProgress,
   Alert,
   IconButton,
@@ -67,7 +66,7 @@ const sidebarItems = [
     path: "/admin/postpage",
   },
   {
-    name: "Login Settings",
+    name: "Vendors",
     icon: <SettingsIcon />,
     active: false,
     path: "/admin/loginsettings",
@@ -93,9 +92,7 @@ const statusColors = {
 };
 
 const UserPage = () => {
-  const [activeTab, setActiveTab] = useState("recuser");
   const [users, setUsers] = useState([]);
-  const [vendors, setVendors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -112,7 +109,6 @@ const UserPage = () => {
     title: "",
     message: "",
     id: null,
-    isUser: true,
     action: null,
   });
   const [actionSuccess, setActionSuccess] = useState(null);
@@ -123,7 +119,7 @@ const UserPage = () => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setAuthChecked(true);
       if (!user) {
-        setError("Please log in to access user and vendor details.");
+        setError("Please log in to access user details.");
         setIsAdminUser(false);
       } else {
         const adminDocRef = doc(db, "admins", user.uid);
@@ -143,19 +139,17 @@ const UserPage = () => {
   const formatDate = (timestamp) => {
     if (!timestamp) return "NA";
     try {
-      // Ensure timestamp is a Date object before formatting
       let date;
       if (timestamp && typeof timestamp.toDate === "function") {
-        date = timestamp.toDate(); // Firebase Timestamp to Date object
+        date = timestamp.toDate();
       } else if (timestamp instanceof Date) {
-        date = timestamp; // Already a Date object
+        date = timestamp;
       } else if (typeof timestamp === 'string') {
-        date = new Date(timestamp); // Try to parse string to Date
+        date = new Date(timestamp);
       } else {
-        return "Invalid date"; // Unrecognized timestamp format
+        return "Invalid date";
       }
 
-      // Check if date is valid after potential parsing
       if (isNaN(date.getTime())) {
         return "Invalid date";
       }
@@ -282,7 +276,6 @@ const UserPage = () => {
         const data = doc.data();
         let accountCreatedDate;
 
-        // Dynamically set accountCreatedDate
         if (data.accountcreated && typeof data.accountcreated.toDate === 'function') {
           accountCreatedDate = data.accountcreated.toDate();
         } else if (data.accountcreated instanceof Date) {
@@ -290,7 +283,7 @@ const UserPage = () => {
         } else if (typeof data.accountcreated === 'string') {
           accountCreatedDate = new Date(data.accountcreated);
         } else {
-          accountCreatedDate = null; // Or new Date() if you want a fallback to current date
+          accountCreatedDate = null;
         }
 
         return {
@@ -323,121 +316,7 @@ const UserPage = () => {
     }
   };
 
-  const fetchVendors = async (direction = "next") => {
-    setError(null);
-    setLoading(true);
-    try {
-      const vendorsCollection = collection(db, "vendors");
-      let vendorsQuery;
-
-      const cacheKey = `vendors_${searchTerm}_${currentPage}`;
-      if (pageCache[cacheKey] && direction !== "search") {
-        setVendors(pageCache[cacheKey].data);
-        setLastVisibleDoc(pageCache[cacheKey].lastDoc);
-        setFirstVisibleDoc(pageCache[cacheKey].firstDoc);
-        setHasMoreData(pageCache[cacheKey].hasMore);
-        setLoading(false);
-        return;
-      }
-
-      if (searchTerm) {
-        vendorsQuery = query(
-          vendorsCollection,
-          where("username", ">=", searchTerm),
-          where("username", "<=", searchTerm + "\uf8ff"),
-          orderBy("username"),
-          limit(usersPerPage + 1)
-        );
-      } else {
-        if (direction === "next" && lastVisibleDoc) {
-          vendorsQuery = query(
-            vendorsCollection,
-            orderBy("username", "desc"),
-            startAfter(lastVisibleDoc),
-            limit(usersPerPage + 1)
-          );
-        } else if (direction === "prev" && firstVisibleDoc) {
-          vendorsQuery = query(
-            vendorsCollection,
-            orderBy("username", "desc"),
-            endBefore(firstVisibleDoc),
-            limit(usersPerPage + 1)
-          );
-        } else {
-          vendorsQuery = query(
-            vendorsCollection,
-            orderBy("username", "desc"),
-            limit(usersPerPage + 1)
-          );
-        }
-      }
-
-      const querySnapshot = await getDocs(vendorsQuery);
-
-      if (querySnapshot.empty) {
-        setVendors([]);
-        setHasMoreData(false);
-        setLoading(false);
-        return;
-      }
-
-      const hasMore = querySnapshot.docs.length > usersPerPage;
-      const docs = hasMore
-        ? querySnapshot.docs.slice(0, usersPerPage)
-        : querySnapshot.docs;
-
-      const lastDoc = docs[docs.length - 1];
-      const firstDoc = docs[0];
-      setLastVisibleDoc(lastDoc);
-      setFirstVisibleDoc(firstDoc);
-      setHasMoreData(hasMore);
-
-      const fetchedVendors = docs.map((doc) => {
-        const data = doc.data();
-        let accountCreatedDate;
-
-        // Dynamically set accountCreatedDate
-        if (data.accountcreated && typeof data.accountcreated.toDate === 'function') {
-          accountCreatedDate = data.accountcreated.toDate();
-        } else if (data.accountcreated instanceof Date) {
-          accountCreatedDate = data.accountcreated;
-        } else if (typeof data.accountcreated === 'string') {
-          accountCreatedDate = new Date(data.accountcreated);
-        } else {
-          accountCreatedDate = null; // Or new Date() if you want a fallback to current date
-        }
-
-        return {
-          id: doc.id,
-          ...data,
-          image: data.image || "/api/placeholder/40/40",
-          status: data.suspended ? "Suspended" : "Active",
-          lastLogin: data.lastLogin || "Never",
-          accountcreated: accountCreatedDate,
-        };
-      });
-
-      setPageCache((prev) => ({
-        ...prev,
-        [cacheKey]: {
-          data: fetchedVendors,
-          lastDoc,
-          firstDoc,
-          hasMore,
-        },
-      }));
-
-      setVendors(fetchedVendors);
-    } catch (error) {
-      console.error("Error fetching vendors:", error);
-      setError("Failed to fetch vendors: " + error.message);
-      setVendors([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const sendStatusEmail = async (email, action, isUser) => {
+  const sendStatusEmail = async (email, action) => {
     try {
       const subject =
         action === "suspend"
@@ -445,12 +324,8 @@ const UserPage = () => {
           : "Your TicketB Account Has Been Activated";
       const text =
         action === "suspend"
-          ? `Dear ${
-              isUser ? "User" : "Vendor"
-            },\n\nYour TicketB account has been suspended by the admin. To reactivate your account, please contact the admin at sharveshraj@snippetscript.com .\n\nBest regards,\nTicketB Team`
-          : `Dear ${
-              isUser ? "User" : "Vendor"
-            },\n\nYour TicketB account has been successfully activated by the admin. You can now access your account.\n\nBest regards,\nTicketB Team`;
+          ? `Dear User,\n\nYour TicketB account has been suspended by the admin. To reactivate your account, please contact the admin at sharveshraj@snippetscript.com .\n\nBest regards,\nTicketB Team`
+          : `Dear User,\n\nYour TicketB account has been successfully activated by the admin. You can now access your account.\n\nBest regards,\nTicketB Team`;
 
       await axios.post(`${process.env.REACT_APP_API_BASE_URL}/api/send-email`, {
         to: email,
@@ -464,7 +339,7 @@ const UserPage = () => {
     }
   };
 
-  const handleToggleStatus = async (id, currentStatus, isUser = true) => {
+  const handleToggleStatus = async (id, currentStatus) => {
     if (!isAdminUser) {
       setError("Only admins can suspend or activate accounts.");
       return;
@@ -476,28 +351,25 @@ const UserPage = () => {
         currentStatus === "Active" ? "Suspend Account" : "Activate Account",
       message: `Are you sure you want to ${
         currentStatus === "Active" ? "suspend" : "activate"
-      } this ${isUser ? "user" : "vendor"} account?`,
+      } this user account?`,
       id: id,
-      isUser: isUser,
       action: currentStatus === "Active" ? "suspend" : "activate",
     });
   };
 
   const handleConfirmAction = async () => {
     setActionLoading(true);
-    const { id, isUser, action } = confirmDialog;
+    const { id, action } = confirmDialog;
     try {
-      const collectionName = isUser ? "users" : "vendors";
-      const docRef = doc(db, collectionName, id);
+      const docRef = doc(db, "users", id);
 
       await updateDoc(docRef, {
         suspended: action === "suspend",
       });
 
-      const currentData = isUser ? users : vendors;
-      const account = currentData.find((item) => item.id === id);
+      const account = users.find((item) => item.id === id);
       if (account && account.email) {
-        await sendStatusEmail(account.email, action, isUser);
+        await sendStatusEmail(account.email, action);
       } else {
         console.warn("No email found for account:", id);
         setError(
@@ -505,29 +377,16 @@ const UserPage = () => {
         );
       }
 
-      if (isUser) {
-        setUsers((prev) =>
-          prev.map((user) =>
-            user.id === id
-              ? {
-                  ...user,
-                  status: action === "suspend" ? "Suspended" : "Active",
-                }
-              : user
-          )
-        );
-      } else {
-        setVendors((prev) =>
-          prev.map((vendor) =>
-            vendor.id === id
-              ? {
-                  ...vendor,
-                  status: action === "suspend" ? "Suspended" : "Active",
-                }
-              : vendor
-          )
-        );
-      }
+      setUsers((prev) =>
+        prev.map((user) =>
+          user.id === id
+            ? {
+                ...user,
+                status: action === "suspend" ? "Suspended" : "Active",
+              }
+            : user
+        )
+      );
 
       setPageCache({});
 
@@ -552,17 +411,8 @@ const UserPage = () => {
 
   useEffect(() => {
     if (!authChecked) return;
-
-    const fetchData = async () => {
-      if (activeTab === "recuser") {
-        await fetchUsers();
-      } else {
-        await fetchVendors();
-      }
-    };
-
-    fetchData();
-  }, [activeTab, currentPage, authChecked]);
+    fetchUsers();
+  }, [currentPage, authChecked]);
 
   useEffect(() => {
     if (!authChecked) return;
@@ -570,31 +420,15 @@ const UserPage = () => {
     if (searchTerm !== "") {
       const delayDebounce = setTimeout(() => {
         setCurrentPage(1);
-        if (activeTab === "recuser") {
-          fetchUsers("search");
-        } else {
-          fetchVendors("search");
-        }
+        fetchUsers("search");
       }, 500);
 
       return () => clearTimeout(delayDebounce);
     } else {
       setCurrentPage(1);
-      if (activeTab === "recuser") {
-        fetchUsers("search");
-      } else {
-        fetchVendors("search");
-      }
+      fetchUsers("search");
     }
   }, [searchTerm, authChecked]);
-
-  const handleTabChange = (tab) => {
-    setActiveTab(tab);
-    setCurrentPage(1);
-    setLastVisibleDoc(null);
-    setFirstVisibleDoc(null);
-    setSearchTerm("");
-  };
 
   const handleSearch = (e) => {
     setSearchTerm(e.target.value);
@@ -603,22 +437,14 @@ const UserPage = () => {
   const handlePrevPage = () => {
     if (currentPage > 1) {
       setCurrentPage((prev) => prev - 1);
-      if (activeTab === "recuser") {
-        fetchUsers("prev");
-      } else {
-        fetchVendors("prev");
-      }
+      fetchUsers("prev");
     }
   };
 
   const handleNextPage = () => {
     if (hasMoreData) {
       setCurrentPage((prev) => prev + 1);
-      if (activeTab === "recuser") {
-        fetchUsers("next");
-      } else {
-        fetchVendors("next");
-      }
+      fetchUsers("next");
     }
   };
 
@@ -631,8 +457,6 @@ const UserPage = () => {
     }
     return pages;
   };
-
-  const currentData = activeTab === "recuser" ? users : vendors;
 
   return (
     <Box height="100vh" display="flex" flexDirection="column" bgcolor="#faf9fb">
@@ -718,35 +542,6 @@ const UserPage = () => {
             </Alert>
           )}
 
-          <Box display="flex" mb={6} justifyContent="center" gap={10}>
-            <Button
-              variant={activeTab === "recuser" ? "contained" : "outlined"}
-              sx={{
-                bgcolor: activeTab === "recuser" ? "#19aedc" : "#D1D5DB",
-                color: activeTab === "recuser" ? "white" : "#4B5563",
-                textTransform: "none",
-                border: "none",
-                padding: 1.5,
-              }}
-              onClick={() => handleTabChange("recuser")}
-            >
-              Recent Users
-            </Button>
-            <Button
-              variant={activeTab === "recvendor" ? "contained" : "outlined"}
-              sx={{
-                bgcolor: activeTab === "recvendor" ? "#19aedc" : "#D1D5DB",
-                color: activeTab === "recvendor" ? "white" : "#4B5563",
-                textTransform: "none",
-                border: "none",
-                padding: 1.5,
-              }}
-              onClick={() => handleTabChange("recvendor")}
-            >
-              Recent Vendors
-            </Button>
-          </Box>
-
           <Card>
             <CardContent>
               <Box
@@ -756,7 +551,9 @@ const UserPage = () => {
                 mb={2}
                 sx={{ paddingX: 2 }}
               >
-                <Box></Box>
+                <Typography variant="h6" fontWeight="bold">
+                  Recent Users
+                </Typography>
                 <Box display="flex" gap={2}>
                   <TextField
                     variant="outlined"
@@ -772,19 +569,6 @@ const UserPage = () => {
                       ),
                     }}
                   />
-                  {/* <Button
-                    variant="contained"
-                    sx={{ bgcolor: "#19aedc", textTransform: "none" }}
-                    onClick={() => {
-                      alert(
-                        `Add ${
-                          activeTab === "recuser" ? "User" : "Vendor"
-                        } functionality coming soon!`
-                      );
-                    }}
-                  >
-                    + Add {activeTab === "recuser" ? "User" : "Vendor"}
-                  </Button> */}
                 </Box>
               </Box>
 
@@ -798,23 +582,9 @@ const UserPage = () => {
                       <TableCell sx={{ backgroundColor: "#f1f1f1" }}>
                         Email
                       </TableCell>
-
-                      {activeTab === "recvendor" && (
-                        <TableCell sx={{ backgroundColor: "#f1f1f1" }}>
-                          Phone
-                        </TableCell>
-                      )}
-
                       <TableCell sx={{ backgroundColor: "#f1f1f1" }}>
                         Account Created
                       </TableCell>
-
-                      {activeTab === "recvendor" && (
-                        <TableCell sx={{ backgroundColor: "#f1f1f1" }}>
-                          Last Login
-                        </TableCell>
-                      )}
-
                       <TableCell sx={{ backgroundColor: "#f1f1f1" }}>
                         Status
                       </TableCell>
@@ -828,7 +598,7 @@ const UserPage = () => {
                     {loading ? (
                       <TableRow>
                         <TableCell
-                          colSpan={activeTab === "recvendor" ? 7 : 5}
+                          colSpan={5}
                           align="center"
                           sx={{ py: 3 }}
                         >
@@ -838,35 +608,24 @@ const UserPage = () => {
                           />
                         </TableCell>
                       </TableRow>
-                    ) : currentData.length === 0 ? (
+                    ) : users.length === 0 ? (
                       <TableRow>
                         <TableCell
-                          colSpan={activeTab === "recvendor" ? 7 : 5}
+                          colSpan={5}
                           align="center"
                           sx={{ py: 3 }}
                         >
-                          No {activeTab === "recuser" ? "users" : "vendors"}{" "}
-                          found
+                          No users found
                         </TableCell>
                       </TableRow>
                     ) : (
-                      currentData.map((item) => (
+                      users.map((item) => (
                         <TableRow key={item.id}>
                           <TableCell>{item.username}</TableCell>
                           <TableCell>{item.email}</TableCell>
-
-                          {activeTab === "recvendor" && (
-                            <TableCell>{item.organisationContact}</TableCell>
-                          )}
-
                           <TableCell>
                             {formatDate(item.accountcreated)}
                           </TableCell>
-
-                          {activeTab === "recvendor" && (
-                            <TableCell>{formatDate(item.lastLogin)}</TableCell>
-                          )}
-
                           <TableCell>
                             <Box
                               bgcolor={statusColors[item.status] || "#E5E7EB"}
@@ -892,7 +651,6 @@ const UserPage = () => {
                               {item.status}
                             </Box>
                           </TableCell>
-
                           <TableCell>
                             <Tooltip
                               title={
@@ -911,8 +669,7 @@ const UserPage = () => {
                                   onClick={() =>
                                     handleToggleStatus(
                                       item.id,
-                                      item.status,
-                                      activeTab === "recuser"
+                                      item.status
                                     )
                                   }
                                   disabled={actionLoading || !isAdminUser}
@@ -1020,7 +777,6 @@ const UserPage = () => {
           </Button>
         </DialogActions>
       </Dialog>
-
     </Box>
   );
 };

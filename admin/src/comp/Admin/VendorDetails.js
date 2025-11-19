@@ -47,6 +47,15 @@ const VendorDetails = () => {
   const [lastLogin, setLastLogin] = useState("");
   const [error, setError] = useState(null);
 
+  // Function to mask sensitive data showing only last 4 characters
+  const maskSensitiveData = (data) => {
+    if (!data || typeof data !== 'string') return 'N/A';
+    if (data.length <= 4) return data; // If 4 or fewer characters, show all
+    const maskedPart = '*'.repeat(data.length - 4);
+    const lastFour = data.slice(-4);
+    return maskedPart + lastFour;
+  };
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (!user) {
@@ -378,7 +387,7 @@ const VendorDetails = () => {
                     </Box>
                   </Box>
                   <Typography color="text.primary" variant="body1">
-                    {request.panNumber}
+                    {maskSensitiveData(request.panNumber)}
                   </Typography>
                 </Box>
               </Box>
@@ -423,7 +432,7 @@ const VendorDetails = () => {
                     </Box>
                   </Box>
                   <Typography color="text.primary" variant="body1">
-                    {request.aadharNumber}
+                    {maskSensitiveData(request.aadharNumber)}
                   </Typography>
                 </Box>
               </Box>
@@ -465,10 +474,10 @@ const VendorDetails = () => {
                     </Box>
                   </Box>
                   <Typography color="text.primary" variant="body1">
-                    A/C: {request.AccountNumber}
+                    A/C: {maskSensitiveData(request.AccountNumber)}
                   </Typography>
                   <Typography color="text.primary" variant="body1">
-                    IFSC: {request.IFSCNumber}
+                    IFSC: {maskSensitiveData(request.IFSCNumber)}
                   </Typography>
                 </Box>
               </Box>

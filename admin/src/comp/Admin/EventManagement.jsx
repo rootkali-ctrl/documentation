@@ -31,6 +31,7 @@ import ContactPageIcon from "@mui/icons-material/ContactPage";
 import EventIcon from "@mui/icons-material/Event";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import EditIcon from "@mui/icons-material/Edit";
+import DownloadIcon from "@mui/icons-material/Download";
 import { useNavigate } from "react-router-dom";
 import {
   collection,
@@ -65,7 +66,7 @@ const sidebarItems = [
     path: "/admin/postpage",
   },
   {
-    name: "Login Settings",
+    name: "Vendors",
     icon: <SettingsIcon />,
     active: false,
     path: "/admin/loginsettings",
@@ -107,6 +108,58 @@ const EventManagement = () => {
   const eventsPerPage = 5;
   const [lastLogin, setLastLogin] = useState("");
 
+  // CSV Export Function
+  const exportToCSV = () => {
+    // Define CSV headers
+    const headers = [
+      "Event Name",
+      "Venue",
+      "Vendor",
+      "Created Date",
+      "Booking Start",
+      "Booking End",
+      "Tickets Sold",
+      "Capacity",
+      "Gross Revenue",
+      "Tax Percentage",
+      "Status"
+    ];
+
+    // Convert filtered events to CSV rows
+    const csvRows = filteredEvents.map(event => [
+      `"${event.name || 'N/A'}"`,
+      `"${event.venueDetails?.venueName || event.location || 'N/A'}"`,
+      `"${event.vendorUsername || 'N/A'}"`,
+      `"${formatDate(event.createdAt)}"`,
+      `"${formatDate(event.eventHost)}"`,
+      `"${formatDate(event.eventDate)}"`,
+      event.ticketsSold || 0,
+      event.capacity || 'Unlimited',
+      event.gross || 0,
+      `${event.taxPercentage}%`,
+      event.status
+    ]);
+
+    // Combine headers and rows
+    const csvContent = [
+      headers.join(','),
+      ...csvRows.map(row => row.join(','))
+    ].join('\n');
+
+    // Create blob and download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+
+    link.setAttribute('href', url);
+    link.setAttribute('download', `events_export_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   // Fetch global tax percentage from Firestore
   const fetchGlobalTax = async () => {
     try {
@@ -122,13 +175,29 @@ const EventManagement = () => {
     }
   };
 
+  // Fetch vendor username by vendorId
+  const fetchVendorUsername = async (vendorId) => {
+    if (!vendorId) return "N/A";
+    try {
+      const vendorDocRef = doc(db, "vendors", vendorId);
+      const vendorDoc = await getDoc(vendorDocRef);
+      if (vendorDoc.exists()) {
+        return vendorDoc.data().username || vendorDoc.data().name || "N/A";
+      }
+      return "N/A";
+    } catch (err) {
+      console.error("Error fetching vendor username:", err);
+      return "N/A";
+    }
+  };
+
   // Fetch events and their associated tickets from Firestore
   const fetchEventsWithTickets = async () => {
     setLoading(true);
     try {
       // Fetch global tax percentage
       const globalTax = await fetchGlobalTax();
-      setGlobalTaxPercentage(globalTax.toString()); // Set initial global tax value
+      setGlobalTaxPercentage(globalTax.toString());
 
       // Fetch all events
       const eventsCollection = collection(db, "events");
@@ -138,8 +207,11 @@ const EventManagement = () => {
       let eventsData = [];
 
       // Process each event document
-      eventSnapshot.forEach((doc) => {
-        const eventData = doc.data();
+      for (const docSnapshot of eventSnapshot.docs) {
+        const eventData = docSnapshot.data();
+
+        // Fetch vendor username
+        const vendorUsername = await fetchVendorUsername(eventData.vendorId);
 
         // Calculate total seats from pricing data
         let totalSeats = 0;
@@ -182,15 +254,16 @@ const EventManagement = () => {
         // Add event to array with initial ticket counts as 0
         eventsData.push({
           ...eventData,
-          id: doc.id,
+          id: docSnapshot.id,
           status,
           ticketsSold: 0,
           capacity: totalSeats > 0 ? totalSeats : "Unlimited",
           gross: 0,
           taxPercentage,
           tickets: [],
+          vendorUsername,
         });
-      });
+      }
 
       // Fetch tickets from all events
       const ticketsCollection = collection(db, "tickets");
@@ -320,7 +393,8 @@ const EventManagement = () => {
       event.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       event.venueDetails?.venueName
         ?.toLowerCase()
-        .includes(searchTerm.toLowerCase());
+        .includes(searchTerm.toLowerCase()) ||
+      event.vendorUsername?.toLowerCase().includes(searchTerm.toLowerCase());
 
     return statusMatch && searchMatch;
   });
@@ -524,9 +598,24 @@ const EventManagement = () => {
           overflow="auto"
           maxHeight="calc(100vh - 89px)"
         >
-          <Typography variant="h5" fontWeight="bold" mb={9}>
-            Event Management
-          </Typography>
+          <Box display="flex" justifyContent="space-between" alignItems="center" mb={9}>
+            <Typography variant="h5" fontWeight="bold">
+              Event Management
+            </Typography>
+            <Button
+              variant="contained"
+              startIcon={<DownloadIcon />}
+              onClick={exportToCSV}
+              disabled={filteredEvents.length === 0}
+              sx={{
+                bgcolor: "#19aedc",
+                "&:hover": { bgcolor: "#0d8cbf" },
+                textTransform: "none",
+              }}
+            >
+              Export to CSV
+            </Button>
+          </Box>
 
           <Card mt={5}>
             <CardContent>
@@ -689,6 +778,14 @@ const EventManagement = () => {
                                 {event.venueDetails?.venueName ||
                                   event.location ||
                                   "Venue not specified"}
+                              </Typography>
+                              <Typography
+                                fontSize={11}
+                                color="primary"
+                                fontWeight="500"
+                                sx={{ mt: 0.5 }}
+                              >
+                                Vendor: {event.vendorUsername}
                               </Typography>
                             </TableCell>
 

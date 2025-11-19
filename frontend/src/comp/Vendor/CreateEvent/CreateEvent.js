@@ -21,8 +21,13 @@ import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import dayjs from "dayjs";
+import customParseFormat from 'dayjs/plugin/customParseFormat';
+import 'dayjs/locale/en-gb';
 import { useNavigate, useParams } from "react-router-dom";
 import { useEventContext } from "./EventContext";
+
+dayjs.extend(customParseFormat);
+dayjs.locale('en-gb');
 
 const CreateEvent = () => {
   const navigate = useNavigate();
@@ -1413,112 +1418,114 @@ const CreateEvent = () => {
                 mt: "2%",
               }}
             >
-              <LocalizationProvider dateAdapter={AdapterDayjs}>
-                <FormControl
-                  variant="outlined"
-                  sx={{ marginBottom: 2, width: isMobile ? "90%" : "45%" }}
-                >
-                  <Typography
-                    variant="subtitle2"
-                    sx={{
-                      marginBottom: "6px",
-                      color: "#666",
-                      fontWeight: 500,
-                      fontFamily: "Albert Sans",
-                    }}
-                  >
-                    Start Date & Time
-                  </Typography>
-                  <DateTimePicker
-                    value={dayjs(localData.eventDate)}
-                    onChange={(newValue) =>
-                      handleDateChange("eventDate", newValue)
-                    }
-                    slotProps={{
-                      textField: {
-                        variant: "outlined",
-                        placeholder: "Select date and time",
-                        inputRef: eventDateRef,
-                        sx: {
-                          fontFamily: "Albert Sans",
-                          "& .MuiOutlinedInput-root": {
-                            height: "36px",
-                            fontFamily: "Albert Sans",
-                            borderColor: validationTriggered && invalidFields.eventDate ? "red" : "#ccc",
-                          },
-                          "& input": {
-                            padding: "8px 12px",
-                            fontSize: "14px",
-                            fontFamily: "Albert Sans",
-                          },
-                          "& .MuiOutlinedInput-notchedOutline": {
-                            borderColor: validationTriggered && invalidFields.eventDate ? "red" : "#ccc",
-                          },
-                          "& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline":
-                            {
-                              borderColor: "#19AEDC",
-                            },
-                        },
-                      },
-                    }}
-                  />
-                </FormControl>
-              </LocalizationProvider>
+              <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="en-gb">
+  <FormControl
+    variant="outlined"
+    sx={{ marginBottom: 2, width: isMobile ? "90%" : "45%" }}
+  >
+    <Typography
+      variant="subtitle2"
+      sx={{
+        marginBottom: "6px",
+        color: "#666",
+        fontWeight: 500,
+        fontFamily: "Albert Sans",
+      }}
+    >
+      Start Date & Time
+    </Typography>
+    <DateTimePicker
+      value={dayjs(localData.eventDate)}
+      onChange={(newValue) =>
+        handleDateChange("eventDate", newValue)
+      }
+      format="DD/MM/YYYY hh:mm A"
+      slotProps={{
+        textField: {
+          variant: "outlined",
+          placeholder: "DD/MM/YYYY hh:mm AM/PM",
+          inputRef: eventDateRef,
+          sx: {
+            fontFamily: "Albert Sans",
+            "& .MuiOutlinedInput-root": {
+              height: "36px",
+              fontFamily: "Albert Sans",
+              borderColor: validationTriggered && invalidFields.eventDate ? "red" : "#ccc",
+            },
+            "& input": {
+              padding: "8px 12px",
+              fontSize: "14px",
+              fontFamily: "Albert Sans",
+            },
+            "& .MuiOutlinedInput-notchedOutline": {
+              borderColor: validationTriggered && invalidFields.eventDate ? "red" : "#ccc",
+            },
+            "& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline":
+              {
+                borderColor: "#19AEDC",
+              },
+          },
+        },
+      }}
+    />
+  </FormControl>
+</LocalizationProvider>
 
-              <LocalizationProvider dateAdapter={AdapterDayjs}>
-                <FormControl
-                  variant="outlined"
-                  sx={{
-                    marginBottom: 2,
-                    width: isMobile ? "90%" : "45%",
-                  }}
-                >
-                  <Typography
-                    variant="subtitle2"
-                    sx={{
-                      marginBottom: "6px",
-                      color: "#666",
-                      fontWeight: 500,
-                      fontFamily: "Albert Sans",
-                    }}
-                  >
-                    Event Host date (Bookings open date)
-                  </Typography>
-                  <DateTimePicker
-                    value={dayjs(localData.eventHost)}
-                    onChange={(newValue) =>
-                      handleDateChange("eventHost", newValue)
-                    }
-                    slotProps={{
-                      textField: {
-                        variant: "outlined",
-                        placeholder: "Select date and time",
-                        inputRef: eventHostRef,
-                        sx: {
-                          fontFamily: "Albert Sans",
-                          "& .MuiOutlinedInput-root": {
-                            height: "36px",
-                            fontFamily: "Albert Sans",
-                            borderColor: validationTriggered && invalidFields.eventHost ? "red" : "#ccc",
-                          },
-                          "& input": {
-                            padding: "8px 12px",
-                            fontSize: "14px",
-                            fontFamily: "Albert Sans",
-                          },
-                          "& .MuiOutlinedInput-notchedOutline": {
-                            borderColor: validationTriggered && invalidFields.eventHost ? "red" : "#ccc",
-                          },
-                          "& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline":
-                            {
-                              borderColor: "#19AEDC",
-                            },
-                        },
-                      },
-                    }}
-                  />
-                </FormControl>
-              </LocalizationProvider>
+<LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="en-gb">
+  <FormControl
+    variant="outlined"
+    sx={{
+      marginBottom: 2,
+      width: isMobile ? "90%" : "45%",
+    }}
+  >
+    <Typography
+      variant="subtitle2"
+      sx={{
+        marginBottom: "6px",
+        color: "#666",
+        fontWeight: 500,
+        fontFamily: "Albert Sans",
+      }}
+    >
+    Event Host date (Bookings open date)
+    </Typography>
+    <DateTimePicker
+      value={dayjs(localData.eventHost)}
+      onChange={(newValue) =>
+        handleDateChange("eventHost", newValue)
+      }
+      format="DD/MM/YYYY hh:mm A"
+      slotProps={{
+        textField: {
+          variant: "outlined",
+          placeholder: "DD/MM/YYYY hh:mm AM/PM",
+          inputRef: eventHostRef,
+          sx: {
+            fontFamily: "Albert Sans",
+            "& .MuiOutlinedInput-root": {
+              height: "36px",
+              fontFamily: "Albert Sans",
+              borderColor: validationTriggered && invalidFields.eventHost ? "red" : "#ccc",
+            },
+            "& input": {
+              padding: "8px 12px",
+              fontSize: "14px",
+              fontFamily: "Albert Sans",
+            },
+            "& .MuiOutlinedInput-notchedOutline": {
+              borderColor: validationTriggered && invalidFields.eventHost ? "red" : "#ccc",
+            },
+            "& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline":
+              {
+                borderColor: "#19AEDC",
+              },
+          },
+        },
+      }}
+    />
+  </FormControl>
+</LocalizationProvider>
             </Box>
           </Box>
 

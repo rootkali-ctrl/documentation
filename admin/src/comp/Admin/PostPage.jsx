@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-
 import {
   Box,
   Button,
@@ -12,8 +11,7 @@ import {
   DialogContent,
   DialogContentText,
   DialogActions,
-  Paper,
-  TextField,
+  Alert,
 } from "@mui/material";
 import {
   TrendingUp as TrendingUpIcon,
@@ -23,14 +21,12 @@ import {
   ContactPage as ContactPageIcon,
   Event as EventIcon,
   Add,
-  Edit,
   Delete,
   ArrowBackIos,
   ArrowForwardIos,
-  Link as LinkIcon,
 } from "@mui/icons-material";
 import { v4 as uuidv4 } from "uuid";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { db, auth } from "../../firebase/firebase_config";
 import { onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
@@ -55,7 +51,7 @@ const sidebarItems = [
     path: "/admin/postpage",
   },
   {
-    name: "Login Settings",
+    name: "Vendors",
     icon: <SettingsIcon />,
     active: false,
     path: "/admin/loginsettings",
@@ -77,21 +73,15 @@ const sidebarItems = [
 const PostPage = () => {
   const MAX_VISIBLE = 1;
   const [heroBanners, setHeroBanners] = useState([]);
-  const [inlineBanners, setInlineBanners] = useState([]);
   const [startIndex, setStartIndex] = useState(0);
   const [loading, setLoading] = useState(false);
   const storage = getStorage();
   const [error, setError] = useState(null);
-
+  const [successMessage, setSuccessMessage] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleteIndex, setDeleteIndex] = useState(null);
-  const [deleteIndexInline, setDeleteIndexInline] = useState(null);
-  const [openDeleteDialogInline, setOpenDeleteDialogInline] = useState(false);
-  const [openUrlDialog, setOpenUrlDialog] = useState(false);
-  const [currentInlineBannerIndex, setCurrentInlineBannerIndex] =
-    useState(null);
-  const [bannerUrl, setBannerUrl] = useState("");
   const [lastLogin, setLastLogin] = useState("");
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (!user) {
@@ -134,6 +124,18 @@ const PostPage = () => {
     }
   };
 
+  // Extract filename from Firebase Storage URL
+  const getFileNameFromUrl = (url) => {
+    try {
+      const decodedUrl = decodeURIComponent(url);
+      const matches = decodedUrl.match(/bannerImages%2Fhero%2F([^?]+)/);
+      return matches ? matches[1] : null;
+    } catch (err) {
+      console.error("Error extracting filename:", err);
+      return null;
+    }
+  };
+
   const handleDelete = async (indexToDelete) => {
     const banner = heroBanners[indexToDelete];
 
@@ -145,7 +147,15 @@ const PostPage = () => {
 
     setLoading(true);
     try {
-      // Banner was uploaded – delete from backend (includes storage)
+      // Extract filename from URL and delete from Firebase Storage
+      const fileName = getFileNameFromUrl(banner.url);
+      if (fileName) {
+        const fileRef = ref(storage, `bannerImages/hero/${fileName}`);
+        await deleteObject(fileRef);
+        console.log("Deleted from Firebase Storage:", fileName);
+      }
+
+      // Delete from backend database
       const res = await fetch(
         `${process.env.REACT_APP_API_BASE_URL}/api/admin/banners/delete`,
         {
@@ -155,10 +165,25 @@ const PostPage = () => {
         }
       );
 
-      if (!res.ok) throw new Error("Failed to delete from backend");
+      // Log the response for debugging
+      console.log("Backend response status:", res.status);
+      const responseData = await res.json().catch(() => null);
+      console.log("Backend response data:", responseData);
+
+      if (!res.ok) {
+        throw new Error(
+          `Failed to delete from backend: ${res.status} - ${
+            responseData?.message || res.statusText
+          }`
+        );
+      }
+
+      setSuccessMessage("Banner deleted successfully!");
+      setTimeout(() => setSuccessMessage(""), 3000);
     } catch (error) {
       console.error("Delete failed", error);
-      alert("Error deleting banner from backend.");
+      setError("Error deleting banner: " + error.message);
+      setTimeout(() => setError(null), 3000);
     } finally {
       setLoading(false);
       // Always remove from local state
@@ -166,28 +191,46 @@ const PostPage = () => {
     }
   };
 
-  const handleAddBanner = (bannerType) => (e) => {
+  const handleAddBanner = (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      setError("Please select a valid image file");
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setError("File size should be less than 5MB");
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+
     const newBanner = {
-      file, // store raw File object
+      file,
       preview: URL.createObjectURL(file),
       isUploaded: false,
     };
 
-    if (bannerType === "hero") {
-      setHeroBanners((prev) => [...prev, newBanner]);
-    }
+    setHeroBanners((prev) => [...prev, newBanner]);
   };
 
   useEffect(() => {
     const fetchBanners = async () => {
+      setLoading(true);
       try {
         // Fetch hero banners
         const heroRes = await fetch(
           `${process.env.REACT_APP_API_BASE_URL}/api/admin/banners/recent`
         );
+
+        if (!heroRes.ok) {
+          throw new Error("Failed to fetch hero banners");
+        }
+
         const heroData = await heroRes.json();
 
         const normalizedHero = heroData.banners.map((url, index) => ({
@@ -197,25 +240,11 @@ const PostPage = () => {
           isUploaded: true,
         }));
         setHeroBanners(normalizedHero);
-        // console.log(items.redirectUrl)
-
-        // Fetch inline banners
-        const inlineRes = await fetch(
-          `${process.env.REACT_APP_API_BASE_URL}/api/admin/banners/recent-inline`
-        );
-        const inlineData = await inlineRes.json();
-
-        // Handle the new structure where we get objects with imageUrl and redirectUrl
-        const normalizedInline = inlineData.banners.map((item, index) => ({
-          id: index,
-          url: item.imageUrl || item, // Handle both old and new format
-          redirectUrl: item.redirectUrl || "", // Handle both old and new format
-          preview: item.imageUrl || item, // Handle both old and new format
-          isUploaded: true,
-        }));
-        setInlineBanners(normalizedInline);
       } catch (error) {
         console.error("Failed to fetch banners:", error);
+        setError("Failed to load banners: " + error.message);
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -226,25 +255,31 @@ const PostPage = () => {
     const unsavedBanners = heroBanners.filter((b) => !b.isUploaded);
 
     if (unsavedBanners.length === 0) {
-      alert("No new banners to upload.");
+      setError("No new banners to upload.");
+      setTimeout(() => setError(null), 3000);
       return;
     }
 
     try {
       setLoading(true);
-
       const uploadedUrls = [];
 
       for (const banner of unsavedBanners) {
         const fileId = uuidv4();
         const fileExtension = banner.file.name.split(".").pop();
         const fileName = `${fileId}.${fileExtension}`;
+
+        // Store in bannerImages/hero folder
         const folderPath = `bannerImages/hero`;
         const storageRef = ref(storage, `${folderPath}/${fileName}`);
+
+        console.log("Uploading to:", `${folderPath}/${fileName}`);
 
         // Upload to Firebase Storage
         await uploadBytes(storageRef, banner.file);
         const downloadURL = await getDownloadURL(storageRef);
+
+        console.log("Upload successful, URL:", downloadURL);
         uploadedUrls.push(downloadURL);
       }
 
@@ -258,7 +293,10 @@ const PostPage = () => {
         }
       );
 
-      if (!response.ok) throw new Error("Failed to upload to backend");
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to upload to backend");
+      }
 
       // Mark all banners as uploaded
       setHeroBanners((prev) =>
@@ -269,204 +307,12 @@ const PostPage = () => {
         )
       );
 
-      alert("Banners uploaded successfully to backend!");
+      setSuccessMessage("Banners uploaded successfully!");
+      setTimeout(() => setSuccessMessage(""), 3000);
     } catch (error) {
       console.error("Upload error:", error);
-      alert("Failed to upload banners.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleAddBannerInline = (bannerType) => (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const newBanner = {
-      file, // store raw File object
-      preview: URL.createObjectURL(file),
-      isUploaded: false,
-      redirectUrl: "", // Initialize with empty redirect URL
-    };
-
-    if (bannerType === "inline") {
-      // Replace any existing banners with the new one
-      setInlineBanners([newBanner]);
-
-      // Open the URL dialog for the newly added banner
-      setCurrentInlineBannerIndex(0);
-      setBannerUrl("");
-      setOpenUrlDialog(true);
-      console.log(inlineBanners);
-    }
-  };
-
-  const handleDeleteInline = async (indexToDelete) => {
-    const banner = inlineBanners[indexToDelete];
-
-    // If banner is not uploaded yet, remove it locally and exit
-    if (!banner.isUploaded) {
-      setInlineBanners((prev) =>
-        prev.filter((_, idx) => idx !== indexToDelete)
-      );
-      return;
-    }
-    console.log("Deleting inline banner with URL:", banner.url);
-    setLoading(true);
-    try {
-      // Banner was uploaded – delete from backend (includes storage)
-      const res = await fetch(
-        `${process.env.REACT_APP_API_BASE_URL}/api/admin/banners-delete-inline`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url: banner.url }),
-        }
-      );
-
-      if (!res.ok) throw new Error("Failed to delete from backend");
-    } catch (error) {
-      console.error("Delete failed", error);
-      alert("Error deleting banner from backend.");
-    } finally {
-      setLoading(false);
-      // Always remove from local state
-      setInlineBanners((prev) =>
-        prev.filter((_, idx) => idx !== indexToDelete)
-      );
-    }
-  };
-
-  const handleEditUrl = (index) => {
-    setCurrentInlineBannerIndex(index);
-    setBannerUrl(inlineBanners[index].redirectUrl || "");
-    setOpenUrlDialog(true);
-  };
-
-  const handleSaveUrl = () => {
-    setInlineBanners((prev) =>
-      prev.map((banner, index) =>
-        index === currentInlineBannerIndex
-          ? { ...banner, redirectUrl: bannerUrl }
-          : banner
-      )
-    );
-    setOpenUrlDialog(false);
-  };
-
-  const handleUploadToBackendInline = async () => {
-    if (!window.confirm("Are you sure you want to save these changes?")) {
-      return;
-    }
-
-    const unsavedBanners = inlineBanners.filter((b) => !b.isUploaded);
-
-    if (unsavedBanners.length === 0) {
-      // If all banners are already uploaded, just update their redirect URLs
-      if (inlineBanners.length > 0) {
-        try {
-          setLoading(true);
-          const bannerData = inlineBanners.map((banner) => ({
-            imageUrl: banner.url,
-            redirectUrl: banner.redirectUrl || "",
-          }));
-          const response = await fetch(
-            `${process.env.REACT_APP_API_BASE_URL}/api/admin/save-banner-urls-inline`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ bannerUrls: bannerData }),
-            }
-          );
-
-          if (!response.ok) throw new Error("Failed to update banner URLs");
-
-          alert("Banner redirect URL updated successfully!");
-        } catch (error) {
-          console.error("Update error:", error);
-          alert("Failed to update banner redirect URL.");
-        } finally {
-          setLoading(false);
-        }
-      } else {
-        alert("No banner to update.");
-      }
-      return;
-    }
-
-    try {
-      setLoading(true);
-
-      const uploadedData = [];
-
-      for (const banner of unsavedBanners) {
-        const fileId = uuidv4();
-        const fileExtension = banner.file.name.split(".").pop();
-        const fileName = `${fileId}.${fileExtension}`;
-        const folderPath = `bannerImages/inline`;
-        const storageRef = ref(storage, `${folderPath}/${fileName}`);
-
-        // Upload to Firebase Storage
-        await uploadBytes(storageRef, banner.file);
-        const downloadURL = await getDownloadURL(storageRef);
-
-        // Store both image URL and redirect URL
-        uploadedData.push({
-          imageUrl: downloadURL,
-          redirectUrl: banner.redirectUrl || "",
-        });
-      }
-
-      // Include existing uploaded banners in the payload
-      inlineBanners
-        .filter((b) => b.isUploaded)
-        .forEach((banner) => {
-          uploadedData.push({
-            imageUrl: banner.url,
-            redirectUrl: banner.redirectUrl || "",
-          });
-        });
-
-      // Send URLs to backend - limit to only the first/latest banner
-      const response = await fetch(
-        `${process.env.REACT_APP_API_BASE_URL}/api/admin/save-banner-urls-inline`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ bannerUrls: uploadedData.slice(0, 1) }),
-        }
-      );
-
-      if (!response.ok) throw new Error("Failed to upload to backend");
-
-      // Mark all banners as uploaded and update their URLs
-      setInlineBanners((prev) => {
-        const updatedBanners = [];
-        let uploadedIndex = 0;
-
-        for (const banner of prev) {
-          if (banner.isUploaded) {
-            updatedBanners.push(banner);
-          } else {
-            // For not yet uploaded banners, update with new URL from server
-            const uploadedItem = uploadedData[uploadedIndex++];
-            updatedBanners.push({
-              ...banner,
-              isUploaded: true,
-              url: uploadedItem.imageUrl,
-              redirectUrl: uploadedItem.redirectUrl,
-            });
-          }
-        }
-
-        // Enforce the limit of 1 banner
-        return updatedBanners.slice(0, 1);
-      });
-
-      alert("Banner uploaded successfully to backend!");
-    } catch (error) {
-      console.error("Upload error:", error);
-      alert("Failed to upload banner.");
+      setError("Failed to upload banners: " + error.message);
+      setTimeout(() => setError(null), 3000);
     } finally {
       setLoading(false);
     }
@@ -554,10 +400,24 @@ const PostPage = () => {
               position="fixed"
               top="50%"
               left="50%"
-              sx={{ transform: "translate(-50%, -50%)" }}
+              sx={{ transform: "translate(-50%, -50%)", zIndex: 9999 }}
             >
               <CircularProgress color="primary" />
             </Box>
+          )}
+
+          {/* Success Message */}
+          {successMessage && (
+            <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccessMessage("")}>
+              {successMessage}
+            </Alert>
+          )}
+
+          {/* Error Message */}
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+              {error}
+            </Alert>
           )}
 
           {/* Hero Banners Section */}
@@ -581,7 +441,7 @@ const PostPage = () => {
               <input
                 type="file"
                 hidden
-                onChange={handleAddBanner("hero")}
+                onChange={handleAddBanner}
                 accept="image/*"
               />
             </Button>
@@ -645,36 +505,6 @@ const PostPage = () => {
                     >
                       <Delete />
                     </IconButton>
-                    <Dialog
-                      open={confirmOpen}
-                      onClose={() => setConfirmOpen(false)}
-                    >
-                      <DialogTitle>Confirm Deletion</DialogTitle>
-                      <DialogContent>
-                        <DialogContentText>
-                          Are you sure you want to delete this banner? This
-                          action cannot be undone.
-                        </DialogContentText>
-                      </DialogContent>
-                      <DialogActions>
-                        <Button
-                          onClick={() => setConfirmOpen(false)}
-                          color="primary"
-                        >
-                          Cancel
-                        </Button>
-                        <Button
-                          onClick={() => {
-                            handleDelete(deleteIndex);
-                            setConfirmOpen(false);
-                          }}
-                          color="error"
-                          variant="contained"
-                        >
-                          Delete
-                        </Button>
-                      </DialogActions>
-                    </Dialog>
                   </Box>
                 ))}
 
@@ -728,202 +558,32 @@ const PostPage = () => {
               </Button>
             </Box>
           </Box>
-
-          {/* Modified Component for Inline Banner Section */}
-          <Stack
-            direction="row"
-            justifyContent="space-between"
-            alignItems="center"
-            mt={6}
-            mb={2}
-          >
-            <Typography variant="h6" fontWeight="bold">
-              Inline Banner
-            </Typography>
-            <Button
-              component="label"
-              variant="contained"
-              startIcon={<Add />}
-              sx={{ bgcolor: "#19aedc", textTransform: "none" }}
-              disabled={loading || inlineBanners.length >= 1} // Disable if loading or 1 image already exists
-            >
-              {inlineBanners.length ? "Replace Banner" : "Add Banner"}
-              <input
-                type="file"
-                hidden
-                onChange={handleAddBannerInline("inline")}
-                accept="image/*"
-              />
-            </Button>
-          </Stack>
-
-          <Box
-            borderRadius={2}
-            overflow="hidden"
-            bgcolor="white"
-            boxShadow={1}
-            px={3}
-            py={2}
-          >
-            {inlineBanners.length > 0 ? (
-              <Box sx={{ position: "relative", width: "100%" }}>
-                <Paper
-                  elevation={3}
-                  sx={{
-                    position: "relative",
-                    width: "100%",
-                    aspectRatio: "16/9",
-                    borderRadius: 2,
-                    overflow: "hidden",
-                    p: 0,
-                  }}
-                >
-                  <img
-                    src={
-                      inlineBanners[0].isUploaded
-                        ? inlineBanners[0].url
-                        : inlineBanners[0].preview
-                    }
-                    alt="inline-banner"
-                    style={{
-                      width: "100%",
-                      height: "100%",
-                      objectFit: "contain",
-                      borderRadius: 10,
-                    }}
-                  />
-                  <Box
-                    position="absolute"
-                    bottom={10}
-                    right={10}
-                    display="flex"
-                  >
-                    <IconButton
-                      sx={{
-                        bgcolor: "#fff",
-                        cursor: "pointer",
-                        mr: 1,
-                      }}
-                      onClick={() => handleEditUrl(0)}
-                      disabled={loading}
-                    >
-                      <LinkIcon />
-                    </IconButton>
-                    <IconButton
-                      sx={{ bgcolor: "#fff", cursor: "pointer" }}
-                      onClick={() => {
-                        setDeleteIndexInline(0);
-                        setOpenDeleteDialogInline(true);
-                      }}
-                      disabled={loading}
-                    >
-                      <Delete />
-                    </IconButton>
-                  </Box>
-                  <Box
-                    position="absolute"
-                    bottom={10}
-                    left={10}
-                    bgcolor="rgba(255,255,255,0.8)"
-                    px={2}
-                    py={1}
-                    borderRadius={1}
-                  >
-                    <Typography noWrap sx={{ maxWidth: 250 }}>
-                      {inlineBanners[0].redirectUrl
-                        ? inlineBanners[0].redirectUrl
-                        : "No URL set"}
-                    </Typography>
-                  </Box>
-                </Paper>
-              </Box>
-            ) : (
-              <Box textAlign="center" py={4}>
-                <Typography variant="body1" color="text.secondary">
-                  No inline banner added yet. Click "Add Banner" to upload.
-                </Typography>
-              </Box>
-            )}
-            <Box
-              sx={{
-                width: "100%",
-                display: "flex",
-                justifyContent: "flex-end",
-              }}
-            >
-              <Button
-                variant="outlined"
-                sx={{
-                  ml: 2,
-                  mt: 2,
-                  textTransform: "none",
-                  bgcolor: "#19aedc",
-                  color: "white",
-                  border: "none",
-                }}
-                onClick={handleUploadToBackendInline}
-                disabled={loading || inlineBanners.length === 0}
-              >
-                Save changes
-              </Button>
-            </Box>
-          </Box>
         </Box>
       </Box>
 
-      {/* URL Dialog */}
-      <Dialog open={openUrlDialog} onClose={() => setOpenUrlDialog(false)}>
-        <DialogTitle>Set Redirect URL</DialogTitle>
-        <DialogContent>
-          <DialogContentText mb={2}>
-            Enter the URL where users will be redirected when they click on this
-            banner.
-          </DialogContentText>
-          <TextField
-            autoFocus
-            margin="dense"
-            id="url"
-            label="Redirect URL"
-            type="url"
-            fullWidth
-            variant="outlined"
-            value={bannerUrl}
-            onChange={(e) => setBannerUrl(e.target.value)}
-            placeholder="https://example.com/destination"
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenUrlDialog(false)}>Cancel</Button>
-          <Button onClick={handleSaveUrl} variant="contained" color="primary">
-            Save
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Delete Dialog for Inline Banners - Modified for better UX */}
+      {/* Confirmation Dialog for Hero Banner Delete */}
       <Dialog
-        open={openDeleteDialogInline}
-        onClose={() => setOpenDeleteDialogInline(false)}
+        open={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
       >
         <DialogTitle>Confirm Deletion</DialogTitle>
         <DialogContent>
-          <Typography>
-            Are you sure you want to delete this banner? This action cannot be
-            undone.
-          </Typography>
+          <DialogContentText>
+            Are you sure you want to delete this banner? This
+            action cannot be undone.
+          </DialogContentText>
         </DialogContent>
         <DialogActions>
           <Button
-            onClick={() => setOpenDeleteDialogInline(false)}
+            onClick={() => setConfirmOpen(false)}
             color="primary"
           >
             Cancel
           </Button>
           <Button
-            onClick={async () => {
-              await handleDeleteInline(deleteIndexInline);
-              setOpenDeleteDialogInline(false);
-              setDeleteIndexInline(null);
+            onClick={() => {
+              handleDelete(deleteIndex);
+              setConfirmOpen(false);
             }}
             color="error"
             variant="contained"
