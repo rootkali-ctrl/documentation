@@ -151,6 +151,30 @@ const TicketBookedPage = () => {
     }
   }, [eventData, event]);
 
+
+const handleBackNavigation = useCallback(() => {
+  // After successful booking, always go to home
+
+  if (bookingStatus.status === "success" && ticketIsSaved) {
+    navigate("/", { replace: true });
+  } else {
+    // If booking is still pending, also redirect to home
+    navigate("/", { replace: true });
+  }
+}, [navigate, bookingStatus.status, ticketIsSaved]);
+
+
+useEffect(() => {
+  const handlePopState = (event) => {
+    if (ticketIsSaved) {
+      navigate("/", { replace: true });
+    }
+  };
+
+  window.addEventListener("popstate", handlePopState);
+  return () => window.removeEventListener("popstate", handlePopState);
+}, [ticketIsSaved, navigate]);
+
   const totalTickets = useMemo(() => {
     return ticketSummary.reduce((sum, ticket) => sum + ticket.quantity, 0);
   }, [ticketSummary]);
