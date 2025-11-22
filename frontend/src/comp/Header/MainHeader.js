@@ -29,7 +29,7 @@ import Login from "../Login/Login";
 import Signin from "../Signin/Signin";
 import { auth, db } from "../../firebase_config";
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
 import axios from "axios";
 
 const MainHeader = () => {
@@ -42,6 +42,9 @@ const MainHeader = () => {
   const [openSignin, setOpenSignin] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [username, setUsername] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [displayName, setDisplayName] = useState(""); // This will hold the display name
   const [userEmail, setUserEmail] = useState(""); // Store user email for vendor lookup
   const [userId, setUserId] = useState(""); // Store user ID
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -414,6 +417,35 @@ const MainHeader = () => {
         setUserEmail(user.email); // Store user email
         setUserId(user.uid); // Store user ID
 
+        // Fetch user's firstName and lastName from Firestore
+        try {
+          const userDocRef = doc(db, "users", user.uid);
+          const userDocSnap = await getDoc(userDocRef);
+
+          if (userDocSnap.exists()) {
+            const userData = userDocSnap.data();
+            const fetchedFirstName = userData.firstName || "";
+            const fetchedLastName = userData.lastName || "";
+
+            setFirstName(fetchedFirstName);
+            setLastName(fetchedLastName);
+
+            // Set display name logic: if firstName or lastName exists, use them; otherwise use username
+            if (fetchedFirstName || fetchedLastName) {
+              setDisplayName(`${fetchedFirstName} ${fetchedLastName}`.trim());
+            } else {
+              setDisplayName(derivedUsername);
+            }
+          } else {
+            // If no Firestore document, use username
+            setDisplayName(derivedUsername);
+          }
+        } catch (error) {
+          console.error("Error fetching user data from Firestore:", error);
+          setDisplayName(derivedUsername);
+        }
+
+        // Existing vendor API call
         try {
           const res = await fetch(`${process.env.REACT_APP_API_BASE_URL}/api/user/post-email`, {
             method: "POST",
@@ -438,6 +470,9 @@ const MainHeader = () => {
       } else {
         setIsAuthenticated(false);
         setUsername("");
+        setFirstName("");
+        setLastName("");
+        setDisplayName("");
         setUserEmail(""); // Clear email on logout
         setUserId(""); // Clear user ID
         localStorage.removeItem("vendorId");
@@ -792,7 +827,7 @@ const MainHeader = () => {
               <>
                 <ListItem>
                   <ListItemText
-                    primary={username}
+                    primary={displayName}
                     sx={{
                       color:"rgb(25, 174, 220)",
                       fontFamily:'albert sans',
@@ -1057,7 +1092,7 @@ const MainHeader = () => {
                       "&:hover": { bgcolor: "rgb(20, 140, 180)" },
                     }}
                   >
-                    {username.charAt(0).toUpperCase()}
+                    {(firstName || username).charAt(0).toUpperCase()}
                   </Avatar>
                 </IconButton>
               ) : (
@@ -1127,7 +1162,7 @@ const MainHeader = () => {
             color: "rgb(25, 174, 220)"
           }}
         >
-          {username}
+          {displayName}
         </MenuItem>
         <MenuItem onClick={handleProfileClick} sx={{fontFamily:'albert sans'}}>Profile</MenuItem>
         <MenuItem onClick={handleSettingsClick} sx={{fontFamily:'albert sans'}}>Settings</MenuItem>
