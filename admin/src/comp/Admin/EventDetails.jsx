@@ -761,7 +761,6 @@ const EventDetails = () => {
 
         eventWithTickets.tickets = ticketsWithUserDetails;
         setEvent(eventWithTickets);
-        console.log("Event data with tickets:", eventWithTickets);
       } catch (err) {
         console.error("Error fetching event details:", err);
         setError("Failed to load event details. Please try again.");

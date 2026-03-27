@@ -312,9 +312,7 @@ const EventManagement = () => {
       }));
 
       setEvents(eventsData);
-      console.log("Events fetched with tickets:", eventsData);
     } catch (err) {
-      console.error("Error fetching events or tickets:", err);
       setError("Failed to load events. Please try again.");
     } finally {
       setLoading(false);

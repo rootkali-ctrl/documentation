@@ -151,7 +151,6 @@ const VendorDetails = () => {
       }
 
       const payload = { email: request.email };
-      console.log("Payload being sent:", payload);
 
       if (action === "removed") {
         await axios.delete(

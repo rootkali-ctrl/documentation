@@ -332,7 +332,6 @@ const UserPage = () => {
         subject,
         text,
       });
-      console.log(`Email sent to ${email} for ${action}`);
     } catch (error) {
       console.error("Error sending email:", error);
       setError(`Failed to send ${action} email: ${error.message}`);

@@ -152,7 +152,6 @@ const PostPage = () => {
       if (fileName) {
         const fileRef = ref(storage, `bannerImages/hero/${fileName}`);
         await deleteObject(fileRef);
-        console.log("Deleted from Firebase Storage:", fileName);
       }
 
       // Delete from backend database
@@ -165,10 +164,7 @@ const PostPage = () => {
         }
       );
 
-      // Log the response for debugging
-      console.log("Backend response status:", res.status);
       const responseData = await res.json().catch(() => null);
-      console.log("Backend response data:", responseData);
 
       if (!res.ok) {
         throw new Error(
@@ -273,13 +269,11 @@ const PostPage = () => {
         const folderPath = `bannerImages/hero`;
         const storageRef = ref(storage, `${folderPath}/${fileName}`);
 
-        console.log("Uploading to:", `${folderPath}/${fileName}`);
 
         // Upload to Firebase Storage
         await uploadBytes(storageRef, banner.file);
         const downloadURL = await getDownloadURL(storageRef);
 
-        console.log("Upload successful, URL:", downloadURL);
         uploadedUrls.push(downloadURL);
       }
 

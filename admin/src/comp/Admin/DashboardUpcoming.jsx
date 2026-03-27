@@ -255,7 +255,6 @@ const [selectedEventId, setSelectedEventId] = useState(null);
 
   // Handler for edit event
   const handleEditEvent = (eventId) => {
-    console.log("Edit event:", eventId);
     window.location.href = `/admin/edit-event/${eventId}`;
   };
 
@@ -300,7 +299,6 @@ const handleDeleteConfirmed = async (eventId) => {
 
   // Handler for view event details
   const handleViewEventDetails = (eventId) => {
-    console.log("View event details:", eventId);
     window.location.href = `/admin/event/${eventId}`;
   };
 

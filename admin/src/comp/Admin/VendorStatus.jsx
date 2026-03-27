@@ -93,7 +93,6 @@ const VendorDetails = () => {
       return;
     }
 
-    console.log("Opening document URL:", documentUrl);
 
     if (documentUrl && typeof documentUrl === "string") {
       window.open(documentUrl, "_blank");
@@ -112,16 +111,11 @@ const VendorDetails = () => {
         status: status,
       };
 
-      console.log(
-        "Sending email notification to:",
-        `${baseUrl}/api/admin/send-email`,
-        payload
-      );
+     
       const response = await axios.post(
         `${baseUrl}/api/admin/send-email`,
         payload
       );
-      console.log("Email notification response:", response.data);
       return response.data;
     } catch (err) {
       console.error("Error sending email notification:", err);
@@ -146,33 +140,23 @@ const VendorDetails = () => {
         email: request.email,
         vendorName: request.username || "Vendor",
       };
-      console.log("Payload being sent for action:", payload);
 
       const baseUrl = process.env.REACT_APP_API_BASE_URL;
-      console.log("Using API base URL:", baseUrl);
 
       let response;
 
       switch (action) {
         case "accepted":
-          console.log(
-            "Sending approval request to:",
-            `${baseUrl}/api/admin/requests`
-          );
+         
           response = await axios.put(`${baseUrl}/api/admin/requests`, payload);
-          console.log("Approval response:", response.data);
           await sendVendorEmail(request.email, request.username, "accepted");
           break;
 
         case "rejected":
-          console.log(
-            "Sending rejection request to:",
-            `${baseUrl}/api/admin/rejectvendor`
-          );
+         
           response = await axios.delete(`${baseUrl}/api/admin/rejectvendor`, {
             data: payload,
           });
-          console.log("Rejection response:", response.data);
           await sendVendorEmail(request.email, request.username, "rejected");
           break;
 

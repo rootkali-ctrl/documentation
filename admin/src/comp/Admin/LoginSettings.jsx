@@ -276,7 +276,6 @@ const Loginsettings = () => {
         subject,
         text,
       });
-      console.log(`Email sent to ${email} for ${action}`);
     } catch (error) {
       console.error("Error sending email:", error);
       setError(`Failed to send ${action} email: ${error.message}`);
@@ -333,7 +332,6 @@ const Loginsettings = () => {
 
       // If still not found, try using requestId as vendorId directly
       if (querySnapshot.empty) {
-        console.log("Trying with requestId as vendorId:", requestId);
         const vendorDocRef = doc(db, "vendors", requestId);
         const vendorDocSnap = await getDoc(vendorDocRef);
 
