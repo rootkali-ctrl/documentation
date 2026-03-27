@@ -8,8 +8,6 @@ const { FieldValue } = require("firebase-admin/firestore");
 
 const addvendor = async (req, res) => {
   try {
-    console.log("Received Body:", req.body);
-    console.log("Received Files:", req.files);
 
     const {
       password,
@@ -253,20 +251,18 @@ const lastlogin = async (req, res) => {
 };
 
 const fetchLastLogin = async (req, res) => {
-  console.log('=== fetchLastLogin function called ===');
+  // ...existing code...
   const { vendorId } = req.params;
-  console.log('Looking for vendor with ID:', vendorId);
+  // ...existing code...
 
   try {
     const vendorDoc = await db.collection("vendors").doc(vendorId).get();
 
     if (!vendorDoc.exists) {
-      console.log('No vendor found with ID:', vendorId);
-      return res.status(404).json({ error: "Vendor not found" });
+        return res.status(404).json({ error: "Vendor not found" });
     }
 
     const vendorData = vendorDoc.data();
-    console.log('Vendor data found:', vendorData);
 
     const lastLogin = vendorData.lastLogin;
 

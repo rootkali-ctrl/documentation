@@ -9,8 +9,7 @@ const addEvent = async (req, res) => {
 
     // 1. Upload each file to Firebase Storage (up to 9 images)
     if (req.files && req.files.length > 0) {
-      console.log(`Uploading ${req.files.length} banner images...`);
-
+  
       for (const [index, file] of req.files.entries()) {
         const fileName = `events/${eventId}/banner_${index + 1}_${Date.now()}_${file.originalname}`;
         const fileUpload = bucket.file(fileName);
@@ -35,8 +34,7 @@ const addEvent = async (req, res) => {
                 const publicUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
 
                 bannerImages.push(publicUrl);
-                console.log(`Successfully uploaded image ${index + 1}: ${publicUrl}`);
-                resolve();
+                            resolve();
               } catch (err) {
                 console.error(`Error making file ${index + 1} public:`, err);
                 reject(err);
@@ -52,7 +50,6 @@ const addEvent = async (req, res) => {
       }
     }
 
-    console.log(`Total images uploaded: ${bannerImages.length}`);
 
     const parseIfJson = (val) => {
       try {
@@ -177,7 +174,6 @@ const deleteEvent = async (req, res) => {
     await eventRef.delete();
     return res.status(200).json({message: "Event deleted successfully"})
   } catch(err) {
-    console.log("Error in deleting event", err);
     res.status(500).json({error: err.message})
   }
   

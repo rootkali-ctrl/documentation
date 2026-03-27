@@ -31,12 +31,10 @@ const addRegistrationRequest=async ({ requestId,
             IFSCNumber,
         createdAt,
         documents});
-        console.log("A new registration request has been sent to the admin");
-        return 200;
+            return 200;
     }
     catch(err){
-        console.log(err);
-        return 500;
+            return 500;
     }
 }
 

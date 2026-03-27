@@ -114,12 +114,10 @@ const insertNewEvent = async ({
         };
 
         await eventRef.set(eventData);
-        console.log(`New event inserted: ${eventId} - ${name}`);
-        return 200;
+            return 200;
 
     } catch (err) {
-        console.error("Error inserting event:", err);
-        return 500;
+            return 500;
     }
 };
 

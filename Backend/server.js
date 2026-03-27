@@ -1,3 +1,5 @@
+require('dotenv').config();
+console.log('Starting TicketB backend server...');
 const express = require("express");
 const app = express();
 const cors = require("cors");
@@ -29,9 +31,7 @@ const transporter = nodemailer.createTransport({
 
 transporter.verify((error, success) => {
   if (error) {
-    console.error('Nodemailer configuration error:', error);
   } else {
-    console.log('Nodemailer is ready to send emails');
   }
 });
 
@@ -214,7 +214,6 @@ app.post('/api/auth/forgot-password', async (req, res) => {
 
     const normalizedEmail = email.toLowerCase().trim();
 
-    console.log(`Searching for vendor with email: ${normalizedEmail}`);
 
     const vendorSnap = await db
       .collection("vendors")
@@ -222,7 +221,6 @@ app.post('/api/auth/forgot-password', async (req, res) => {
       .limit(1)
       .get();
 
-    console.log(`Vendor query result: ${vendorSnap.empty ? 'empty' : 'found'}`);
 
     if (vendorSnap.empty) {
       // Also try case-insensitive search by getting all vendors and filtering
@@ -277,8 +275,7 @@ app.post('/api/auth/forgot-password', async (req, res) => {
 
       await transporter.sendMail(mailOptions);
 
-      console.log(`Password reset email sent to ${vendorData.email}`);
-
+  
       return res.status(200).json({
         success: true,
         message: 'Password reset link has been sent to your email address.'
@@ -320,7 +317,6 @@ app.post('/api/auth/forgot-password', async (req, res) => {
 
     await transporter.sendMail(mailOptions);
 
-    console.log(`Password reset email sent to ${vendorData.email}`);
 
     res.status(200).json({
       success: true,
@@ -328,7 +324,6 @@ app.post('/api/auth/forgot-password', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error in forgot password:', error);
     res.status(500).json({
       success: false,
       error: 'Internal server error. Please try again later.'
@@ -387,7 +382,6 @@ app.post('/api/auth/reset-password', async (req, res) => {
     // Remove the used token
     resetTokens.delete(token);
 
-    console.log(`Password reset successful for vendor: ${tokenData.email}`);
 
     res.status(200).json({
       success: true,
@@ -395,7 +389,6 @@ app.post('/api/auth/reset-password', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error in reset password:', error);
     res.status(500).json({
       success: false,
       error: 'Internal server error. Please try again later.'
@@ -585,7 +578,7 @@ app.use('/api/admin', adminrouter);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error('Server error:', err);
+  // ...existing code...
   res.status(500).json({
     success: false,
     error: 'Internal server error',
@@ -599,6 +592,8 @@ app.use((req, res) => {
 });
 
 const PORT = process.env.PORT || 8080;
+console.log('About to start Express server...');
 app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}...`);
+  console.log(`Server is running on port ${PORT}`);
+  // ...existing code...
 });

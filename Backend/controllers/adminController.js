@@ -39,7 +39,6 @@ const acceptRegistrationRequest = async (req, res) => {
 
     res.status(200).json({ message: "Successfully accepted request" });
   } catch (err) {
-    console.error(err);
     res.status(500).json({ error: err.message });
   }
 };
@@ -78,7 +77,6 @@ const rejectRegistrationRequest = async (req, res) => {
 
     res.status(200).json({ message: "Successfully rejected the request" });
   } catch (err) {
-    console.error(err);
     res.status(500).json({ error: err.message });
   }
 };
@@ -132,7 +130,6 @@ const removeVendor = async (req, res) => {
 
     res.status(200).json({ message: "Successfully removed vendor" });
   } catch (err) {
-    console.error(err);
     res.status(500).json({ error: err.message });
   }
 };
@@ -177,7 +174,6 @@ const getAllEvents = async (req, res) => {
     }));
     res.status(200).json({ events });
   } catch (err) {
-    console.error(err);
     res.status(500).json({ error: err.message });
   }
 };
@@ -201,7 +197,6 @@ const getVendorStatus = async (req, res) => {
     const data = requestSnap.docs[0].data();
     res.status(200).json({ status: data.status });
   } catch (err) {
-    console.error(err);
     res.status(500).json({ error: err.message });
   }
 };
@@ -309,7 +304,6 @@ const getRecentBanners = async (req, res) => {
 
     res.status(200).json({ banners: signedUrls });
   } catch (err) {
-    console.error("Error fetching banners:", err);
     res.status(500).json({ error: "Failed to fetch banners" });
   }
 };
@@ -317,10 +311,8 @@ const getRecentBanners = async (req, res) => {
 const deleteBannerFromStorage = async (downloadUrl) => {
   try {
     const url = new URL(downloadUrl);
-    console.log("Parsed URL:", url.href);
 
     const pathname = url.pathname; // e.g., /bucket-name/bannerImages/hero/filename.avif
-    console.log("URL pathname:", pathname);
 
     const parts = pathname.split("/");
 
@@ -330,12 +322,9 @@ const deleteBannerFromStorage = async (downloadUrl) => {
     }
     // Remove bucket name (2nd element), get the rest
     const filePath = parts.slice(2).join("/"); // removes leading slash and bucket name
-    console.log("Decoded file path to delete:", filePath);
 
     await bucket.file(filePath).delete();
-    console.log("Successfully deleted:", filePath);
   } catch (error) {
-    console.error("Delete error (storage):", error.message);
     throw error;
   }
 };
@@ -479,7 +468,6 @@ const getRecentBannersInline = async (req, res) => {
 
 const deleteBannerFromStorageInline = async (imageUrl) => {
   try {
-    console.log("Original URL:", imageUrl);
     
     if (imageUrl.includes('firebasestorage.googleapis.com')) {
       
@@ -493,20 +481,16 @@ const deleteBannerFromStorageInline = async (imageUrl) => {
       const encodedPath = pathParts[1].split('?')[0]; 
       const filePath = decodeURIComponent(encodedPath);
       
-      console.log("Extracted file path:", filePath);
-      
+        
       const file = bucket.file(filePath);
       
       const [exists] = await file.exists();
-      console.log("File exists in storage:", exists);
-      
+        
       if (exists) {
         await file.delete();
-        console.log(`Successfully deleted file: ${filePath}`);
-        return true;
+            return true;
       } else {
-        console.warn(`File not found in storage: ${filePath}`);
-        return false;
+            return false;
       }
     } else if (imageUrl.includes('storage.googleapis.com')) {
       // For public URLs like your upload function creates
@@ -518,27 +502,22 @@ const deleteBannerFromStorageInline = async (imageUrl) => {
       // Remove the first two elements (empty string and bucket name)
       const filePath = pathParts.slice(2).join('/');
       
-      console.log("Extracted file path from public URL:", filePath);
-      
+        
       const file = bucket.file(filePath);
       
       const [exists] = await file.exists();
-      console.log("File exists in storage:", exists);
-      
+        
       if (exists) {
         await file.delete();
-        console.log(`Successfully deleted file: ${filePath}`);
-        return true;
+            return true;
       } else {
-        console.warn(`File not found in storage: ${filePath}`);
-        return false;
+            return false;
       }
     } else {
       throw new Error("Unsupported URL format");
     }
     
   } catch (error) {
-    console.error("Error deleting from Firebase Storage:", error);
     throw error;
   }
 };
@@ -550,8 +529,8 @@ const deleteBannerInline = async (req, res) => {
     return res.status(400).json({ error: "No URL provided" });
   }
 
-  console.log("=== STARTING INLINE BANNER DELETION ===");
-  console.log("URL to delete:", url);
+  // ...existing code...
+  // ...existing code...
 
   try {
     let storageDeleteSuccess = false;
@@ -560,21 +539,16 @@ const deleteBannerInline = async (req, res) => {
     // 1. Delete from Firebase Storage
     if (url.includes('storage.googleapis.com')) {
       try {
-        console.log("Attempting to delete from Firebase Storage...");
-        storageDeleteSuccess = await deleteBannerFromStorageInline(url);
-        console.log("Storage deletion successful:", storageDeleteSuccess);
-      } catch (error) {
-        console.error("Storage deletion failed:", error);
-        storageError = error.message;
+            storageDeleteSuccess = await deleteBannerFromStorageInline(url);
+          } catch (error) {
+            storageError = error.message;
       }
     }
 
     // 2. Delete from Firestore
-    console.log("Attempting to delete from Firestore...");
     const inlineBannerRef = db.collection("inline_banners");
     const snapshot = await inlineBannerRef.where("imageUrl", "==", url).get();
 
-    console.log("Firestore documents found:", snapshot.size);
 
     if (snapshot.empty) {
       return res.status(200).json({ 
@@ -592,13 +566,11 @@ const deleteBannerInline = async (req, res) => {
     let deletedCount = 0;
     
     snapshot.forEach((doc) => {
-      console.log("Deleting Firestore document:", doc.id);
-      batch.delete(doc.ref);
+        batch.delete(doc.ref);
       deletedCount++;
     });
     
     await batch.commit();
-    console.log(`Successfully deleted ${deletedCount} document(s) from Firestore`);
 
     return res.status(200).json({ 
       message: "Inline banner deleted successfully",
@@ -609,7 +581,6 @@ const deleteBannerInline = async (req, res) => {
     });
 
   } catch (err) {
-    console.error("=== DELETION FAILED ===", err);
     return res.status(500).json({ 
       error: "Failed to delete inline banner", 
       details: err.message
@@ -648,7 +619,6 @@ const saveBannerUrlsInline = async (req, res) => {
       message: "Inline banner URLs saved successfully",
     });
   } catch (err) {
-    console.log("Inline banner URL save error:", err);
     return res.status(500).json({ error: err.message });
   }
 };
@@ -659,11 +629,9 @@ const sendVendorEmail = async (req, res) => {
   try {
     const { to, vendorName, status } = req.body;
 
-    console.log('Email request received:', { to, vendorName, status });
 
     if (!to || !vendorName || !status) {
-      console.log('Missing required fields');
-      return res.status(400).json({
+        return res.status(400).json({
         success: false,
         message: "Missing required fields: to, vendorName, status"
       });
@@ -671,7 +639,6 @@ const sendVendorEmail = async (req, res) => {
 
     // For now, just simulate email sending success
     // Later you can integrate with nodemailer, SendGrid, etc.
-    console.log(`Simulating email send: ${status} notification to ${to} for vendor ${vendorName}`);
 
     // Simulate some processing time
     await new Promise(resolve => setTimeout(resolve, 100));
@@ -684,7 +651,6 @@ const sendVendorEmail = async (req, res) => {
     });
 
   } catch (err) {
-    console.error('Email sending error:', err);
     res.status(500).json({
       success: false,
       error: 'Failed to send email notification',

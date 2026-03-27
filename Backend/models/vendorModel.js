@@ -60,10 +60,8 @@ const insertNewVendor = async ({
       documents 
     });
 
-    console.log(`New vendor has been inserted into database with authId: ${authId} and name: ${username}`);
     return 200;
   } catch (err) {
-    console.log(err);
     return 500;
   }
 };

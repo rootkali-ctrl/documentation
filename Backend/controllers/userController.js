@@ -27,8 +27,7 @@ const adduser=async (req,res)=>{
         }
     }
     catch(err){
-        console.log(err);
-        res.status(500).json(err);
+            res.status(500).json(err);
     }
 }
 
@@ -59,8 +58,7 @@ const loginuser = async (req, res) => {
             return res.status(401).json({ Message: "Wrong password" });
         }
     } catch (err) {
-        console.log(err);
-        return res.status(500).json({ Message: "Internal Server Error" });
+            return res.status(500).json({ Message: "Internal Server Error" });
     }
 };
 

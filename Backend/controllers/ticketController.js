@@ -17,7 +17,6 @@ const getAllTickets = async (req, res) => {
 
     res.status(200).json({ Tickets: tickets });
   } catch (err) {
-    console.error("Error fetching tickets:", err);
     res.status(500).json({ Error: err.message });
   }
 };
@@ -151,7 +150,6 @@ const ticketForEventBooking = async (req, res) => {
       }
     });
   } catch (err) {
-    console.error("Error in ticketForEventBooking:", err);
     res.status(500).json({ Error: err.message });
   }
 };
@@ -195,7 +193,6 @@ const getEventTicketAvailability = async (req, res) => {
       isEventSoldOut: totalAvailable <= 0
     });
   } catch (err) {
-    console.error("Error fetching ticket availability:", err);
     res.status(500).json({ Error: err.message });
   }
 };

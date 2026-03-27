@@ -1,0 +1,48 @@
+# Node modules
+node_modules/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# dotenv environment variables
+.env
+.env.*
+
+# Firebase service account and secrets
+*.json
+!package.json
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# VSCode
+.vscode/
+
+# Build output
+dist/
+build/
+
+# Coverage
+coverage/
+
+# Misc
+*.swp
+*.swo
+
+# Ignore test output
+*.test.js.snap
+
+# Ignore local database
+*.sqlite
+*.db
