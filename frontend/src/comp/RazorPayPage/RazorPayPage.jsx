@@ -307,7 +307,6 @@ const RazorPayPage = () => {
   const savePaymentRecord = async (paymentRecord) => {
     try {
       await axios.post("/api/payment-records", paymentRecord);
-      console.log("Payment record saved successfully");
       if (lockId) {
         await deleteDoc(doc(db, "ticketLocks", lockId));
       }
@@ -337,7 +336,7 @@ const RazorPayPage = () => {
       closeRazorpayModal();
 
       const options = {
-        key: "rzp_test_Hq1wOkaE1A9FW3",
+        key: process.env.REACT_APP_RAZORPAY_KEY,
         amount: amountInPaise,
         currency: "INR",
         name: "TicketB",
@@ -357,13 +356,11 @@ const RazorPayPage = () => {
           color: "#19AEDC",
         },
         handler: function (response) {
-          console.log("Payment successful:", response);
 
           clearAllTimers();
           const timestamp = new Date().getTime().toString(36).slice(-4);
           const randomChars = Math.random().toString(36).substring(2, 6).toUpperCase();
           const generatedBookingId = `#${randomChars}${timestamp}`;
-          console.log("Generated Booking ID:", generatedBookingId);
 
 
           const paymentRecord = {
@@ -397,7 +394,6 @@ const RazorPayPage = () => {
           ondismiss: function () {
             setLoading(false);
             razorpayInstanceRef.current = null;
-            console.log("Payment modal closed without completing payment");
             unlockTickets(lockId);
           },
           onhidden: function () {
@@ -429,7 +425,6 @@ const RazorPayPage = () => {
 
   useEffect(() => {
     if (window.Razorpay) {
-      console.log("Razorpay SDK already loaded");
       return;
     }
 

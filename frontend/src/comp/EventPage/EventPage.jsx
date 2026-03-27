@@ -319,7 +319,6 @@ const EventPage = () => {
 
         if (eventDoc.exists()) {
           const eventData = eventDoc.data();
-          console.log("Fetching event details for:", eventDoc.id);
           setEvent({
             id: eventDoc.id,
             ...eventData,
@@ -344,31 +343,25 @@ const EventPage = () => {
 
     const fetchLiveEvents = async () => {
       try {
-        console.log("Fetching live events for 'Events You May Like'");
 
         const eventsRef = collection(db, "events");
         // Get more events initially to have options after filtering
         const q = query(eventsRef, limit(10));
 
         const querySnapshot = await getDocs(q);
-        console.log("Live events query returned events:", querySnapshot.size);
 
         if (querySnapshot.empty) {
-          console.log("No events found in live events query");
           setLiveEvents([]);
           return;
         }
 
         // Process events with the same logic as DesktopMainPage
         const eventsData = processEvents(querySnapshot, eventId);
-        console.log("Active live events processed:", eventsData.length);
 
         // Take only first 3 events for display
         const limitedEvents = eventsData.slice(0, 3);
         setLiveEvents(limitedEvents);
 
-        console.log("Final live events to display:", limitedEvents.length);
-        console.log("Live events:", limitedEvents.map(e => ({ id: e.id, title: e.title })));
       } catch (error) {
         console.error("Error fetching live events:", error);
         setLiveEvents([]);

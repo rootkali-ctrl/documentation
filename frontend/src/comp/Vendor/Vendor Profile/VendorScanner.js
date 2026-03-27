@@ -123,14 +123,13 @@ const VendorScanner = () => {
             onScanFailure
           );
         } catch (error) {
-          console.error("Camera start error:", error);
-          setError("Failed to start camera. Please check camera permissions.");
+            setError("Failed to start camera. Please check camera permissions.");
           setIsScanning(false);
           setCameraStarted(false);
         }
       }, 100); // Small delay to ensure DOM is updated
     } catch (error) {
-      console.error("Camera initialization error:", error);
+      // ...existing code...
       setError("Failed to initialize camera.");
       setIsScanning(false);
       setCameraStarted(false);
@@ -144,7 +143,6 @@ const VendorScanner = () => {
         scannerRef.current.clear();
         scannerRef.current = null;
       } catch (error) {
-        console.error("Error stopping scanner:", error);
       }
     }
     setIsScanning(false);
@@ -225,7 +223,7 @@ const VendorScanner = () => {
         }
       }
     } catch (error) {
-      console.error("Firestore verification error:", error);
+      // ...existing code...
       setVerificationStatus("error");
       setError(error.message || "Failed to verify ticket. Please try again.");
     } finally {

@@ -23,8 +23,11 @@ import {
   CircularProgress,
 } from "@mui/material";
 import { useParams } from "react-router-dom";
+
 import axios from "axios";
 import VendorProfileHeader from "./VendorProfileHeader";
+
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
 const VendorProfile = () => {
   const { vendorId } = useParams();
@@ -62,7 +65,7 @@ const VendorProfile = () => {
       setLoading(true);
       try {
         const res = await axios.get(
-          `http://localhost:8080/api/vendor/vendorupdate/${vendorId}`
+          `${API_BASE_URL}/api/vendor/vendorupdate/${vendorId}`
         );
         setVendorData(res.data);
         setOriginalData(res.data);
@@ -198,7 +201,7 @@ const VendorProfile = () => {
       }
 
       const response = await axios.put(
-        `http://localhost:8080/api/vendor/update/${vendorId}`,
+        `${API_BASE_URL}/api/vendor/update/${vendorId}`,
         updateData
       );
       setMessage({ type: "success", text: "Profile updated successfully!" });

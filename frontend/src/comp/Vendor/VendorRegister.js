@@ -14,9 +14,8 @@ import {
   DialogActions,
 } from "@mui/material";
 import { Visibility, VisibilityOff } from "@mui/icons-material";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { useVendor } from "./VendorContext";
-import { useParams } from "react-router-dom";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "../../firebase_config";
 import SettingsIcon from "@mui/icons-material/Settings";
@@ -109,11 +108,9 @@ const VendorRegister = () => {
     let isMounted = true;
 
     const fetchVendor = async () => {
-      console.log("🔍 Starting vendor check for vendorId:", vendorId);
       setIsLoading(true);
 
       if (!vendorId) {
-        console.log("No vendorId provided, showing new registration form");
         if (isMounted) {
           setLoginCase("new");
           setIsLoading(false);
@@ -123,7 +120,6 @@ const VendorRegister = () => {
 
       try {
         // Step 1: Fetch user data
-        console.log("📡 Fetching user data from backend...");
         const res = await fetch(
           `${process.env.REACT_APP_API_BASE_URL}/api/user/current-user/${vendorId}`
         );
@@ -131,7 +127,6 @@ const VendorRegister = () => {
         if (!isMounted) return;
 
         if (!res.ok) {
-          console.log("❌ User not found, showing new registration form");
           setLoginCase("new");
           setIsLoading(false);
           return;
@@ -139,12 +134,10 @@ const VendorRegister = () => {
 
         const userData = await res.json();
         const userEmail = userData.email;
-        console.log("✅ User data fetched, email:", userEmail);
 
         if (!isMounted) return;
 
         // Step 2: Check Firestore for vendor
-        console.log("🔍 Checking Firestore for existing vendor...");
         const vendorsRef = collection(db, "vendors");
         const q = query(vendorsRef, where("email", "==", userEmail));
         const querySnapshot = await getDocs(q);
@@ -153,12 +146,6 @@ const VendorRegister = () => {
 
         if (!querySnapshot.empty) {
           const vendorDoc = querySnapshot.docs[0].data();
-          console.log("📋 Vendor document found:", {
-            email: vendorDoc.email,
-            username: vendorDoc.username,
-            status: vendorDoc.status,
-            statusType: typeof vendorDoc.status
-          });
 
           // Check if vendor is verified/approved
           // The status field in vendors collection should be true (Boolean) or "accepted" (string)
@@ -167,10 +154,7 @@ const VendorRegister = () => {
             vendorDoc.status === "true" ||
             (typeof vendorDoc.status === "string" && vendorDoc.status.toLowerCase() === "accepted");
 
-          console.log("🔐 Is vendor verified/approved?", isVendorVerified);
-
           if (isVendorVerified) {
-            console.log("✅ VERIFIED VENDOR - Redirecting to login...");
             // Show a brief message before redirecting
             if (isMounted) {
               setDialogState({
@@ -187,7 +171,6 @@ const VendorRegister = () => {
           }
 
           // Step 3: If not verified in vendors collection, check registration_request
-          console.log("🔍 Checking registration_request for approval status...");
           const registrationRef = collection(db, "registration_request");
           const regQuery = query(registrationRef, where("email", "==", userEmail));
           const regSnapshot = await getDocs(regQuery);
@@ -196,24 +179,14 @@ const VendorRegister = () => {
 
           if (!regSnapshot.empty) {
             const regDoc = regSnapshot.docs[0].data();
-            console.log("📋 Registration request found:", {
-              email: regDoc.email,
-              status: regDoc.status,
-              statusType: typeof regDoc.status
-            });
 
             // Check if status is "accepted" or "approved" (case-insensitive)
             isRegistrationApproved = regDoc.status &&
               (regDoc.status.toString().toLowerCase() === "approved" ||
                regDoc.status.toString().toLowerCase() === "accepted");
-
-            console.log("🔐 Is registration approved?", isRegistrationApproved);
-          } else {
-            console.log("⚠️ No registration request found for this email");
           }
 
           if (isRegistrationApproved) {
-            console.log("✅ APPROVED REGISTRATION - Redirecting to login...");
             if (isMounted) {
               setDialogState({
                 open: true,
@@ -228,7 +201,6 @@ const VendorRegister = () => {
           }
 
           // Vendor exists but not approved
-          console.log("⚠️ Vendor exists but NOT approved");
           if (isMounted) {
             setFormData({
               email: vendorDoc.email || "",
@@ -246,7 +218,6 @@ const VendorRegister = () => {
           }
         } else {
           // No vendor found - use user data
-          console.log("🆕 No vendor found, using user data for registration");
           if (isMounted) {
             setFormData({
               email: userData.email || "",
@@ -265,7 +236,6 @@ const VendorRegister = () => {
           }
         }
       } catch (err) {
-        console.error("❌ Error during vendor check:", err);
         if (isMounted) {
           setLoginCase("new");
         }

@@ -156,7 +156,7 @@ const EventPage = () => {
           urls.forEach((url) => URL.revokeObjectURL(url));
         };
       } catch (error) {
-        console.error("Error creating object URLs:", error);
+        // ...existing code...
         navigate(`/createevent/${formData.eventDetails?.vendorId}/step1`);
       }
     }
@@ -203,7 +203,7 @@ const EventPage = () => {
             form.append("bannerImages", file);
           }
         });
-        console.log(`Preparing to upload ${imagesToUpload.length} images`);
+        // ...existing code...
       }
 
       // Process perks with Unsplash images
@@ -314,7 +314,7 @@ const EventPage = () => {
         }
       );
 
-      console.log("Event created successfully:", response.data);
+      // ...existing code...
 
       // Show success message
       closeDialog();
@@ -324,7 +324,7 @@ const EventPage = () => {
       navigate(`/vendorhome/${formData.eventDetails.vendorId}`);
       setTimeout(() => resetForm(), 100);
     } catch (error) {
-      console.error("Error creating event:", error);
+      // ...existing code...
       closeDialog();
       showDialog("Failed to create event. Please try again.");
 

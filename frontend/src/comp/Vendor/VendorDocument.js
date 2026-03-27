@@ -193,7 +193,6 @@ const VendorDocument = () => {
         createdAt: new Date().toISOString(),
       };
 
-      console.log("Merged Data before submission:", mergedData);
 
       // Append merged text data to FormData
       Object.keys(mergedData).forEach((key) => {
@@ -205,7 +204,6 @@ const VendorDocument = () => {
       formData.append("bankUpload", docData.bankUpload);
 
       try {
-        console.log([...formData.entries()]);
         const response = await axios.post(
           `${process.env.REACT_APP_API_BASE_URL}/api/vendor/signin`,
           formData,
@@ -217,7 +215,6 @@ const VendorDocument = () => {
         );
         navigate("/vendor/confirmation");
       } catch (error) {
-        console.error(error);
         alert("Error loading vendor details");
       } finally {
         setSubmitting(false);
@@ -257,7 +254,7 @@ const VendorDocument = () => {
     await new Promise((resolve) => setTimeout(resolve, 300)); // fake delay
 
     const duration = Date.now() - startTime;
-    console.log(`${field} file handled in ${duration}ms`);
+    // ...existing code...
 
     // Save the file
     setdocData((prev) => ({ ...prev, [`${field}Upload`]: file }));

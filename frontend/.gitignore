@@ -1,0 +1,23 @@
+# dependencies
+node_modules/
+
+# dotenv environment variables
+.env
+.env.*
+
+# build outputs
+dist/
+build/
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# misc
+.DS_Store
+*.local
+
+# firebase config (if moved out of env)
+src/firebase_config.js
+src/firebase/firebase_config.js

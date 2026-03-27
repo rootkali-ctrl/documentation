@@ -78,8 +78,7 @@ const MainHeader = () => {
       await signOut(auth);
       handleClose();
     } catch (error) {
-      console.error("Logout error:", error);
-      alert("Failed to log out. Please try again.");
+        alert("Failed to log out. Please try again.");
     }
   };
 

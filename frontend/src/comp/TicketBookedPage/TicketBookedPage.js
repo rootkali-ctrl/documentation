@@ -78,7 +78,6 @@ const TicketBookedPage = () => {
     }
 
     redirectTimerRef.current = setTimeout(() => {
-      console.log("Redirecting to homepage...");
       navigate("/", { replace: true });
     }, HOME_REDIRECT_TIMEOUT_MS);
   }, [navigate]);
@@ -412,7 +411,6 @@ useEffect(() => {
 
         let currentEventData = eventData || event;
         if (!currentEventData || Object.keys(currentEventData).length === 0) {
-          console.log("Fetching event data due to missing data...");
           currentEventData = await fetchEventData();
         }
 
@@ -480,7 +478,6 @@ useEffect(() => {
           cancelled: false,
         };
 
-        console.log("Ticket data to save:", ticketData);
 
         const cleanTicketId = bookingId.replace("#", "");
 
@@ -552,9 +549,7 @@ useEffect(() => {
                 booked: newBookedCount,
                 available: Math.max(0, totalSeats - newBookedCount),
               };
-              console.log(
-                `Updated ${bookedTicket.type}: booked ${currentBooked} -> ${newBookedCount}, available: ${pricing[ticketIndex].available}`
-              );
+              
             } else {
               console.warn(
                 `Ticket type ${bookedTicket.type} not found in pricing array`
@@ -578,9 +573,7 @@ useEffect(() => {
           transaction.update(eventDocRef, updateData);
         });
 
-        console.log(
-          "Transaction completed successfully - ticket saved and availability updated"
-        );
+       
         setAvailabilityUpdated(true);
         setTicketIsSaved(true);
         setBookingStatus({
@@ -606,9 +599,7 @@ useEffect(() => {
           error.message.includes("permissions")
         ) {
           if (retryCount < MAX_RETRY_ATTEMPTS) {
-            console.log(
-              `Permission denied, retrying... (${retryCount + 1}/${MAX_RETRY_ATTEMPTS})`
-            );
+          
             await new Promise((resolve) => setTimeout(resolve, 2000));
             return saveTicketToDatabase(currentUser, retryCount + 1);
           } else {
@@ -730,13 +721,11 @@ useEffect(() => {
           return;
         }
 
-        console.log("Fetching event by ID:", eventId);
         const eventDocRef = doc(db, "events", eventId);
         const eventSnap = await getDoc(eventDocRef);
 
         if (eventSnap.exists()) {
           const fetchedEventData = { ...eventSnap.data(), id: eventId };
-          console.log("Event fetched by ID:", fetchedEventData);
           setEventData(fetchedEventData);
         } else {
           console.error("Event not found in Firestore for eventId:", eventId);
@@ -782,11 +771,7 @@ useEffect(() => {
         }
 
         const user = auth.currentUser;
-        console.log("Current user in initial setup:", {
-          uid: user?.uid,
-          email: user?.email,
-        });
-
+       
         const profileData = await fetchUserProfileData(user.uid);
         setUser({
           id: user.uid,
@@ -800,7 +785,6 @@ useEffect(() => {
 
         let currentEventData = eventData;
         if (!currentEventData || Object.keys(currentEventData).length === 0) {
-          console.log("Waiting for event data...");
           currentEventData = await fetchEventData();
         }
 

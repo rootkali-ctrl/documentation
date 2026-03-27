@@ -102,7 +102,6 @@ const VendorOrganization = () => {
 
         const mergedData = { ...vendorData, ...cleanedData };
         setVendorData(mergedData);
-        console.log("Merged Data before navigating:", mergedData);
         navigate("/vendor/document");
       } catch (error) {
         console.error(

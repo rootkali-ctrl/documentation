@@ -27,7 +27,7 @@ const QRScannerPage = () => {
 
     return () => {
       if (scannerRef.current) {
-        scannerRef.current.clear().catch(console.error);
+        scannerRef.current.clear();
       }
     };
   }, [isMobileScreen, scanResult]);
@@ -46,11 +46,11 @@ const QRScannerPage = () => {
   };
 
   const onScanSuccess = async (decodedText, decodedResult) => {
-    console.log("Raw QR Code scanned:", decodedText);
+    // ...existing code...
     
     // Clean the scanned text (remove # and trim)
     const cleanedText = decodedText.replace(/^#+|#+$/g, '').trim();
-    console.log("Cleaned QR text:", cleanedText);
+    // ...existing code...
     
     setScanResult(cleanedText);
     
@@ -59,25 +59,25 @@ const QRScannerPage = () => {
     try {
       // Try to parse as JSON first
       parsedData = JSON.parse(cleanedText);
-      console.log("Parsed as JSON:", parsedData);
+      // ...existing code...
     } catch (error) {
       // If not JSON, treat as booking ID
       parsedData = { bookingId: cleanedText };
-      console.log("Treated as booking ID:", parsedData);
+      // ...existing code...
     }
     
     setScannedData(parsedData);
     
     // Stop the scanner
     if (scannerRef.current) {
-      scannerRef.current.clear().catch(console.error);
+      scannerRef.current.clear();
       scannerRef.current = null;
     }
   };
 
   const onScanFailure = (error) => {
     // Handle scan failure silently - this fires frequently during scanning
-    console.error("QR scan failed:", error);
+    // ...existing code...
   };
 
   const resetScanner = () => {
@@ -103,8 +103,8 @@ const QRScannerPage = () => {
       setVerificationStatus(null);
 
       const bookingId = scannedData.bookingId;
-      console.log("Verifying booking ID:", bookingId);
-      console.log("Expected vendor ID:", vendorId);
+      // ...existing code...
+      // ...existing code...
 
       // Get ticket document from Firestore
       const ticketRef = doc(db, "tickets", bookingId);
@@ -117,8 +117,8 @@ const QRScannerPage = () => {
       const ticketData = ticketSnap.data();
       const firestoreVendorId = ticketData.vendorId;
 
-      console.log("Firestore vendor ID:", firestoreVendorId);
-      console.log("URL vendor ID:", vendorId);
+      // ...existing code...
+      // ...existing code...
 
       // Check if vendor IDs match
       if (firestoreVendorId === vendorId) {
@@ -136,7 +136,7 @@ const QRScannerPage = () => {
       }
 
     } catch (error) {
-      console.error("Firestore verification error:", error);
+      // ...existing code...
       setVerificationStatus('error');
       setError(error.message || "Failed to verify ticket. Please try again.");
     } finally {

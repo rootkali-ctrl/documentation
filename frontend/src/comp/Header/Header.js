@@ -80,8 +80,7 @@ const MainHeader = () => {
         navigate(`/vendor/register/${userId}`);
       }
     } catch (error) {
-      console.error("Error checking vendor status:", error);
-      // On error, default to register page
+        // On error, default to register page
       navigate(`/vendor/register/${profileData[0].userId}`);
     }
   };

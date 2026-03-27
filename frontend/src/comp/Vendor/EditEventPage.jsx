@@ -152,7 +152,6 @@ const EditEventPage = () => {
           }
           formatEventData(location.state.eventData);
         } else {
-          console.log(`Fetching event data for ID: ${eventId}`);
 
           // Using Firestore to fetch document directly
           const eventDocRef = doc(db, "events", eventId);
@@ -160,7 +159,6 @@ const EditEventPage = () => {
 
           if (eventDoc.exists()) {
             const eventDocData = eventDoc.data();
-            console.log("Firestore Document Data:", eventDocData);
 
             // VENDOR ID VALIDATION - Main security check
             if (eventDocData.vendorId !== vendorId) {
@@ -177,7 +175,6 @@ const EditEventPage = () => {
               const response = await axios.get(
                 `${process.env.REACT_APP_API_BASE_URL}/api/event/${eventId}`
               );
-              console.log("API Response:", response.data);
 
               // Validate vendorId from API response too
               if (response.data.vendorId !== vendorId) {
@@ -587,13 +584,11 @@ const EditEventPage = () => {
         })),
       };
 
-      console.log("Updating event document with data:", updatedEventData);
 
       // Use setDoc with merge option
       const eventDocRef = doc(db, "events", eventId);
       await setDoc(eventDocRef, updatedEventData, { merge: true });
 
-      console.log("Event successfully updated in Firestore");
 
       setSnackbar({
         open: true,

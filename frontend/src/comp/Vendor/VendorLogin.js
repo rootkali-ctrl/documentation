@@ -24,7 +24,7 @@ import img1 from "../QR image/Gemini_Generated_Image_ytw5d2ytw5d2ytw5.jpeg";
 import img2 from "../QR image/ChatGPT Image Jun 5, 2025, 03_45_17 PM.png";
 import img3 from "../QR image/Gemini_Generated_Image_70g27o70g27o70g2.jpeg";
 
-axios.defaults.baseURL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080';
+axios.defaults.baseURL = process.env.REACT_APP_API_BASE_URL;
 
 const VendorLogin = () => {
   const { vendorId } = useParams();

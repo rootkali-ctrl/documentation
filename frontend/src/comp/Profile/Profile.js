@@ -54,7 +54,6 @@ const Profile = () => {
             setUserData(data);
             setEditedUserData(data);
           } else {
-            console.log("No user data found in Firestore");
           }
         } catch (error) {
           console.error("Error fetching user data:", error);

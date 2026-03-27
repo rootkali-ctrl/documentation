@@ -126,8 +126,7 @@ const EventAnalytics = () => {
       }
       return "User Not Found";
     } catch (err) {
-      console.error("Error fetching user data:", err);
-      return "Error Loading User";
+        return "Error Loading User";
     }
   };
 
@@ -140,8 +139,7 @@ const EventAnalytics = () => {
         setEventData(response.data);
         await processEventData(response.data);
       } catch (err) {
-        console.error("Error fetching event data:", err);
-        setLoading(false);
+            setLoading(false);
       }
     } else if (eventData?.eventId) {
       await processEventData(eventData);
@@ -386,12 +384,11 @@ const EventAnalytics = () => {
         profits: profits,
       });
     } catch (err) {
-      console.error("Error processing event data:", err);
-    } finally {
+      } finally {
       setLoading(false);
     }
   };
-  console.log("Event stats", eventData);
+  // ...existing code...
 
   const totalSeats =
     eventData?.pricing?.reduce(

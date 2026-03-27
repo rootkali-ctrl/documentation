@@ -420,7 +420,6 @@ const CreateEvent = () => {
         banner: localData.banner,
       };
 
-      console.log("Event Details on Next Click:", eventData);
 
       updateFormSection("eventDetails", eventData);
       markStepCompleted("step1");

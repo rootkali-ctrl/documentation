@@ -97,7 +97,7 @@ const VendorHome = () => {
       }
       return false;
     } catch (error) {
-      console.error("Error checking vendor suspension:", error);
+      // ...existing code...
       return false;
     }
   };
@@ -134,11 +134,9 @@ const VendorHome = () => {
             // Check if vendor is suspended
             await checkVendorSuspension(data.vendorId);
           } else {
-            console.error("Vendor not found:", data.message);
-          }
+              }
         } catch (error) {
-          console.error("Error fetching vendor data:", error);
-        }
+          }
       } else {
         setIsAuthenticated(false);
         setUsername("");
@@ -163,7 +161,7 @@ const VendorHome = () => {
       localStorage.removeItem("vendorId");
       navigate("/");
     } catch (error) {
-      console.error("Logout error:", error);
+      // ...existing code...
       showDialog("Failed to log out. Please try again.");
     }
   };
@@ -250,7 +248,6 @@ const VendorHome = () => {
         );
         setVendorData(res.data);
       } catch (err) {
-        console.error("Error fetching vendor data:", err);
       }
     };
 
@@ -312,8 +309,7 @@ const VendorHome = () => {
             cumulativeTicketsSold += eventTicketCount;
             cumulativeGrossSales += eventGrossSales;
           } catch (err) {
-            console.error(`Error fetching tickets for event ${eventId}:`, err);
-            events[i].ticketsSold = 0;
+                events[i].ticketsSold = 0;
             events[i].gross = 0;
           }
         }
@@ -323,7 +319,6 @@ const VendorHome = () => {
         setTicketsSold(cumulativeTicketsSold);
         setGrossSales(cumulativeGrossSales);
       } catch (err) {
-        console.error("Error fetching event data:", err);
       }
     };
 

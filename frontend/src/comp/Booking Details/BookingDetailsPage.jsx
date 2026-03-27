@@ -104,8 +104,7 @@ const BookingDetailsPage = () => {
 
       setBookingData(formattedData);
     } catch (error) {
-      console.error("Error fetching booking:", error);
-      setError(error.message || "Failed to load booking details");
+        setError(error.message || "Failed to load booking details");
     } finally {
       setLoading(false);
     }
@@ -113,10 +112,7 @@ const BookingDetailsPage = () => {
 
   const handleCheckIn = async () => {
     try {
-      console.log("Current user:", auth.currentUser?.uid);
-      console.log("Vendor ID from URL:", vendorId);
-      console.log("Ticket vendor ID:", bookingData.vendorId);
-      setCheckingIn(true);
+        setCheckingIn(true);
 
       await updateDoc(doc(db, "tickets", bookingId), {
         checkedIn: true,
@@ -130,8 +126,7 @@ const BookingDetailsPage = () => {
       }));
       navigate(`/vendorprofile/vendorscanner/${vendorId}`);
     } catch (error) {
-      console.error("Error checking in:", error);
-      showDialog("Failed to check in. Please try again.");
+        showDialog("Failed to check in. Please try again.");
     } finally {
       setCheckingIn(false);
     }

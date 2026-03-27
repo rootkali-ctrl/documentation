@@ -122,11 +122,9 @@ const EventDashboard = () => {
             localStorage.setItem("vendorId", data.vendorId);
             passsetVendorId(data.vendorId); // Make sure you set this in state
           } else {
-            console.error("Vendor not found:", data.message);
-          }
+                  }
         } catch (error) {
-          console.error("Error fetching vendor data:", error);
-        }
+              }
       } else {
         setIsAuthenticated(false);
         setUsername("");
@@ -143,8 +141,7 @@ const EventDashboard = () => {
       localStorage.removeItem("vendorId"); // Add this line
       navigate("/");
     } catch (error) {
-      console.error("Logout error:", error);
-
+  
       showDialog("Failed to log out. Please try again.");
     }
   };
@@ -158,8 +155,7 @@ const EventDashboard = () => {
           );
           setEventData(response.data);
         } catch (err) {
-          console.error("Error fetching event data:", err);
-        }
+              }
       }
     };
 
@@ -183,12 +179,11 @@ const EventDashboard = () => {
       }
       return "User Not Found";
     } catch (err) {
-      console.error("Error fetching user data:", err);
-      return "Error Loading User";
+        return "Error Loading User";
     }
   };
 
-  console.log(displayedOrders);
+  // ...existing code...
   useEffect(() => {
     const fetchEventDetails = async () => {
       if (!eventId || !eventData) return;
@@ -451,8 +446,7 @@ const EventDashboard = () => {
         setTotalPages(Math.ceil(orders.length / ordersPerPage));
         updateDisplayedOrders(orders, 1);
       } catch (err) {
-        console.error("Error fetching event details:", err);
-      } finally {
+          } finally {
         setLoading(false);
       }
     };
@@ -556,8 +550,7 @@ const EventDashboard = () => {
   };
   useEffect(() => {
     if (allOrders != []) {
-      console.log(allOrders);
-    }
+      }
   });
   if (loading) {
     return (

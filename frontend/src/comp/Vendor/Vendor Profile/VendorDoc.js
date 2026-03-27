@@ -18,8 +18,11 @@ import {
   IconButton,
 } from "@mui/material";
 import { useParams } from "react-router-dom";
+
 import axios from "axios";
 import VendorProfileHeader from "./VendorProfileHeader";
+
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
 const VendorDoc = () => {
   const { vendorId } = useParams();
@@ -58,12 +61,11 @@ const VendorDoc = () => {
       setLoading(true);
       try {
         const res = await axios.get(
-          `http://localhost:8080/api/vendor/vendorupdate/${vendorId}`
+          `${API_BASE_URL}/api/vendor/vendorupdate/${vendorId}`
         );
         setVendorData(res.data);
-        console.log("Vendor Data:", res.data);
       } catch (err) {
-        console.error("Error fetching vendor data:", err);
+        // Error fetching vendor data
       } finally {
         setLoading(false);
       }

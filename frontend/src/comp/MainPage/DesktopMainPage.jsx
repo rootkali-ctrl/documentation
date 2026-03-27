@@ -410,7 +410,6 @@ const [bannersLoading, setBannersLoading] = useState(true);
       const inlineResponse = await axios.get(
         `${process.env.REACT_APP_API_BASE_URL}/api/admin/banners/recent-inline`
       );
-      console.log("Inline response data:", inlineResponse.data);
 
       // Check if banners array exists and has items
       if (
@@ -418,7 +417,6 @@ const [bannersLoading, setBannersLoading] = useState(true);
         inlineResponse.data.banners.length > 0
       ) {
         const firstInlineBanner = inlineResponse.data.banners[0];
-        console.log("First inline banner:", firstInlineBanner);
 
         // Handle different response formats
         if (
@@ -439,7 +437,6 @@ const [bannersLoading, setBannersLoading] = useState(true);
           });
         }
       } else {
-        console.log("No inline banners found");
         // Reset to empty state when no banners exist
         setInlineBanner({ imageUrl: "", link: "" });
       }
@@ -459,7 +456,6 @@ const [bannersLoading, setBannersLoading] = useState(true);
   // Improved click handler for inline banner
   const handleInlineBannerClick = () => {
     if (!inlineBanner.link || inlineBanner.link === "#") {
-      console.log("No valid link for this banner");
       return;
     }
 
@@ -492,24 +488,15 @@ const [bannersLoading, setBannersLoading] = useState(true);
 
       if (eventSnap.exists()) {
         const data = eventSnap.data();
-        console.log("Direct event data fetch:", data);
-        console.log("Event date:", data.eventDate);
-        console.log("Event date type:", typeof data.eventDate);
-        console.log("Event host date:", data.eventHost);
-        console.log("Event host type:", typeof data.eventHost);
-        console.log("Is active:", isEventActive(data.eventDate, data.endDate));
-        console.log("Should show (eventHost passed):", shouldShowEvent(data.eventHost));
-
+       
         // Check if it's a Firestore timestamp
         if (
           data.eventDate &&
           typeof data.eventDate === "object" &&
           data.eventDate.toDate
         ) {
-          console.log("Firestore timestamp detected:", data.eventDate.toDate());
         }
       } else {
-        console.log("Event not found:", eventId);
       }
     } catch (error) {
       console.error("Error debugging event:", error);
@@ -520,7 +507,6 @@ const [bannersLoading, setBannersLoading] = useState(true);
     try {
       const eventsRef = collection(db, "events");
       const snapshot = await getDocs(eventsRef);
-      console.log("Total events in DB:", snapshot.size);
     } catch (err) {
       console.error("Debug DB error:", err);
     }
@@ -533,7 +519,6 @@ const [bannersLoading, setBannersLoading] = useState(true);
   // New function to check if event should be shown based on eventHost date
   const shouldShowEvent = (eventHostDate) => {
     if (!eventHostDate) {
-      console.log("No eventHost date found, showing event");
       return true; // If no eventHost date, show the event (backward compatibility)
     }
 
@@ -541,9 +526,7 @@ const [bannersLoading, setBannersLoading] = useState(true);
       const currentDate = new Date();
       const hostDate = new Date(eventHostDate);
 
-      console.log("Current Date:", currentDate);
-      console.log("Event Host Date:", hostDate);
-      console.log("Should show (host date passed):", currentDate >= hostDate);
+      
 
       return currentDate >= hostDate; // Show event only after host date has passed
     } catch (error) {
@@ -561,17 +544,12 @@ const [bannersLoading, setBannersLoading] = useState(true);
       // If endDate is provided, use it (for multi-day events)
       if (endDate) {
         const eventEndDate = new Date(endDate);
-        console.log("Event End Date:", eventEndDate);
         return currentDate <= eventEndDate;
       }
 
       // For single events, check against the exact start time
       const eventStartDate = new Date(eventDate);
 
-      console.log("Current Date:", currentDate);
-      console.log("Event Start Date:", eventStartDate);
-      console.log("Event Date String:", eventDate);
-      console.log("Is Active:", currentDate <= eventStartDate);
 
       return currentDate <= eventStartDate;
     } catch (error) {
@@ -583,27 +561,21 @@ const [bannersLoading, setBannersLoading] = useState(true);
   const processEvents = useCallback((querySnapshot) => {
     const eventsData = [];
 
-    console.log("Processing events, total docs:", querySnapshot.size);
 
     querySnapshot.forEach((doc) => {
       const data = doc.data();
-      console.log("Processing event:", doc.id, data.name);
 
       // First check if event should be shown based on eventHost date
       const shouldShow = shouldShowEvent(data.eventHost);
-      console.log(`Event ${doc.id} should show (host date passed):`, shouldShow);
 
       if (!shouldShow) {
-        console.log(`Skipping event not yet hosted: ${doc.id}`);
         return; // Skip events that haven't reached their host date
       }
 
       // Then check if event is still active (not expired)
       const isActive = isEventActive(data.eventDate, data.endDate);
-      console.log(`Event ${doc.id} active status:`, isActive);
 
       if (!isActive) {
-        console.log(`Skipping inactive event: ${doc.id}`);
         return; // Skip inactive events
       }
 
@@ -628,10 +600,6 @@ const [bannersLoading, setBannersLoading] = useState(true);
 
       // Image URL processing with debugging
       let imageUrl = null;
-      console.log("Image processing for event:", doc.id);
-      console.log("bannerImage:", data.bannerImage);
-      console.log("bannerImages:", data.bannerImages);
-      console.log("mediaLink:", data.mediaLink);
 
       if (
         data.bannerImage &&
@@ -658,7 +626,6 @@ const [bannersLoading, setBannersLoading] = useState(true);
         imageUrl = data.mediaLink;
       }
 
-      console.log("Final imageUrl for event:", doc.id, imageUrl);
 
       // Process pricing
       let isFree = true;
@@ -770,7 +737,6 @@ const [bannersLoading, setBannersLoading] = useState(true);
           : [],
       };
 
-      console.log("Adding event to array:", eventObj);
       eventsData.push(eventObj);
     });
 
@@ -781,11 +747,7 @@ const [bannersLoading, setBannersLoading] = useState(true);
       return new Date(a.eventDate) - new Date(b.eventDate);
     });
 
-    console.log("Final processed events:", eventsData.length);
-    console.log(
-      "Event IDs:",
-      eventsData.map((e) => e.id)
-    );
+    
 
     return eventsData;
   }, []);
@@ -795,20 +757,16 @@ const [bannersLoading, setBannersLoading] = useState(true);
       try {
         setLoading(true);
         setError(null);
-        console.log("Fetching unfiltered events for 'Events made for Youu!!'");
 
         const baseCollection = collection(db, "events");
         let eventsQuery = query(baseCollection, limit(50));
 
         const querySnapshot = await getDocs(eventsQuery);
-        console.log("Unfiltered query returned events:", querySnapshot.size);
 
         if (querySnapshot.empty) {
-          console.log("No unfiltered events found");
         }
 
         const eventsData = processEvents(querySnapshot);
-        console.log("Active unfiltered events processed:", eventsData.length);
 
         setUnfilteredEventData(eventsData);
       } catch (error) {
@@ -827,7 +785,6 @@ const [bannersLoading, setBannersLoading] = useState(true);
       try {
         setLoading(true);
         setError(null);
-        console.log("Fetching events with filters:", { location, category });
 
         const baseCollection = collection(db, "events");
         let eventsQuery = baseCollection;
@@ -847,7 +804,6 @@ const [bannersLoading, setBannersLoading] = useState(true);
             );
           }
 
-          console.log("Location filter values:", locationValues);
         }
 
         if (
@@ -864,7 +820,6 @@ const [bannersLoading, setBannersLoading] = useState(true);
             eventsQuery,
             where("category", "array-contains", category)
           );
-          console.log("Applied category filter:", category);
         }
 
         if (category === "Online") {
@@ -872,20 +827,16 @@ const [bannersLoading, setBannersLoading] = useState(true);
             eventsQuery,
             where("venueDetails.isOnline", "==", true)
           );
-          console.log("Applied Online filter in query");
         }
 
         eventsQuery = query(eventsQuery, limit(50));
 
         const querySnapshot = await getDocs(eventsQuery);
-        console.log("Filtered query returned events:", querySnapshot.size);
 
         if (querySnapshot.empty) {
-          console.log("No events found with current filters");
         }
 
         let eventsData = processEvents(querySnapshot);
-        console.log("Active filtered events processed:", eventsData.length);
 
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -903,7 +854,6 @@ const [bannersLoading, setBannersLoading] = useState(true);
               return false;
             }
           });
-          console.log("After Today filter:", filteredEvents.length);
         } else if (category === "This weekend") {
           const friday = new Date(today);
           friday.setDate(today.getDate() + ((5 - today.getDay() + 7) % 7));
@@ -923,7 +873,6 @@ const [bannersLoading, setBannersLoading] = useState(true);
               return false;
             }
           });
-          console.log("After Weekend filter:", filteredEvents.length);
         } else if (category === "This month") {
           const firstDayOfMonth = new Date(
             today.getFullYear(),
@@ -952,20 +901,16 @@ const [bannersLoading, setBannersLoading] = useState(true);
               return false;
             }
           });
-          console.log("After Month filter:", filteredEvents.length);
         }
 
         if (category === "Free") {
           filteredEvents = filteredEvents.filter((event) => event.free);
-          console.log("After Free filter:", filteredEvents.length);
         } else if (category === "Paid") {
           filteredEvents = filteredEvents.filter((event) => !event.free);
-          console.log("After Paid filter:", filteredEvents.length);
         }
 
         if (category === "Online") {
           filteredEvents = filteredEvents.filter((event) => event.isOnline);
-          console.log("After Online filter (fallback):", filteredEvents.length);
         }
 
         setEventData(filteredEvents);

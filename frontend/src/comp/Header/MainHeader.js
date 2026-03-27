@@ -91,7 +91,6 @@ const MainHeader = () => {
 
       for (const apiUrl of apiEndpoints) {
         try {
-          console.log('Trying API URL:', apiUrl);
 
           const response = await fetch(apiUrl, {
             method: "GET",
@@ -100,11 +99,9 @@ const MainHeader = () => {
             },
           });
 
-          console.log('API Response Status:', response.status);
 
           if (response.ok) {
             const data = await response.json();
-            console.log('Search API Response Data:', data);
 
             let events = [];
             if (Array.isArray(data)) {
@@ -119,14 +116,12 @@ const MainHeader = () => {
               events = data.events;
             }
 
-            console.log('Extracted events:', events);
 
             const liveEvents = events.filter(event => {
               const eventDate = event.eventDate || event.date;
               return eventDate && isEventLive(eventDate);
             });
 
-            console.log('Live events after filtering:', liveEvents);
 
             const transformedEvents = liveEvents.map(event => ({
               id: event.eventId || event.id || event._id,
@@ -141,7 +136,6 @@ const MainHeader = () => {
               area: event.venueDetails?.area || event.area || ''
             })).slice(0, 8); // Limit to 8 results
 
-            console.log('Final transformed events:', transformedEvents);
 
             setSearchResults(transformedEvents);
             setShowSearchDropdown(true);
@@ -156,7 +150,6 @@ const MainHeader = () => {
       }
 
       if (!searchSuccess) {
-        console.log('All API endpoints failed, showing mock data');
         const mockResults = generateRealisticMockResults(query);
         setSearchResults(mockResults);
         setShowSearchDropdown(true);
@@ -313,7 +306,6 @@ const MainHeader = () => {
 
   // Handle search result click - Navigate to event details page
   const handleSearchResultClick = (event) => {
-    console.log('Navigating to event:', event);
     setSearchQuery(event.name);
     setShowSearchDropdown(false);
 
@@ -538,11 +530,9 @@ const MainHeader = () => {
 
   // **UPDATED** Function to handle Create Events click with vendor verification
   const handleCreateEventClick = async () => {
-    console.log("=== Create Events Clicked ===");
 
     // If not authenticated, show login
     if (!isAuthenticated) {
-      console.log("User not authenticated, showing login modal");
       setOpenLogin(true);
       return;
     }
@@ -550,36 +540,29 @@ const MainHeader = () => {
     try {
       // Get vendorId from localStorage or state
       const vendorId = localStorage.getItem("vendorId") || userId;
-      console.log("VendorId:", vendorId);
-      console.log("User Email:", userEmail);
+    
 
       if (!vendorId || !userEmail) {
-        console.log("No vendorId or email found, redirecting to register");
         navigate(`/vendor/register/${vendorId || "new"}`);
         return;
       }
 
       // **NEW LOGIC**: Check vendor status from backend API
-      console.log("Checking vendor status from backend...");
       const response = await axios.get(
         `${process.env.REACT_APP_API_BASE_URL}/api/vendor/status/${vendorId}`
       );
 
-      console.log("Vendor status response:", response.data);
 
       if (response.data.success && response.data.exists) {
         const { status, vendorId: returnedVendorId } = response.data.vendor;
-        console.log("Vendor exists with status:", status);
 
         // Handle different statuses
         if (status === "accepted" || status === "approved") {
           // Vendor is approved, show alert and redirect to login
-          console.log("Vendor is approved, redirecting to login");
           alert("Your vendor account already exists and is approved! Please login to continue.");
           navigate(`/vendor/login/${returnedVendorId}`);
         } else if (status === "pending") {
           // Vendor is pending approval
-          console.log("Vendor is pending, redirecting to confirmation");
           navigate("/vendor/confirmation", {
             state: {
               status: "pending",
@@ -589,7 +572,6 @@ const MainHeader = () => {
           });
         } else if (status === "rejected") {
           // Vendor was rejected
-          console.log("Vendor was rejected, redirecting to confirmation");
           navigate("/vendor/confirmation", {
             state: {
               status: "rejected",
@@ -599,7 +581,6 @@ const MainHeader = () => {
           });
         } else if (status === "removed") {
           // Vendor was removed
-          console.log("Vendor was removed, redirecting to confirmation");
           navigate("/vendor/confirmation", {
             state: {
               status: "removed",
@@ -609,12 +590,10 @@ const MainHeader = () => {
           });
         } else {
           // Unknown status, redirect to registration
-          console.log("Unknown vendor status, redirecting to register");
           navigate(`/vendor/register/${vendorId}`);
         }
       } else {
         // Vendor doesn't exist in backend, proceed to registration
-        console.log("Vendor doesn't exist in backend, redirecting to register");
         navigate(`/vendor/register/${vendorId}`);
       }
     } catch (error) {
@@ -622,7 +601,6 @@ const MainHeader = () => {
 
       if (error.response?.status === 404) {
         // Vendor not found (404), proceed to registration
-        console.log("404 - Vendor not found, redirecting to register");
         const vendorId = localStorage.getItem("vendorId") || userId;
         navigate(`/vendor/register/${vendorId}`);
       } else {
