@@ -1,37 +1,49 @@
-# Knowledge Transfer Documentation
+# TicketB Project Knowledge Transfer Documentation
 
-## 1. Backend Functions
-- Description of each function's purpose, parameters, and return values.
+## Overview
+This document provides a comprehensive overview of the TicketB project, including all the essential components required for understanding and managing the project effectively.
 
-## 2. Controllers
-- Overview of each controller, its routes, and how it interacts with models and views.
+## Backend Functions
+- **Function Name:** Description of functionality.
+  - Example: `createTicket`: Responsible for creating new tickets in the system.
 
-## 3. Routers
-- Explanation of the routing architecture and how requests are handled.
+## Controllers
+- **Controller Name:** Handles requests and responses.
+  - Example: `TicketController`: Manages ticket operations such as creation, updating, and deletion.
 
-## 4. Models
-- Detailed schema for each model, including relationships between models and validations.
+## Routers
+- **Router Name:** Maps API endpoints to specific controllers.
+  - Example: `ticketsRouter`: Defines endpoints related to ticket management.
 
-## 5. Frontend Architecture
-- Overview of the frontend structure, including components, state management, and interaction with the backend.
+## Database Models
+- **Model Name:** Structure of database entities.
+  - Example: `Ticket`: Fields include title, description, status, and timestamps.
 
-## 6. API Endpoints
-- List of all available API endpoints, including request/response formats and error handling.
+## Authentication System
+- **Overview:** Description of authentication processes and methods used in the project.
+  - Example: JWT (JSON Web Tokens) for user session management.
 
-## 7. Authentication System
-- Details of the authentication process, including methods (e.g., JWT, OAuth), user roles, and permissions.
+## Email Templates
+- **Template Name:** Description of templates used for notifications.
+  - Example: `ticketCreationEmail`: Sent when a new ticket is created.
 
-## 8. Email Templates
-- Samples of email templates used throughout the application, including placeholders and dynamic content.
+## API Endpoints
+- **Endpoint URL:** Method - Description.
+  - Example: `/api/tickets` - `POST`: Create a new ticket.
 
-## 9. Database Schemas
-- Description of the database structure, including tables, fields, and relationships.
+## Workflows
+- **Workflow Name:** A series of steps taken to accomplish a task within the application.
+  - Example: Ticket Management Workflow: Create -> Assign -> Resolve -> Close.
 
-## 10. Deployment Procedures
-- Step-by-step guide for deploying the application to various environments (development, testing, production).
+## Security Measures
+- List of implemented security measures to protect the application.
+  - Example: Input validation, rate limiting, and encryption.
 
-## 11. Security Measures
-- Explanation of security practices implemented in the application (e.g., data encryption, input validation).
+## Deployment Procedures
+- Steps involved in deploying the application to production.
+  - Example: 1. Build the application 2. Run migration scripts 3. Start server.
 
-## 12. Complete Workflows
-- Comprehensive workflows for common user scenarios, including diagrams if necessary.
+---
+
+### Date of Documentation: 2026-03-29
+### Prepared by: rootkali-ctrl
